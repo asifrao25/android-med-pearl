@@ -115,6 +115,106 @@ Design tokens live in `app/src/main/java/com/knowledgepearls/app/ui/theme/`.
 | Min SDK | 26 |
 | Backend | `https://pearls-api.asifrao.com` |
 
+## Google Sign-In setup
+
+**Yes — do this now.** Stage 4 app code is done; you only need Google Cloud + Supabase + `local.properties`.
+
+Use the **same Google Cloud project** as iOS if you already have one (one Web client can serve Supabase for both platforms).
+
+### 1. Google Cloud Console
+
+1. Open [Google Cloud Console](https://console.cloud.google.com/) → select your project (or **Create project** → e.g. `Med Pearls`).
+2. **APIs & Services → OAuth consent screen**
+   - User type: **External** (unless Workspace-only)
+   - App name: **Med Pearls**
+   - User support email: your email
+   - Developer contact: your email
+   - Scopes: keep defaults (`email`, `profile`, `openid`) — **Save**
+   - If External: add yourself as a **Test user** until the app is published
+3. **APIs & Services → Credentials → Create credentials → OAuth client ID**
+
+#### A. Web application (required)
+
+| Field | Value |
+|-------|--------|
+| Name | `Med Pearls Web (Supabase)` |
+| Authorized redirect URIs | `https://pearls-api.asifrao.com/auth/v1/callback` |
+
+Copy the **Client ID** and **Client secret** — you need both for Supabase.
+
+> This Web client ID is **not** the Android client ID. Android reads this same Web ID via `google.web.client.id` for Credential Manager.
+
+#### B. Android (required for native account picker)
+
+| Field | Value |
+|-------|--------|
+| Name | `Med Pearls Android` |
+| Package name | `com.knowledgepearls.app` |
+| SHA-1 certificate fingerprint | from debug keystore (below) |
+
+**Get debug SHA-1** on your MacBook:
+
+```bash
+keytool -list -v \
+  -keystore ~/.android/debug.keystore \
+  -alias androiddebugkey \
+  -storepass android -keypass android | rg "SHA1:"
+```
+
+Paste the `SHA1: AA:BB:…` value into the Android OAuth client. Add a **second** Android client (or extra fingerprint) when you have a release/upload keystore.
+
+### 2. Supabase (pearls-api.asifrao.com)
+
+1. **Authentication → Providers → Google**
+   - Enable Google
+   - **Client ID** = Web application client ID from step 1A
+   - **Client secret** = Web application secret from step 1A
+   - Save
+2. **Authentication → URL configuration**
+   - **Site URL**: your admin/site URL (can stay as-is)
+   - **Redirect URLs** must include:
+     ```
+     com.knowledgepearls.app://login-callback
+     ```
+   - (iOS uses the same redirect — likely already listed)
+
+### 3. Android app (`local.properties`)
+
+On the MacBook, edit `local.properties` (gitignored):
+
+```properties
+sdk.dir=/Users/asif/Library/Android/sdk
+google.web.client.id=YOUR_WEB_CLIENT_ID.apps.googleusercontent.com
+```
+
+Use the **Web** client ID from step 1A — not the Android client ID.
+
+Rebuild:
+
+```bash
+./gradlew assembleDebug
+```
+
+Or **Build → Rebuild Project** in Android Studio.
+
+### 4. Test on device/emulator
+
+1. Use an emulator **with Google Play** (not AOSP without Play Services).
+2. Open app → **Settings** (gear) → **Sign in** → **Continue with Google**.
+3. **With `google.web.client.id` set:** native Google account sheet (Credential Manager).
+4. **Without it:** browser OAuth fallback (still works if Supabase Google provider is on).
+
+**Same Supabase user as iOS:** sign in with the same Google account — one `auth.users` row for both apps.
+
+### Troubleshooting
+
+| Symptom | Fix |
+|---------|-----|
+| `DEVELOPER_ERROR` / `10:` on Google button | Android OAuth client missing, wrong package name, or wrong SHA-1 |
+| Browser opens but redirect fails | Add `com.knowledgepearls.app://login-callback` in Supabase redirect URLs |
+| `NoCredentialException` | Normal for first-time users; app retries with all accounts, or use browser fallback |
+| Sign-in works on iOS, not Android | Add Android OAuth client + SHA-1; Web client alone is not enough for native picker |
+
 ## Plan & progress
 
 See [ANDROID_MIGRATION_PLAN.md](./ANDROID_MIGRATION_PLAN.md) for the full parity roadmap.

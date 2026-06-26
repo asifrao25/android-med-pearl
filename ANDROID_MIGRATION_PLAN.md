@@ -2,8 +2,8 @@
 
 > **Goal:** Replicate the iOS app ([Knowledge Pearls](../Knowledge%20Pearls)) in this folder with the same design, layout, colour scheme, tabs, settings, custom pop-ups, and Supabase backend.
 >
-> **Status:** Stage 4 complete — Stage 5 next  
-> **Last updated:** 2026-06-26  
+> **Status:** Stage 4 complete (build verified) — **Stage 5 next**  
+> **Last updated:** 2026-06-27  
 > **iOS reference:** `/Users/m4-mac/Documents/Xcode-projects/Knowledge Pearls`  
 > **Admin reference:** `/Users/m4-mac/Documents/Xcode-projects/Pearls-Admin`  
 > **Dev workflow:** This folder syncs to your MacBook where Android Studio runs (not built on this Mac).
@@ -18,8 +18,8 @@
 | 1 | Project scaffold & design tokens | ✅ Complete |
 | 2 | Core UI shell (splash, tabs, headers) | ✅ Complete |
 | 3 | Local data layer + sync hooks | ✅ Complete |
-| 4 | Auth, profile & sync services | ✅ Complete |
-| 5 | My Feed & pearl detail | ⬜ Not started |
+| 4 | Auth, profile & sync services | ✅ Complete (Google Cloud config optional — see §6.5) |
+| 5 | My Feed & pearl detail | 🔄 Next |
 | 6 | Capture flows | ⬜ Not started |
 | 7 | Folders & Favourites | ⬜ Not started |
 | 8 | Public Feed (read + submit) | ⬜ Not started |
@@ -307,8 +307,9 @@ Run on Android app foreground + after sign-in:
 
 ### 6.1 Android setup tasks
 
-- [ ] Add `com.knowledgepearls.app://login-callback` Android OAuth redirect in Supabase Auth
-- [ ] Create Firebase project + `google-services.json` on MacBook (Stage 13 checklist)
+- [x] Android manifest deep link: `com.knowledgepearls.app://login-callback`
+- [ ] **Google Sign-In Cloud Console setup** — Web + Android OAuth clients, Supabase provider, `local.properties` (see §6.5)
+- [ ] Create Firebase project + `google-services.json` on MacBook (Stage 13 checklist — FCM only, not required for Google Sign-In)
 - [ ] Mirror iOS `SupabaseDateDecoder` timestamp handling in Kotlin
 - [ ] Port service classes (sync services are **P0**, not optional):
 
@@ -365,6 +366,40 @@ The shared `analytics-ingest` edge function stores a `platform` field on every e
 - [ ] Presence / DAU metrics: segment by `android` vs `ios` / `ipados`
 
 No database migration required — `platform` is already `text` on `app_analytics_events` and `app_presence`.
+
+### 6.5 Google Sign-In setup (do now — before testing auth on device)
+
+**App code is already in Stage 4.** You only need Google Cloud + Supabase + one line in `local.properties`.
+
+| Step | Where | What |
+|------|-------|------|
+| 1 | Google Cloud Console | OAuth consent screen + **Web** OAuth client + **Android** OAuth client |
+| 2 | Supabase Auth → Google | Enable provider; paste Web client ID + secret |
+| 3 | Supabase Auth → URL config | Confirm redirect `com.knowledgepearls.app://login-callback` |
+| 4 | MacBook `local.properties` | `google.web.client.id=<Web client ID>` |
+| 5 | Rebuild & test | Settings → Sign in → Continue with Google |
+
+**IDs you need:**
+
+| Client type | Used for |
+|-------------|----------|
+| **Web application** | Supabase Google provider; Android `GOOGLE_WEB_CLIENT_ID` (Credential Manager `serverClientId`) |
+| **Android** | Package `com.knowledgepearls.app` + SHA-1 fingerprint(s) — required for native account picker |
+
+**Debug SHA-1** (run on MacBook):
+
+```bash
+keytool -list -v \
+  -keystore ~/.android/debug.keystore \
+  -alias androiddebugkey \
+  -storepass android -keypass android | rg "SHA1:"
+```
+
+Add **release** SHA-1 later when you create a Play upload keystore.
+
+**If `google.web.client.id` is blank:** app falls back to browser OAuth (`signInWithGoogleOAuth`) — still works if Supabase Google provider is configured.
+
+Full walkthrough: [README.md § Google Sign-In](./README.md#google-sign-in-setup).
 
 ---
 
@@ -429,16 +464,16 @@ Use this when reviewing each screen against iOS Simulator screenshots.
 
 ---
 
-### Stage 2 — Core UI shell
+### Stage 2 — Core UI shell ✅
 
 **Deliverables**
 
-- [ ] `MainScaffold` with tab state machine (feed / folders menu / public / favourites)
-- [ ] `LiquidTabBar` composable
-- [ ] `TabScreenHeader` composable
-- [ ] `LaunchSplashScreen`
-- [ ] Settings sheet route
-- [ ] Placeholder tab screens with correct backgrounds
+- [x] `MainScaffold` with tab state machine (feed / folders menu / public / favourites)
+- [x] `LiquidTabBar` composable
+- [x] `TabScreenHeader` composable
+- [x] `LaunchSplashScreen`
+- [x] Settings sheet route
+- [x] Placeholder tab screens with correct backgrounds
 
 **iOS reference:** `ContentView.swift`, `LiquidTabBar.swift`, `TabScreenHeader.swift`
 
@@ -459,13 +494,13 @@ Use this when reviewing each screen against iOS Simulator screenshots.
 
 ---
 
-### Stage 4 — Auth, profile & sync services
+### Stage 4 — Auth, profile & sync services ✅
 
 **Deliverables**
 
 - [x] `SupabaseModule` (Hilt)
 - [x] Email sign-up / sign-in / verification UI
-- [x] Google Sign-In (Credential Manager + OAuth fallback)
+- [x] Google Sign-In code (Credential Manager + OAuth fallback) — **Cloud Console config: §6.5**
 - [x] `AuthView` hero layout + success animation
 - [x] `ProfileSetupView` gate after first sign-in
 - [x] `UserProfileView` / `EditProfileView`
@@ -673,6 +708,10 @@ Ship after **Stages 1–5** plus minimal Settings (account + appearance):
 | 2026-06-26 | **Decisions locked:** Supabase pearl sync now; Google+Email; Share intent + Share Target in v1; API 26; public submit Stage 8; Firebase/Play created on MacBook; no deadline. |
 | 2026-06-26 | **Stage 1 complete:** Gradle/Compose scaffold, design tokens, `AnalyticsPlatform.android`, git repo ready. |
 | 2026-06-26 | **Analytics plan (§6.4):** Android sends `platform: android`; Pearls Admin dashboard to add Android slice later. |
+| 2026-06-26 | **Stage 2–3 complete:** UI shell + Room data layer committed. |
+| 2026-06-26 | **Stage 4 complete:** Auth, profile UI, Supabase sync runners, tab backgrounds. |
+| 2026-06-27 | **Build verified:** Fixed supabase-kt 3.0 APIs, `AppBrand.NAME`, `setFilterByAuthorizedAccounts`. `assembleDebug` succeeds. |
+| 2026-06-27 | **Next:** Stage 5 (My Feed UI). Optional parallel task: Google Cloud Sign-In setup (§6.5). |
 
 ---
 
