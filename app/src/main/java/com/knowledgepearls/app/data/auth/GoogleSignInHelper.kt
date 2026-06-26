@@ -23,7 +23,7 @@ class GoogleSignInHelper @Inject constructor(
         if (webClientId.isBlank()) return null
 
         val googleIdOption = GetGoogleIdOption.Builder()
-            .setFilterAuthorizedAccounts(false)
+            .setFilterByAuthorizedAccounts(false)
             .setServerClientId(webClientId)
             .build()
 
