@@ -2,7 +2,7 @@
 
 > **Goal:** Replicate the iOS app ([Knowledge Pearls](../Knowledge%20Pearls)) in this folder with the same design, layout, colour scheme, tabs, settings, custom pop-ups, and Supabase backend.
 >
-> **Status:** Stage 1 complete — Stage 2 next  
+> **Status:** Stage 3 complete — Stage 4 next  
 > **Last updated:** 2026-06-26  
 > **iOS reference:** `/Users/m4-mac/Documents/Xcode-projects/Knowledge Pearls`  
 > **Admin reference:** `/Users/m4-mac/Documents/Xcode-projects/Pearls-Admin`  
@@ -17,7 +17,7 @@
 | 0 | Planning & decisions | ✅ Complete |
 | 1 | Project scaffold & design tokens | ✅ Complete |
 | 2 | Core UI shell (splash, tabs, headers) | ✅ Complete |
-| 3 | Local data layer + sync hooks | ⬜ Not started |
+| 3 | Local data layer + sync hooks | ✅ Complete |
 | 4 | Auth, profile & sync services | ⬜ Not started |
 | 5 | My Feed & pearl detail | ⬜ Not started |
 | 6 | Capture flows | ⬜ Not started |
@@ -448,12 +448,12 @@ Use this when reviewing each screen against iOS Simulator screenshots.
 
 **Deliverables**
 
-- [ ] Room entities: `KnowledgePearl`, `PearlMedia`, `Folder`
-- [ ] DAOs + `KnowledgePearlRepository`
-- [ ] Clinical case JSON column (`ClinicalCasePayload` parity)
-- [ ] `publicPearlID`, `publicPearlStatus`, `isSharedPublicly` columns (for sync)
-- [ ] Sample data for previews
-- [ ] Stub sync runners callable from `MainActivity` lifecycle
+- [x] Room entities: `KnowledgePearl`, `PearlMedia`, `Folder`
+- [x] DAOs + `KnowledgePearlRepository`
+- [x] Clinical case JSON column (`ClinicalCasePayload` parity)
+- [x] `publicPearlID`, `publicPearlStatus`, `isSharedPublicly` columns (for sync)
+- [x] Sample data for previews
+- [x] Stub sync runners callable from `MainActivity` lifecycle
 
 **iOS reference:** `PearlsKit/Models/*`, `OwnedPublicPearlSync.swift`, `PublicFeedStatusSync.swift`
 
