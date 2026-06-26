@@ -1,0 +1,3 @@
+# Copy to gradle/config.properties on your Mac (or run ./scripts/setup-gradle-jdk.sh)
+# Android Studio reads this when gradleJvm is #GRADLE_LOCAL_JAVA_HOME
+java.home=/Applications/Android Studio.app/Contents/jbr/Contents/Home

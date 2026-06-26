@@ -89,6 +89,14 @@ APP_BASE_NAME=${0##*/}
 APP_HOME=$( cd -P "${APP_HOME:-./}" > /dev/null && printf '%s
 ' "$PWD" ) || exit
 
+# Use JDK from gradle/config.properties (avoids Java 25+ breaking Kotlin/Gradle).
+if [ -f "$APP_HOME/gradle/config.properties" ]; then
+    JAVA_HOME_FROM_FILE=$(grep '^java.home=' "$APP_HOME/gradle/config.properties" | head -1 | cut -d= -f2-)
+    if [ -n "$JAVA_HOME_FROM_FILE" ] && [ -x "$JAVA_HOME_FROM_FILE/bin/java" ]; then
+        export JAVA_HOME="$JAVA_HOME_FROM_FILE"
+    fi
+fi
+
 # Use the maximum available, or set MAX_FD != -1 to use that value.
 MAX_FD=maximum
 

@@ -52,6 +52,9 @@ object PearlColors {
 
     fun segmentedInactive(darkTheme: Boolean): Color =
         if (darkTheme) Color.White.copy(alpha = 0.58f) else Color(0xFF1A1A1E).copy(alpha = 0.55f)
+
+    fun controlFill(darkTheme: Boolean): Color =
+        if (darkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.05f)
 }
 
 /** Layout tokens from iOS `LiquidTabBarLayout` and `TabScreenHeaderMetrics`. */

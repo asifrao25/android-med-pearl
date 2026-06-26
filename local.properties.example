@@ -1,2 +1,8 @@
-# Copy to local.properties on your MacBook (Android Studio usually auto-generates).
-# sdk.dir=/Users/YOUR_USER/Library/Android/sdk
+# Generated locally — do not commit. Run: ./scripts/setup-local-env.sh
+# Or copy this file to local.properties and fix the path.
+#
+# Default after Android Studio SDK install:
+sdk.dir=/Users/YOUR_USER/Library/Android/sdk
+#
+# If SDK is on external drive (example):
+# sdk.dir=/Volumes/AI_SSD/Android/Sdk

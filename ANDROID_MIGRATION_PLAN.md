@@ -16,7 +16,7 @@
 |-------|------|--------|
 | 0 | Planning & decisions | ✅ Complete |
 | 1 | Project scaffold & design tokens | ✅ Complete |
-| 2 | Core UI shell (splash, tabs, headers) | ⬜ Not started |
+| 2 | Core UI shell (splash, tabs, headers) | ✅ Complete |
 | 3 | Local data layer + sync hooks | ⬜ Not started |
 | 4 | Auth, profile & sync services | ⬜ Not started |
 | 5 | My Feed & pearl detail | ⬜ Not started |

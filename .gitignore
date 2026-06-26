@@ -11,6 +11,8 @@ build/
 
 # Local configuration
 local.properties
+gradle-jdk.properties
+gradle/config.properties
 *.iml
 .idea/
 .DS_Store
