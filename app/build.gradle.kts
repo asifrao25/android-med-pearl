@@ -7,6 +7,17 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+import java.util.Properties
+
+fun readLocalProperty(key: String, default: String = ""): String {
+    val properties = Properties()
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        properties.load(localPropertiesFile.inputStream())
+    }
+    return properties.getProperty(key, default)
+}
+
 android {
     namespace = "com.knowledgepearls.app"
     compileSdk = 35
@@ -23,12 +34,7 @@ android {
         versionCode = 1
         versionName = "1.0.0"
 
-        val localProperties = java.util.Properties()
-        val localPropertiesFile = rootProject.file("local.properties")
-        if (localPropertiesFile.exists()) {
-            localProperties.load(localPropertiesFile.inputStream())
-        }
-        val googleWebClientId = localProperties.getProperty("google.web.client.id", "")
+        val googleWebClientId = readLocalProperty("google.web.client.id")
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleWebClientId\"")
 
         ksp {
