@@ -2,7 +2,7 @@
 
 > **Goal:** Replicate the iOS app ([Knowledge Pearls](../Knowledge%20Pearls)) in this folder with the same design, layout, colour scheme, tabs, settings, custom pop-ups, and Supabase backend.
 >
-> **Status:** Stage 3 complete — Stage 4 next  
+> **Status:** Stage 4 complete — Stage 5 next  
 > **Last updated:** 2026-06-26  
 > **iOS reference:** `/Users/m4-mac/Documents/Xcode-projects/Knowledge Pearls`  
 > **Admin reference:** `/Users/m4-mac/Documents/Xcode-projects/Pearls-Admin`  
@@ -18,7 +18,7 @@
 | 1 | Project scaffold & design tokens | ✅ Complete |
 | 2 | Core UI shell (splash, tabs, headers) | ✅ Complete |
 | 3 | Local data layer + sync hooks | ✅ Complete |
-| 4 | Auth, profile & sync services | ⬜ Not started |
+| 4 | Auth, profile & sync services | ✅ Complete |
 | 5 | My Feed & pearl detail | ⬜ Not started |
 | 6 | Capture flows | ⬜ Not started |
 | 7 | Folders & Favourites | ⬜ Not started |
@@ -463,15 +463,15 @@ Use this when reviewing each screen against iOS Simulator screenshots.
 
 **Deliverables**
 
-- [ ] `SupabaseModule` (Hilt)
-- [ ] Email sign-up / sign-in / verification UI
-- [ ] Google Sign-In (Credential Manager)
-- [ ] `AuthView` hero layout + success animation
-- [ ] `ProfileSetupView` gate after first sign-in
-- [ ] `UserProfileView` / `EditProfileView`
-- [ ] Avatar upload to Supabase Storage
-- [ ] **`PublicFeedStatusSync` port** — runs on sign-in + foreground
-- [ ] **`OwnedPublicPearlSync` port** — pulls admin/creator approved pearls to My Feed
+- [x] `SupabaseModule` (Hilt)
+- [x] Email sign-up / sign-in / verification UI
+- [x] Google Sign-In (Credential Manager + OAuth fallback)
+- [x] `AuthView` hero layout + success animation
+- [x] `ProfileSetupView` gate after first sign-in
+- [x] `UserProfileView` / `EditProfileView`
+- [x] Avatar upload to Supabase Storage
+- [x] **`PublicFeedStatusSync` port** — runs on sign-in + foreground
+- [x] **`OwnedPublicPearlSync` port** — pulls admin/creator approved pearls to My Feed
 
 **iOS reference:** `AuthView.swift`, `AccountViewModel.swift`, `OwnedPublicPearlSync.swift`, `PublicFeedStatusSync.swift`
 

@@ -1,9 +1,9 @@
 package com.knowledgepearls.app.di
 
 import com.knowledgepearls.app.data.sync.OwnedPublicPearlSyncRunner
+import com.knowledgepearls.app.data.sync.OwnedPublicPearlSyncRunnerImpl
 import com.knowledgepearls.app.data.sync.PublicFeedStatusSyncRunner
-import com.knowledgepearls.app.data.sync.StubOwnedPublicPearlSyncRunner
-import com.knowledgepearls.app.data.sync.StubPublicFeedStatusSyncRunner
+import com.knowledgepearls.app.data.sync.PublicFeedStatusSyncRunnerImpl
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -16,12 +16,12 @@ abstract class SyncModule {
     @Binds
     @Singleton
     abstract fun bindOwnedPublicPearlSyncRunner(
-        impl: StubOwnedPublicPearlSyncRunner,
+        impl: OwnedPublicPearlSyncRunnerImpl,
     ): OwnedPublicPearlSyncRunner
 
     @Binds
     @Singleton
     abstract fun bindPublicFeedStatusSyncRunner(
-        impl: StubPublicFeedStatusSyncRunner,
+        impl: PublicFeedStatusSyncRunnerImpl,
     ): PublicFeedStatusSyncRunner
 }

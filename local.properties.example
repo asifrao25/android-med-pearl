@@ -4,5 +4,5 @@
 # Default after Android Studio SDK install:
 sdk.dir=/Users/YOUR_USER/Library/Android/sdk
 #
-# If SDK is on external drive (example):
-# sdk.dir=/Volumes/AI_SSD/Android/Sdk
+# Optional — Google Credential Manager (Web OAuth client ID from Google Cloud Console)
+# google.web.client.id=YOUR_WEB_CLIENT_ID.apps.googleusercontent.com

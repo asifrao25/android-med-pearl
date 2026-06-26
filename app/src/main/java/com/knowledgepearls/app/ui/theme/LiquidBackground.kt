@@ -1,7 +1,6 @@
 package com.knowledgepearls.app.ui.theme
 
-import android.os.Build
-import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -10,21 +9,18 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import kotlin.math.max
 
 /**
- * Animated liquid gradient blobs — port of iOS `LiquidBackground.swift`.
- *
- * Platform note: `Modifier.blur` requires API 31+. On API 26–30 blobs render without blur
- * (slightly sharper — acceptable fallback per migration plan).
+ * Per-tab ambient background for Android — soft radial colour washes on a dark
+ * canvas. Uses native Canvas gradients (no blur) so glows stay smooth on API 26+.
  */
 @Composable
 fun LiquidBackground(
@@ -34,86 +30,85 @@ fun LiquidBackground(
     intensity: Float = 1f,
     darkTheme: Boolean = isPearlDarkTheme(),
 ) {
-    val parallaxDp = (-scrollOffset * 0.3f).dp
-    val blobOpacity = PearlColors.liquidBlobOpacity(darkTheme) * intensity
+    val parallaxY = scrollOffset * 0.12f
 
-    val infiniteTransition = rememberInfiniteTransition(label = "liquidDrift")
-    val driftA by infiniteTransition.animateFloat(
-        initialValue = -1f,
+    val infiniteTransition = rememberInfiniteTransition(label = "tabBgDrift")
+    val drift by infiniteTransition.animateFloat(
+        initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 10_000, easing = FastOutSlowInEasing),
+            animation = tween(durationMillis = 14_000, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse,
         ),
-        label = "driftA",
-    )
-    val driftB by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = -1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 13_000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "driftB",
-    )
-    val driftC by infiniteTransition.animateFloat(
-        initialValue = -1f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 9_000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "driftC",
+        label = "drift",
     )
 
     Box(modifier = modifier.fillMaxSize()) {
         Canvas(Modifier.fillMaxSize()) {
-            drawRect(PearlColors.canvas(darkTheme))
-        }
+            val width = size.width
+            val height = size.height
+            val maxDim = max(width, height)
+            val driftX = (drift - 0.5f) * maxDim * 0.04f
+            val driftY = (drift - 0.5f) * maxDim * 0.03f
 
-        LiquidBlob(
-            color = theme.primary,
-            size = 240.dp,
-            offsetX = (-110).dp + 50.dp * driftA,
-            offsetY = (-180).dp + (-30).dp * driftA + parallaxDp,
-            opacity = blobOpacity,
-        )
-        LiquidBlob(
-            color = theme.secondary,
-            size = 200.dp,
-            offsetX = 130.dp + (-40).dp * driftB,
-            offsetY = 60.dp + 35.dp * driftB + parallaxDp,
-            opacity = blobOpacity,
-        )
-        LiquidBlob(
-            color = theme.primary,
-            size = 180.dp,
-            offsetX = (-70).dp + 35.dp * driftC,
-            offsetY = 320.dp + (-25).dp * driftC + parallaxDp,
-            opacity = blobOpacity,
-        )
+            val base = if (darkTheme) theme.canvasTintDark else theme.canvasTintLight
+            drawRect(base)
+
+            val glowStrength = if (darkTheme) 0.26f * intensity else 0.16f * intensity
+
+            drawAmbientGlow(
+                color = theme.primary,
+                centerX = width * 0.18f + driftX,
+                centerY = height * 0.10f - parallaxY + driftY,
+                radius = maxDim * 0.72f,
+                alpha = glowStrength,
+            )
+            drawAmbientGlow(
+                color = theme.secondary,
+                centerX = width * 0.88f - driftX * 0.6f,
+                centerY = height * 0.38f - parallaxY * 0.5f,
+                radius = maxDim * 0.58f,
+                alpha = glowStrength * 0.85f,
+            )
+            drawAmbientGlow(
+                color = theme.primary,
+                centerX = width * 0.42f + driftX * 0.4f,
+                centerY = height * 0.78f - parallaxY + driftY * 0.5f,
+                radius = maxDim * 0.50f,
+                alpha = glowStrength * 0.55f,
+            )
+
+            if (darkTheme) {
+                drawRect(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Black.copy(alpha = 0.28f),
+                            Color.Transparent,
+                            Color.Black.copy(alpha = 0.42f),
+                        ),
+                    ),
+                )
+            }
+        }
     }
 }
 
-@Composable
-private fun LiquidBlob(
+private fun DrawScope.drawAmbientGlow(
     color: Color,
-    size: Dp,
-    offsetX: Dp,
-    offsetY: Dp,
-    opacity: Float,
+    centerX: Float,
+    centerY: Float,
+    radius: Float,
+    alpha: Float,
 ) {
-    val supportsBlur = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-    val blurRadius = if (supportsBlur) size * 0.3f else 0.dp
-
-    Box(
-        modifier = Modifier
-            .offset(x = offsetX, y = offsetY)
-            .size(size)
-            .then(if (supportsBlur) Modifier.blur(blurRadius) else Modifier),
-    ) {
-        Canvas(Modifier.fillMaxSize()) {
-            drawCircle(color = color.copy(alpha = if (supportsBlur) opacity else opacity * 0.85f))
-        }
-    }
+    drawCircle(
+        brush = Brush.radialGradient(
+            0f to color.copy(alpha = alpha),
+            0.42f to color.copy(alpha = alpha * 0.32f),
+            1f to Color.Transparent,
+            center = Offset(centerX, centerY),
+            radius = radius,
+        ),
+        radius = radius,
+        center = Offset(centerX, centerY),
+    )
 }

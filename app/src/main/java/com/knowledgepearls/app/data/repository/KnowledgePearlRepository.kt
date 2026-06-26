@@ -27,7 +27,12 @@ class KnowledgePearlRepository @Inject constructor(
     fun observeFolders(): Flow<List<FolderEntity>> = folderDao.observeAll()
 
     suspend fun getPearlsWithPublicPearlId(): List<KnowledgePearlEntity> =
-        pearlDao.getAllWithPublicPearlId()
+        pearlDao.getAll().filter { it.publicPearlID != null }
+
+    suspend fun getAllPearls(): List<KnowledgePearlEntity> = pearlDao.getAll()
+
+    suspend fun getExistingPublicPearlIds(): Set<String> =
+        pearlDao.getExistingPublicPearlIds().toSet()
 
     suspend fun upsertPearl(pearl: KnowledgePearlEntity) {
         pearlDao.insert(pearl)

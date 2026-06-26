@@ -11,12 +11,25 @@ android {
     namespace = "com.knowledgepearls.app"
     compileSdk = 35
 
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
+
     defaultConfig {
         applicationId = "com.knowledgepearls.app"
         minSdk = 26
         targetSdk = 35
         versionCode = 1
         versionName = "1.0.0"
+
+        val localProperties = java.util.Properties()
+        val localPropertiesFile = rootProject.file("local.properties")
+        if (localPropertiesFile.exists()) {
+            localProperties.load(localPropertiesFile.inputStream())
+        }
+        val googleWebClientId = localProperties.getProperty("google.web.client.id", "")
+        buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleWebClientId\"")
 
         ksp {
             arg("room.schemaLocation", "$projectDir/schemas")
@@ -45,11 +58,6 @@ android {
 
     kotlinOptions {
         jvmTarget = "17"
-    }
-
-    buildFeatures {
-        compose = true
-        buildConfig = true
     }
 
     packaging {
@@ -93,6 +101,10 @@ dependencies {
     implementation(libs.coil.network.okhttp)
 
     implementation(libs.kotlinx.serialization.json)
+
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services)
+    implementation(libs.googleid)
 
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)

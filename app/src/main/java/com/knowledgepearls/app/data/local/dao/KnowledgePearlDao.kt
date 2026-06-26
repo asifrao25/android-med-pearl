@@ -29,8 +29,11 @@ interface KnowledgePearlDao {
     @Query("SELECT * FROM knowledge_pearls WHERE id = :id LIMIT 1")
     suspend fun getById(id: String): KnowledgePearlEntity?
 
-    @Query("SELECT * FROM knowledge_pearls WHERE publicPearlID IS NOT NULL")
-    suspend fun getAllWithPublicPearlId(): List<KnowledgePearlEntity>
+    @Query("SELECT * FROM knowledge_pearls")
+    suspend fun getAll(): List<KnowledgePearlEntity>
+
+    @Query("SELECT publicPearlID FROM knowledge_pearls WHERE publicPearlID IS NOT NULL")
+    suspend fun getExistingPublicPearlIds(): List<String>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(pearl: KnowledgePearlEntity)
