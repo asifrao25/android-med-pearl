@@ -1,0 +1,32 @@
+# Built application files
+*.apk
+*.aar
+*.ap_
+*.aab
+
+# Gradle
+.gradle/
+build/
+**/build/
+
+# Local configuration
+local.properties
+*.iml
+.idea/
+.DS_Store
+
+# Android Studio captures
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Keystores — never commit
+*.jks
+*.keystore
+keystore.properties
+
+# Firebase (add when created on MacBook)
+# google-services.json is project-specific — commit only if using public anon config
+
+# Secrets
+secrets.properties
