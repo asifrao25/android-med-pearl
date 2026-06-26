@@ -105,7 +105,7 @@ fun AuthScreen(
                 Spacer(Modifier.height(20.dp))
 
                 Text(
-                    text = AppBrand.name,
+                    text = AppBrand.NAME,
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     color = PearlColors.heroPrimary(darkTheme),

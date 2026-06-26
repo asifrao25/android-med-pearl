@@ -86,7 +86,7 @@ fun ProfileSetupScreen(
         initialShowEmail = false,
         initialPublicEmail = uiState.userEmail.orEmpty(),
         initialAvatarUrl = null,
-        submitLabel = "Continue to ${AppBrand.name}",
+        submitLabel = "Continue to ${AppBrand.NAME}",
         onSubmit = onCreateProfile,
         onUploadAvatar = onUploadAvatar,
         onSignOut = onSignOut,
