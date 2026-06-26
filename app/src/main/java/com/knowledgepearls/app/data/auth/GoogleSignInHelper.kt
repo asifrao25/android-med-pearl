@@ -32,8 +32,8 @@ class GoogleSignInHelper @Inject constructor(
             .build()
 
         val result = CredentialManager.create(context).getCredential(
-            request = request,
             context = context,
+            request = request,
         )
 
         val credential = result.credential

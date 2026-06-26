@@ -74,12 +74,12 @@ class AccountRepository @Inject constructor(
 
     suspend fun signUp(email: String, password: String): EmailSignUpOutcome {
         val normalizedEmail = normalizeEmail(email)
-        val result = supabase.auth.signUpWith(Email) {
+        supabase.auth.signUpWith(Email) {
             this.email = normalizedEmail
             this.password = password
         }
-        val user = result.user ?: supabase.auth.currentUserOrNull()
-        if (user?.emailConfirmedAt != null) {
+        val user = supabase.auth.currentUserOrNull()
+        if (user?.emailConfirmedAt != null && supabase.auth.currentSessionOrNull() != null) {
             return EmailSignUpOutcome.SignedIn
         }
         return EmailSignUpOutcome.EmailVerificationRequired
@@ -91,12 +91,12 @@ class AccountRepository @Inject constructor(
         if (token.length != 6 || token.any { !it.isDigit() }) {
             throw AccountAuthException.InvalidVerificationCode()
         }
-        val result = supabase.auth.verifyEmailOtp(
+        supabase.auth.verifyEmailOtp(
             type = OtpType.Email.SIGNUP,
             email = normalizedEmail,
             token = token,
         )
-        if (result.session == null) {
+        if (supabase.auth.currentSessionOrNull() == null) {
             throw AccountAuthException.VerificationIncomplete()
         }
     }

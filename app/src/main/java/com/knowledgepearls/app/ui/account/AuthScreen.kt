@@ -136,14 +136,15 @@ fun AuthScreen(
                 Spacer(Modifier.height(16.dp))
 
                 if (uiState.pendingVerificationEmail != null) {
+                    val pendingEmail = uiState.pendingVerificationEmail
                     EmailVerificationSection(
-                        email = uiState.pendingVerificationEmail,
+                        email = pendingEmail,
                         code = verificationCode,
                         onCodeChange = { verificationCode = it.filter(Char::isDigit).take(6) },
                         isLoading = uiState.isLoading,
                         errorMessage = uiState.errorMessage,
-                        onVerify = { onVerifyCode(uiState.pendingVerificationEmail, verificationCode) },
-                        onResend = { onResendCode(uiState.pendingVerificationEmail) },
+                        onVerify = { onVerifyCode(pendingEmail, verificationCode) },
+                        onResend = { onResendCode(pendingEmail) },
                     )
                 } else {
                     AccountGlassTextField(

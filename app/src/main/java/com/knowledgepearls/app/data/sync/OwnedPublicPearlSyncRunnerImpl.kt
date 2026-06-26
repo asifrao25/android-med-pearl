@@ -7,6 +7,7 @@ import com.knowledgepearls.app.data.local.model.withClinicalCasePayload
 import com.knowledgepearls.app.data.repository.KnowledgePearlRepository
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.query.Order
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import javax.inject.Inject
@@ -24,8 +25,8 @@ class OwnedPublicPearlSyncRunnerImpl @Inject constructor(
                     eq("user_id", userId.lowercase())
                     eq("status", "approved")
                 }
-                order("created_at", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
-                limit(100)
+                order(column = "created_at", order = Order.DESCENDING)
+                limit(count = 100)
             }.decodeList<OwnedPearlRow>()
 
             if (rows.isEmpty()) return
