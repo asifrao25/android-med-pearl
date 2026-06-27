@@ -8,4 +8,5 @@ object SupabaseConfig {
     const val AUTH_HOST = "login-callback"
     const val SUPPORT_EMAIL = "admin@hormonology.uk"
     const val AVATARS_BUCKET = "avatars"
+    const val PUBLIC_PEARL_MEDIA_BUCKET = "public-pearl-media"
 }

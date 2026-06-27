@@ -8,6 +8,7 @@ import com.knowledgepearls.app.data.capture.LinkPreviewFetcher
 import com.knowledgepearls.app.data.capture.PickedMedia
 import com.knowledgepearls.app.data.capture.parseTags
 import com.knowledgepearls.app.data.local.model.ClinicalCasePayload
+import com.knowledgepearls.app.data.repository.PublicFeedSharingRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.Job
@@ -28,6 +29,7 @@ data class LinkPreviewUiState(
 class CaptureViewModel @Inject constructor(
     private val captureRepository: CaptureRepository,
     private val linkPreviewFetcher: LinkPreviewFetcher,
+    private val publicFeedSharingRepository: PublicFeedSharingRepository,
 ) : ViewModel() {
     private val _linkPreview = MutableStateFlow(LinkPreviewUiState())
     val linkPreview: StateFlow<LinkPreviewUiState> = _linkPreview.asStateFlow()
@@ -66,16 +68,30 @@ class CaptureViewModel @Inject constructor(
         sourceReference: String,
         tagsRaw: String,
         media: List<PickedMedia>,
+        shareToPublicFeed: Boolean = false,
         onSuccess: (String) -> Unit,
         onError: (String) -> Unit,
     ) = save {
-        captureRepository.saveQuickPearl(
+        val tags = parseTags(tagsRaw)
+        val id = captureRepository.saveQuickPearl(
             title = title,
             notes = notes,
             sourceReference = sourceReference,
-            tags = parseTags(tagsRaw),
+            tags = tags,
             mediaItems = media,
         )
+        if (shareToPublicFeed) {
+            publicFeedSharingRepository.shareStandardPearl(
+                title = title,
+                notes = notes,
+                tags = tags,
+                sourceUrl = null,
+                linkPreviewDescription = "",
+                sourceReference = sourceReference,
+                mediaItems = media,
+            )
+        }
+        id
     }.invoke(onSuccess, onError)
 
     fun saveWebLinkPearl(
@@ -84,6 +100,7 @@ class CaptureViewModel @Inject constructor(
         sourceReference: String,
         tagsRaw: String,
         url: String,
+        shareToPublicFeed: Boolean = false,
         onSuccess: (String) -> Unit,
         onError: (String) -> Unit,
     ) {
@@ -92,16 +109,29 @@ class CaptureViewModel @Inject constructor(
             return
         }
         val preview = _linkPreview.value
+        val tags = parseTags(tagsRaw)
         save {
-            captureRepository.saveWebLinkPearl(
+            val id = captureRepository.saveWebLinkPearl(
                 title = title.ifBlank { preview.preview?.title.orEmpty() },
                 notes = notes,
                 sourceReference = sourceReference.ifBlank { normalized },
-                tags = parseTags(tagsRaw),
+                tags = tags,
                 sourceURL = normalized,
                 linkPreviewImagePath = preview.previewImagePath,
                 linkPreviewDescription = preview.preview?.description.orEmpty(),
             )
+            if (shareToPublicFeed) {
+                publicFeedSharingRepository.shareStandardPearl(
+                    title = title.ifBlank { preview.preview?.title.orEmpty() },
+                    notes = notes,
+                    tags = tags,
+                    sourceUrl = normalized,
+                    linkPreviewDescription = preview.preview?.description.orEmpty(),
+                    sourceReference = sourceReference.ifBlank { normalized },
+                    mediaItems = emptyList(),
+                )
+            }
+            id
         }.invoke(onSuccess, onError)
     }
 
@@ -111,16 +141,30 @@ class CaptureViewModel @Inject constructor(
         sourceReference: String,
         tagsRaw: String,
         media: List<PickedMedia>,
+        shareToPublicFeed: Boolean = false,
         onSuccess: (String) -> Unit,
         onError: (String) -> Unit,
     ) = save {
-        captureRepository.saveMediaPearl(
+        val tags = parseTags(tagsRaw)
+        val id = captureRepository.saveMediaPearl(
             title = title,
             notes = notes,
             sourceReference = sourceReference,
-            tags = parseTags(tagsRaw),
+            tags = tags,
             mediaItems = media,
         )
+        if (shareToPublicFeed) {
+            publicFeedSharingRepository.shareStandardPearl(
+                title = title,
+                notes = notes,
+                tags = tags,
+                sourceUrl = null,
+                linkPreviewDescription = "",
+                sourceReference = sourceReference,
+                mediaItems = media,
+            )
+        }
+        id
     }.invoke(onSuccess, onError)
 
     fun saveClinicalCasePearl(
@@ -128,15 +172,26 @@ class CaptureViewModel @Inject constructor(
         payload: ClinicalCasePayload,
         tagsRaw: String,
         sectionMedia: Map<String, List<PickedMedia>>,
+        shareToPublicFeed: Boolean = false,
         onSuccess: (String) -> Unit,
         onError: (String) -> Unit,
     ) = save {
-        captureRepository.saveClinicalCasePearl(
+        val tags = parseTags(tagsRaw)
+        val id = captureRepository.saveClinicalCasePearl(
             title = title,
             payload = payload,
-            tags = parseTags(tagsRaw),
+            tags = tags,
             sectionMedia = sectionMedia,
         )
+        if (shareToPublicFeed) {
+            publicFeedSharingRepository.shareClinicalCase(
+                title = title,
+                payload = payload,
+                tags = tags,
+                sectionMedia = sectionMedia,
+            )
+        }
+        id
     }.invoke(onSuccess, onError)
 
     private fun save(block: suspend () -> String): (onSuccess: (String) -> Unit, onError: (String) -> Unit) -> Unit {

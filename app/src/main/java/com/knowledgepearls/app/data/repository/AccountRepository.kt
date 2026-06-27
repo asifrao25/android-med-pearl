@@ -12,6 +12,17 @@ import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.auth.providers.builtin.IDToken
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.storage.storage
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.android.Android
+import io.ktor.client.request.header
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
+import io.ktor.http.contentType
+import io.ktor.http.isSuccess
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import javax.inject.Inject
@@ -140,6 +151,28 @@ class AccountRepository @Inject constructor(
 
     suspend fun signOut() {
         supabase.auth.signOut()
+    }
+
+    suspend fun deleteAccount() {
+        val token = supabase.auth.currentSessionOrNull()?.accessToken
+            ?: throw IllegalStateException("Sign in to delete your account.")
+        val client = HttpClient(Android)
+        try {
+            val response: HttpResponse = client.post("${SupabaseConfig.URL}/functions/v1/delete-account") {
+                header(HttpHeaders.Authorization, "Bearer $token")
+                contentType(ContentType.Application.Json)
+                setBody("""{"confirm":"DELETE"}""")
+            }
+            if (!response.status.isSuccess()) {
+                val body = runCatching { response.bodyAsText() }.getOrDefault("")
+                throw IllegalStateException(
+                    body.ifBlank { "Account deletion failed (${response.status.value})." },
+                )
+            }
+            supabase.auth.signOut()
+        } finally {
+            client.close()
+        }
     }
 
     suspend fun fetchAvatarUrl(userId: String): String? {

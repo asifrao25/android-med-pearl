@@ -94,6 +94,7 @@ fun FeedTabScreen(
         composable("capture/quick") {
             QuickTextCaptureScreen(
                 viewModel = captureViewModel,
+                isSignedIn = accountState.isSignedIn,
                 onBack = { navController.popBackStack() },
                 onSaved = {
                     feedViewModel.showCaptureSavedMessage()
@@ -104,6 +105,7 @@ fun FeedTabScreen(
         composable("capture/link") {
             WebLinkCaptureScreen(
                 viewModel = captureViewModel,
+                isSignedIn = accountState.isSignedIn,
                 onBack = { navController.popBackStack() },
                 onSaved = {
                     feedViewModel.showCaptureSavedMessage()
@@ -114,6 +116,7 @@ fun FeedTabScreen(
         composable("capture/clinical") {
             ClinicalCaseCaptureScreen(
                 viewModel = captureViewModel,
+                isSignedIn = accountState.isSignedIn,
                 onBack = { navController.popBackStack() },
                 onSaved = {
                     feedViewModel.showCaptureSavedMessage()
@@ -125,6 +128,7 @@ fun FeedTabScreen(
             val route = entry.arguments?.getString("route")
             AddMediaCaptureScreen(
                 viewModel = captureViewModel,
+                isSignedIn = accountState.isSignedIn,
                 initialRoute = route,
                 onBack = { navController.popBackStack() },
                 onSaved = {
@@ -175,7 +179,9 @@ fun FavouritesTabScreen(
 @Composable
 fun PublicFeedTabScreen(
     onOpenSettings: () -> Unit,
+    onOpenInbox: () -> Unit,
     onSignIn: () -> Unit,
+    inboxBadgeCount: Int = 0,
     viewModel: PublicFeedViewModel = hiltViewModel(),
     accountViewModel: AccountViewModel = hiltViewModel(),
 ) {
@@ -191,7 +197,9 @@ fun PublicFeedTabScreen(
             PublicFeedScreen(
                 uiState = uiState,
                 isSignedIn = accountState.isSignedIn,
+                inboxBadgeCount = inboxBadgeCount,
                 onOpenSettings = onOpenSettings,
+                onOpenInbox = onOpenInbox,
                 onSignIn = onSignIn,
                 onPearlClick = { pearlId ->
                     navController.navigate("public_pearl/$pearlId")
@@ -214,7 +222,9 @@ fun PublicFeedTabScreen(
                 PublicFeedScreen(
                     uiState = uiState,
                     isSignedIn = accountState.isSignedIn,
+                    inboxBadgeCount = inboxBadgeCount,
                     onOpenSettings = onOpenSettings,
+                    onOpenInbox = onOpenInbox,
                     onSignIn = onSignIn,
                     onPearlClick = {},
                     onLoadInitial = viewModel::loadInitial,
@@ -235,12 +245,24 @@ fun PublicFeedTabScreen(
 
             PublicPearlDetailScreen(
                 pearl = pearl,
+                likeCount = pearl.likeCount,
+                commentCount = viewModel.commentCount(pearl.id),
+                isLiked = viewModel.isLiked(pearl.id),
+                commentsVisible = uiState.commentsPearlId == pearl.id,
+                comments = uiState.commentsForPearl,
+                isCommentsLoading = uiState.isCommentsLoading,
+                isPostingComment = uiState.isPostingComment,
+                commentsError = uiState.commentsError,
                 onBack = { navController.popBackStack() },
                 onAddToMyFeed = { viewModel.addToMyFeed(pearl) },
                 onHide = {
                     viewModel.hide(pearl)
                     navController.popBackStack()
                 },
+                onToggleLike = { viewModel.toggleLike(pearl) },
+                onOpenComments = { viewModel.openComments(pearl.id) },
+                onCloseComments = viewModel::closeComments,
+                onPostComment = { body -> viewModel.postComment(pearl.id, body) },
             )
         }
     }

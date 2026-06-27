@@ -6,11 +6,14 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.runtime.getValue
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import com.knowledgepearls.app.ui.account.AccountViewModel
+import com.knowledgepearls.app.ui.settings.SettingsViewModel
 import com.knowledgepearls.app.ui.shell.MainScaffold
-import com.knowledgepearls.app.ui.theme.AppearanceMode
 import com.knowledgepearls.app.ui.theme.MedPearlsTheme
 import dagger.hilt.android.AndroidEntryPoint
 import io.github.jan.supabase.SupabaseClient
@@ -30,8 +33,14 @@ class MainActivity : ComponentActivity() {
         handleAuthDeepLink(intent)
 
         setContent {
-            MedPearlsTheme(appearanceMode = AppearanceMode.Dark) {
-                MainScaffold(accountViewModel = accountViewModel)
+            val settingsViewModel: SettingsViewModel = hiltViewModel()
+            val appearanceMode by settingsViewModel.appearanceMode.collectAsStateWithLifecycle()
+
+            MedPearlsTheme(appearanceMode = appearanceMode) {
+                MainScaffold(
+                    accountViewModel = accountViewModel,
+                    settingsViewModel = settingsViewModel,
+                )
             }
         }
     }

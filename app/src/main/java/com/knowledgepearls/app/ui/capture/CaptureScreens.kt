@@ -23,6 +23,7 @@ import com.knowledgepearls.app.data.capture.PickedMedia
 @Composable
 fun QuickTextCaptureScreen(
     viewModel: CaptureViewModel,
+    isSignedIn: Boolean,
     onBack: () -> Unit,
     onSaved: () -> Unit,
 ) {
@@ -30,6 +31,7 @@ fun QuickTextCaptureScreen(
     var notes by remember { mutableStateOf("") }
     var sourceReference by remember { mutableStateOf("") }
     var tags by remember { mutableStateOf("") }
+    var shareToPublicFeed by remember { mutableStateOf(false) }
     val attachments = remember { mutableStateListOf<PickedMedia>() }
     val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
     val pickers = rememberMediaPickers { attachments.add(it) }
@@ -41,6 +43,9 @@ fun QuickTextCaptureScreen(
         isSaveDisabled = title.isBlank(),
         isSaving = isSaving,
         onBack = onBack,
+        showShareToPublicToggle = isSignedIn,
+        shareToPublicFeed = shareToPublicFeed,
+        onShareToPublicFeedChange = { shareToPublicFeed = it },
         onSave = {
             viewModel.saveQuickPearl(
                 title = title,
@@ -48,6 +53,7 @@ fun QuickTextCaptureScreen(
                 sourceReference = sourceReference,
                 tagsRaw = tags,
                 media = attachments.toList(),
+                shareToPublicFeed = shareToPublicFeed,
                 onSuccess = { onSaved() },
                 onError = { },
             )
@@ -64,6 +70,7 @@ fun QuickTextCaptureScreen(
 @Composable
 fun WebLinkCaptureScreen(
     viewModel: CaptureViewModel,
+    isSignedIn: Boolean,
     onBack: () -> Unit,
     onSaved: () -> Unit,
 ) {
@@ -72,6 +79,7 @@ fun WebLinkCaptureScreen(
     var notes by remember { mutableStateOf("") }
     var sourceReference by remember { mutableStateOf("") }
     var tags by remember { mutableStateOf("") }
+    var shareToPublicFeed by remember { mutableStateOf(false) }
     val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
     val previewState by viewModel.linkPreview.collectAsStateWithLifecycle()
     val kind = CaptureKind.WebLink
@@ -82,6 +90,9 @@ fun WebLinkCaptureScreen(
         isSaveDisabled = url.isBlank(),
         isSaving = isSaving,
         onBack = onBack,
+        showShareToPublicToggle = isSignedIn,
+        shareToPublicFeed = shareToPublicFeed,
+        onShareToPublicFeedChange = { shareToPublicFeed = it },
         onSave = {
             viewModel.saveWebLinkPearl(
                 title = title,
@@ -89,6 +100,7 @@ fun WebLinkCaptureScreen(
                 sourceReference = sourceReference,
                 tagsRaw = tags,
                 url = url,
+                shareToPublicFeed = shareToPublicFeed,
                 onSuccess = { onSaved() },
                 onError = { },
             )
@@ -114,6 +126,7 @@ fun WebLinkCaptureScreen(
 @Composable
 fun AddMediaCaptureScreen(
     viewModel: CaptureViewModel,
+    isSignedIn: Boolean,
     initialRoute: String?,
     onBack: () -> Unit,
     onSaved: () -> Unit,
@@ -122,6 +135,7 @@ fun AddMediaCaptureScreen(
     var notes by remember { mutableStateOf("") }
     var sourceReference by remember { mutableStateOf("") }
     var tags by remember { mutableStateOf("") }
+    var shareToPublicFeed by remember { mutableStateOf(false) }
     val attachments = remember { mutableStateListOf<PickedMedia>() }
     val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
     val pickers = rememberMediaPickers { attachments.add(it) }
@@ -141,6 +155,9 @@ fun AddMediaCaptureScreen(
         isSaveDisabled = title.isBlank() || attachments.isEmpty(),
         isSaving = isSaving,
         onBack = onBack,
+        showShareToPublicToggle = isSignedIn,
+        shareToPublicFeed = shareToPublicFeed,
+        onShareToPublicFeedChange = { shareToPublicFeed = it },
         onSave = {
             viewModel.saveMediaPearl(
                 title = title,
@@ -148,6 +165,7 @@ fun AddMediaCaptureScreen(
                 sourceReference = sourceReference,
                 tagsRaw = tags,
                 media = attachments.toList(),
+                shareToPublicFeed = shareToPublicFeed,
                 onSuccess = { onSaved() },
                 onError = { },
             )
@@ -164,6 +182,7 @@ fun AddMediaCaptureScreen(
 @Composable
 fun ClinicalCaseCaptureScreen(
     viewModel: CaptureViewModel,
+    isSignedIn: Boolean,
     onBack: () -> Unit,
     onSaved: () -> Unit,
 ) {
@@ -175,6 +194,7 @@ fun ClinicalCaseCaptureScreen(
     var discussion by remember { mutableStateOf("") }
     var references by remember { mutableStateOf("") }
     var tags by remember { mutableStateOf("") }
+    var shareToPublicFeed by remember { mutableStateOf(false) }
     val examMedia = remember { mutableStateListOf<PickedMedia>() }
     val investigationMedia = remember { mutableStateListOf<PickedMedia>() }
     val discussionMedia = remember { mutableStateListOf<PickedMedia>() }
@@ -187,6 +207,9 @@ fun ClinicalCaseCaptureScreen(
         isSaveDisabled = title.isBlank() || history.isBlank(),
         isSaving = isSaving,
         onBack = onBack,
+        showShareToPublicToggle = isSignedIn,
+        shareToPublicFeed = shareToPublicFeed,
+        onShareToPublicFeedChange = { shareToPublicFeed = it },
         onSave = {
             viewModel.saveClinicalCasePearl(
                 title = title.take(120),
@@ -204,6 +227,7 @@ fun ClinicalCaseCaptureScreen(
                     "investigation" to investigationMedia.toList(),
                     "discussion" to discussionMedia.toList(),
                 ),
+                shareToPublicFeed = shareToPublicFeed,
                 onSuccess = { onSaved() },
                 onError = { },
             )

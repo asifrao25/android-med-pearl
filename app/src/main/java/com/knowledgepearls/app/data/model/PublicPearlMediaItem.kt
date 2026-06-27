@@ -9,4 +9,23 @@ data class PublicPearlMediaItem(
     val url: String = "",
     val path: String? = null,
     val filename: String? = null,
-)
+    val section: String? = null,
+) {
+    val loadableUrl: String? get() = PublicPearlMediaUrls.resolve(url, path)
+
+    val resolvedFilename: String
+        get() {
+            if (!filename.isNullOrBlank()) return filename
+            return loadableUrl?.substringAfterLast('/')?.substringBefore('?').orEmpty().ifBlank { "Document" }
+        }
+
+    val isVideo: Boolean
+        get() {
+            if (type == "video") return true
+            return type == "document" && PublicPearlMediaUrls.isVideoFilename(resolvedFilename)
+        }
+
+    val isPhoto: Boolean get() = type == "photo"
+
+    val isDocument: Boolean get() = type == "document" && !isVideo
+}

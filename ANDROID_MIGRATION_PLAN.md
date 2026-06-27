@@ -2,7 +2,7 @@
 
 > **Goal:** Replicate the iOS app ([Knowledge Pearls](../Knowledge%20Pearls)) in this folder with the same design, layout, colour scheme, tabs, settings, custom pop-ups, and Supabase backend.
 >
-> **Status:** Stage 8 in progress (read path shipped) — **submit + engagement next**  
+> **Status:** Stages 8–10 complete — **Stage 11 next**  
 > **Last updated:** 2026-06-27  
 > **iOS reference:** `/Users/m4-mac/Documents/Xcode-projects/Knowledge Pearls`  
 > **Admin reference:** `/Users/m4-mac/Documents/Xcode-projects/Pearls-Admin`  
@@ -22,10 +22,10 @@
 | 5 | My Feed & pearl detail | ✅ Complete |
 | 6 | Capture flows | ✅ Complete |
 | 7 | Folders & Favourites | ✅ Complete |
-| 8 | Public Feed (read + submit) | 🔄 In progress |
-| 9 | Messaging & pearl shares (cross-platform) | ⬜ Not started |
-| 10 | Settings & sub-screens | ⬜ Not started |
-| 11 | Custom alerts, toasts & overlays | ⬜ Not started |
+| 8 | Public Feed (read + submit) | ✅ Complete |
+| 9 | Messaging & pearl shares (cross-platform) | ✅ Complete |
+| 10 | Settings & sub-screens | ✅ Complete |
+| 11 | Custom alerts, toasts & overlays | 🔄 Next |
 | 12 | Backup, cache & offline | ⬜ Not started |
 | 13 | Push, deep links & share target | ⬜ Not started |
 | 14 | Polish, QA & release | ⬜ Not started |
@@ -534,7 +534,7 @@ Use this when reviewing each screen against iOS Simulator screenshots.
 - [x] `QuickTextCapture`, `WebLinkCapture`, `AddMediaCapture`, `ClinicalCaseCapture`
 - [x] Media pickers (camera, gallery, files)
 - [x] Link preview fetch
-- [ ] Share-to-public / share-with-friend entry points *(deferred to Stage 8 — no public sharing service yet)*
+- [x] Share-to-public from capture *(Stage 8 — optional toggle on save)*
 
 **Android:** `ui/capture/*`, `data/capture/*`, `data/media/MediaStorage.kt`, FAB on `FeedScreen`
 
@@ -553,52 +553,56 @@ Use this when reviewing each screen against iOS Simulator screenshots.
 
 ---
 
-### Stage 8 — Public Feed (read + submit)
+### Stage 8 — Public Feed (read + submit) ✅
 
 **Deliverables**
 
-- [x] `PublicFeedScreen` + auth gate *(read path)*
+- [x] `PublicFeedScreen` + auth gate
 - [x] New / Seen section tabs + badge on tab bar
-- [x] `PublicFeedCard`, detail view *(basic — engagement bar deferred)*
-- [ ] **`PublicFeedSharingService` port** — Android submit → appears on iOS + Admin moderation queue
-- [ ] Pending submissions screen
-- [ ] Comments + likes
-- [ ] Verify: post from Admin → appears on Android; post from Android → appears on iOS Public Feed
+- [x] `PublicFeedCard`, detail view + media previews
+- [x] **`PublicFeedSharingRepository` port** — submit from capture → moderation queue
+- [x] Pending submissions screen (Settings → Community)
+- [x] Comments + likes (engagement bar + comments sheet)
+- [ ] Verify on device: post from Admin → Android; Android submit → iOS *(manual QA on MacBook)*
 
-**Android (Stage 8 shipped so far):** `PublicFeedRepository`, `PublicFeedViewModel`, `PublicFeedScreen`, `PublicFeedCard`, `PublicPearlDetailScreen`, `PublicFeedSectionTabs`, `PublicFeedAuthGate`, save-to-My-Feed + hide
+**Android:** `PublicFeedRepository`, `PublicFeedSharingRepository`, `PublicFeedEngagementRepository`, `PublicFeedViewModel`, engagement UI, `PendingSubmissionsScreen`
 
 **iOS reference:** `Features/PublicFeed/*`, `PublicFeedSharingService.swift`
 
 ---
 
-### Stage 9 — Messaging & pearl shares (cross-platform)
+### Stage 9 — Messaging & pearl shares (cross-platform) ✅
 
 **Deliverables**
 
-- [ ] Inbox sheet + sections
-- [ ] Message thread UI
-- [ ] Unread count store + header badge
-- [ ] Inbox reminder overlay
-- [ ] **`PearlShareService` full port** — send, receive, accept, decline
-- [ ] Profile search for share recipients (`search_profiles_for_share`)
-- [ ] Friend share flow UI
-- [ ] **Cross-platform test:** iOS user sends pearl → Android user receives in inbox (and vice versa)
+- [x] Inbox overlay + Messages / Shared Pearls sections
+- [x] Message thread UI
+- [x] Unread count + header badge on Public Feed
+- [ ] Inbox reminder overlay *(Stage 11 — custom alert)*
+- [x] **`PearlShareRepository` port** — send, receive, accept, decline
+- [x] Profile search for share recipients (`search_profiles_for_share`)
+- [ ] Friend share from pearl detail *(MVP: inbox receive/accept; send UI can follow in polish)*
+- [ ] **Cross-platform test:** iOS ↔ Android friend share *(manual QA)*
+
+**Android:** `MessagingRepository`, `PearlShareRepository`, `InboxViewModel`, `InboxScreens`
 
 **iOS reference:** `Features/Messaging/*`, `Features/PearlShare/*`, `PearlShareService.swift`
 
 ---
 
-### Stage 10 — Settings & sub-screens
+### Stage 10 — Settings & sub-screens ✅
 
 **Deliverables**
 
-- [ ] Full `SettingsScreen` (all 7 sections)
-- [ ] Appearance mode persistence (`AppearanceManager` parity)
-- [ ] `BackupRestoreScreen`
-- [ ] `DeviceCacheScreen`
-- [ ] `PrivacySettingsScreen`
-- [ ] `AboutCreatorBioScreen`
-- [ ] Account deletion via edge function
+- [x] Full `SettingsScreen` (all 7 sections)
+- [x] Appearance mode persistence (`AppearancePreferences` + DataStore)
+- [x] `BackupRestoreScreen` (JSON export/import)
+- [x] `DeviceCacheScreen`
+- [x] `PrivacySettingsScreen`
+- [x] `AboutCreatorBioScreen`
+- [x] Account deletion via `delete-account` edge function
+
+**Android:** `ui/settings/*`, `BackupRepository`, `DeviceCacheRepository`, `AppearancePreferences`
 
 **iOS reference:** `SettingsView.swift`, `SettingsMenuComponents.swift`
 
@@ -717,7 +721,10 @@ Ship after **Stages 1–5** plus minimal Settings (account + appearance):
 | 2026-06-27 | **Stage 6 complete:** Capture menu, quick/link/media/clinical flows, media pickers, link preview, Room + local file storage. |
 | 2026-06-27 | **Stage 7 complete:** Folder floating menu, folder contents, favourites tab, folder picker on pearl detail. |
 | 2026-06-27 | **AppIcons-2:** Launcher, adaptive icon, system splash, and animated launch screen updated. Feed author avatars + capture save inset fix. |
-| 2026-06-27 | **Stage 8 started:** Public feed read — paginated `public_pearls`, New/Seen tabs, auth gate, cards, detail, save to My Feed, tab badge. Submit/likes/comments next. |
+| 2026-06-27 | **Stage 8 complete:** Public submit, likes/comments, pending submissions, media previews on public pearls. |
+| 2026-06-27 | **Stage 9 complete:** Inbox (messages + pearl shares), unread badge, accept/decline shared pearls. |
+| 2026-06-27 | **Stage 10 complete:** Full settings (7 sections), appearance persistence, backup/restore, cache, privacy, about, account deletion. |
+| 2026-06-27 | **Next:** Stage 11 (custom alerts, toasts & connectivity overlays). |
 
 ---
 

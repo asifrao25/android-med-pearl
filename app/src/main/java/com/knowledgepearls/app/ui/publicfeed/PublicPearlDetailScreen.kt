@@ -19,6 +19,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -34,12 +38,43 @@ import com.knowledgepearls.app.ui.theme.isPearlDarkTheme
 @Composable
 fun PublicPearlDetailScreen(
     pearl: PublicPearl,
+    likeCount: Int,
+    commentCount: Int,
+    isLiked: Boolean,
+    commentsVisible: Boolean,
+    comments: List<com.knowledgepearls.app.data.model.PearlComment>,
+    isCommentsLoading: Boolean,
+    isPostingComment: Boolean,
+    commentsError: String?,
     onBack: () -> Unit,
     onAddToMyFeed: () -> Unit,
     onHide: () -> Unit,
+    onToggleLike: () -> Unit,
+    onOpenComments: () -> Unit,
+    onCloseComments: () -> Unit,
+    onPostComment: (String) -> Unit,
 ) {
     val theme = TabTheme.PublicFeed
     val darkTheme = isPearlDarkTheme()
+    var commentsSheetOpen by remember(commentsVisible) { mutableStateOf(commentsVisible) }
+
+    if (commentsVisible) {
+        commentsSheetOpen = true
+    }
+
+    PearlCommentsSheet(
+        visible = commentsSheetOpen,
+        comments = comments,
+        isLoading = isCommentsLoading,
+        isPosting = isPostingComment,
+        errorMessage = commentsError,
+        theme = theme,
+        onDismiss = {
+            commentsSheetOpen = false
+            onCloseComments()
+        },
+        onPostComment = onPostComment,
+    )
 
     Box(Modifier.fillMaxSize()) {
         LiquidBackground(theme = theme, intensity = 0.5f)
@@ -87,6 +122,24 @@ fun PublicPearlDetailScreen(
                         color = theme.primary,
                     )
                 }
+
+                PublicPearlDetailMediaSection(
+                    pearl = pearl,
+                    theme = theme,
+                )
+
+                PublicPearlEngagementBar(
+                    likeCount = likeCount,
+                    commentCount = commentCount,
+                    isLiked = isLiked,
+                    theme = theme,
+                    modifier = Modifier.fillMaxWidth(),
+                    onToggleLike = onToggleLike,
+                    onOpenComments = {
+                        commentsSheetOpen = true
+                        onOpenComments()
+                    },
+                )
 
                 GlassSurface(
                     modifier = Modifier.fillMaxWidth(),

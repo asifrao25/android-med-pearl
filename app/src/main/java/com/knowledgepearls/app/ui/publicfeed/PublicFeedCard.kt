@@ -32,7 +32,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import com.knowledgepearls.app.data.model.PublicPearl
 import com.knowledgepearls.app.ui.theme.PearlColors
 import com.knowledgepearls.app.ui.theme.PearlLayout
@@ -120,6 +119,13 @@ fun PublicFeedCard(
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
+                if (pearl.hasGalleryMedia) {
+                Text(
+                    text = "${pearl.resolvedMediaItems.size} attachment${if (pearl.resolvedMediaItems.size == 1) "" else "s"}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = PearlColors.heroSecondary(darkTheme),
+                )
+                }
             } else if (pearl.notes.isNotBlank()) {
                 Text(
                     text = pearl.notes,
@@ -130,17 +136,11 @@ fun PublicFeedCard(
                 )
             }
 
-            pearl.linkPreviewImageUrl?.takeIf { it.isNotBlank() }?.let { imageUrl ->
-                AsyncImage(
-                    model = imageUrl,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(158.dp)
-                        .clip(RoundedCornerShape(12.dp)),
-                    contentScale = ContentScale.Crop,
-                )
-            }
+            PublicPearlCardMediaPreview(
+                pearl = pearl,
+                theme = theme,
+                modifier = Modifier.fillMaxWidth(),
+            )
 
             if (pearl.tags.isNotEmpty()) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {

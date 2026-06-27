@@ -38,15 +38,38 @@ data class PublicPearl(
 
     val resolvedMediaItems: List<PublicPearlMediaItem>
         get() {
-            if (!mediaItems.isNullOrEmpty()) return mediaItems
-            val raw = mediaUrl?.trim().orEmpty()
-            if (raw.isEmpty()) return emptyList()
-            val legacyType = when (contentType) {
-                "video" -> "video"
-                "document" -> "document"
-                else -> "photo"
+            val items = if (!mediaItems.isNullOrEmpty()) {
+                mediaItems
+            } else {
+                val raw = mediaUrl?.trim().orEmpty()
+                if (raw.isEmpty()) {
+                    emptyList()
+                } else {
+                    val legacyType = when (contentType) {
+                        "video" -> "video"
+                        "document" -> "document"
+                        else -> "photo"
+                    }
+                    listOf(PublicPearlMediaItem(type = legacyType, url = raw, path = mediaPath))
+                }
             }
-            return listOf(PublicPearlMediaItem(type = legacyType, url = raw, path = mediaPath))
+            return items.filter { it.loadableUrl != null }
+        }
+
+    val parsedMediaUrl: String? get() = resolvedMediaItems.firstOrNull()?.loadableUrl
+
+    val resolvedLinkPreviewImageUrl: String?
+        get() {
+            linkPreviewImageUrl?.trim()?.takeIf { it.isNotEmpty() }?.let { raw ->
+                return PublicPearlMediaUrls.fixPublicMediaUrl(raw) ?: raw
+            }
+            if (ingestionSource == "twitter_scraper") {
+                parsedMediaUrl?.takeIf { PublicPearlMediaUrls.isImageUrl(it) }?.let { return it }
+            }
+            if (isLinkPearl) {
+                parsedMediaUrl?.takeIf { PublicPearlMediaUrls.isImageUrl(it) }?.let { return it }
+            }
+            return null
         }
 
     val hasGalleryMedia: Boolean get() = resolvedMediaItems.isNotEmpty()

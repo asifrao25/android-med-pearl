@@ -26,6 +26,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -50,6 +51,9 @@ fun CaptureShell(
     isSaving: Boolean,
     onBack: () -> Unit,
     onSave: () -> Unit,
+    showShareToPublicToggle: Boolean = false,
+    shareToPublicFeed: Boolean = false,
+    onShareToPublicFeedChange: (Boolean) -> Unit = {},
     content: @Composable () -> Unit,
 ) {
     val darkTheme = isPearlDarkTheme()
@@ -107,6 +111,40 @@ fun CaptureShell(
                 }
 
                 content()
+            }
+
+            if (showShareToPublicToggle) {
+                GlassSurface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = PearlLayout.screenHorizontalPadding),
+                    cornerRadius = PearlLayout.cardCornerRadius,
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Share to Public Feed",
+                                fontWeight = FontWeight.SemiBold,
+                                color = PearlColors.heroPrimary(darkTheme),
+                            )
+                            Text(
+                                text = "Submit for community review after saving locally.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = PearlColors.heroSecondary(darkTheme),
+                            )
+                        }
+                        Switch(
+                            checked = shareToPublicFeed,
+                            onCheckedChange = onShareToPublicFeedChange,
+                        )
+                    }
+                }
             }
 
             Button(

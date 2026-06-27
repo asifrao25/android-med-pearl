@@ -4,6 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.knowledgepearls.app.data.model.ContentTypeFilter
 import com.knowledgepearls.app.data.model.PublicPearl
+import com.knowledgepearls.app.data.model.PearlComment
+import com.knowledgepearls.app.data.repository.AccountRepository
+import com.knowledgepearls.app.data.repository.PublicFeedEngagementRepository
 import com.knowledgepearls.app.data.repository.PublicFeedRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -28,6 +31,13 @@ data class PublicFeedUiState(
     val actionSuccessMessage: String? = null,
     val showEmptyFilterAlert: Boolean = false,
     val seenIds: Set<String> = emptySet(),
+    val likedPearlIds: Set<String> = emptySet(),
+    val commentCounts: Map<String, Int> = emptyMap(),
+    val commentsForPearl: List<PearlComment> = emptyList(),
+    val commentsPearlId: String? = null,
+    val isCommentsLoading: Boolean = false,
+    val isPostingComment: Boolean = false,
+    val commentsError: String? = null,
 ) {
     val unseenPearls: List<PublicPearl>
         get() = pearls.filter { it.id !in seenIds }
@@ -52,6 +62,8 @@ data class PublicFeedUiState(
 @HiltViewModel
 class PublicFeedViewModel @Inject constructor(
     private val repository: PublicFeedRepository,
+    private val engagementRepository: PublicFeedEngagementRepository,
+    private val accountRepository: AccountRepository,
 ) : ViewModel() {
     private var currentOffset = 0
     private var seenIds = repository.getSeenIds()
@@ -102,6 +114,7 @@ class PublicFeedViewModel @Inject constructor(
                     showEmptyFilterAlert = shouldShowEmptyFilterAlert(current.contentTypeFilter, reset, visible),
                 ).copy(seenIds = seenIds)
             }
+            syncEngagement(visible.map { it.id })
         }.onFailure { error ->
             _uiState.update {
                 it.copy(
@@ -175,6 +188,121 @@ class PublicFeedViewModel @Inject constructor(
 
     fun dismissError() {
         _uiState.update { it.copy(errorMessage = null) }
+    }
+
+    fun toggleLike(pearl: PublicPearl) {
+        viewModelScope.launch {
+            val userId = accountRepository.currentUserId() ?: return@launch
+            if (userId.isBlank()) return@launch
+            val pearlId = pearl.id.lowercase()
+            val currentlyLiked = pearlId in _uiState.value.likedPearlIds.map { it.lowercase() }.toSet()
+            runCatching {
+                if (currentlyLiked) {
+                    engagementRepository.unlike(pearl.id)
+                } else {
+                    engagementRepository.like(pearl.id)
+                }
+            }.onSuccess {
+                val liked = _uiState.value.likedPearlIds.toMutableSet()
+                if (currentlyLiked) liked.remove(pearlId) else liked.add(pearlId)
+                val delta = if (currentlyLiked) -1 else 1
+                _uiState.update { state ->
+                    state.copy(
+                        likedPearlIds = liked,
+                        pearls = state.pearls.map { item ->
+                            if (item.id == pearl.id) {
+                                item.replacing(likeCount = (item.likeCount + delta).coerceAtLeast(0))
+                            } else {
+                                item
+                            }
+                        },
+                    )
+                }
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(errorMessage = error.message ?: "Could not update like.")
+                }
+            }
+        }
+    }
+
+    fun isLiked(pearlId: String): Boolean =
+        pearlId.lowercase() in _uiState.value.likedPearlIds.map { it.lowercase() }.toSet()
+
+    fun commentCount(pearlId: String): Int =
+        _uiState.value.commentCounts[pearlId.lowercase()] ?: 0
+
+    fun openComments(pearlId: String) {
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    commentsPearlId = pearlId,
+                    isCommentsLoading = true,
+                    commentsError = null,
+                    commentsForPearl = emptyList(),
+                )
+            }
+            runCatching {
+                val comments = engagementRepository.fetchComments(pearlId)
+                val count = comments.size
+                _uiState.update { state ->
+                    state.copy(
+                        commentsForPearl = comments,
+                        isCommentsLoading = false,
+                        commentCounts = state.commentCounts + (pearlId.lowercase() to count),
+                    )
+                }
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        isCommentsLoading = false,
+                        commentsError = error.message ?: "Could not load comments.",
+                    )
+                }
+            }
+        }
+    }
+
+    fun closeComments() {
+        _uiState.update {
+            it.copy(
+                commentsPearlId = null,
+                commentsForPearl = emptyList(),
+                commentsError = null,
+            )
+        }
+    }
+
+    fun postComment(pearlId: String, body: String) {
+        viewModelScope.launch {
+            val userId = accountRepository.currentUserId() ?: return@launch
+            _uiState.update { it.copy(isPostingComment = true, commentsError = null) }
+            runCatching {
+                engagementRepository.postComment(pearlId, userId, body)
+            }.onSuccess {
+                openComments(pearlId)
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        isPostingComment = false,
+                        commentsError = error.message ?: "Could not post comment.",
+                    )
+                }
+            }
+            _uiState.update { it.copy(isPostingComment = false) }
+        }
+    }
+
+    private suspend fun syncEngagement(pearlIds: List<String>) {
+        val userId = accountRepository.currentUserId() ?: return
+        if (pearlIds.isEmpty()) return
+        runCatching {
+            val liked = engagementRepository.fetchLikedPearlIds(userId, pearlIds)
+            val counts = pearlIds.associateWith { id ->
+                runCatching { engagementRepository.fetchCommentCount(id) }.getOrDefault(0)
+            }.mapKeys { it.key.lowercase() }
+            _uiState.update { it.copy(likedPearlIds = liked, commentCounts = it.commentCounts + counts) }
+        }
     }
 
     private fun shouldShowEmptyFilterAlert(

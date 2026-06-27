@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -26,6 +27,11 @@ import com.knowledgepearls.app.ui.feed.FeedAuthorContext
 import com.knowledgepearls.app.ui.feed.FeedViewModel
 import com.knowledgepearls.app.ui.folders.FolderContentsScreen
 import com.knowledgepearls.app.ui.folders.FoldersViewModel
+import com.knowledgepearls.app.ui.messaging.InboxScreen
+import com.knowledgepearls.app.ui.messaging.InboxViewModel
+import com.knowledgepearls.app.ui.settings.SettingsRoute
+import com.knowledgepearls.app.ui.settings.SettingsScreen
+import com.knowledgepearls.app.ui.settings.SettingsViewModel
 import com.knowledgepearls.app.ui.tabs.FavouritesTabScreen
 import com.knowledgepearls.app.ui.tabs.FeedTabScreen
 import com.knowledgepearls.app.ui.tabs.PublicFeedTabScreen
@@ -38,9 +44,15 @@ fun MainScaffold(
     foldersViewModel: FoldersViewModel = hiltViewModel(),
     feedViewModel: FeedViewModel = hiltViewModel(),
     publicFeedViewModel: PublicFeedViewModel = hiltViewModel(),
+    inboxViewModel: InboxViewModel = hiltViewModel(),
+    settingsViewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val accountState by accountViewModel.uiState.collectAsStateWithLifecycle()
     val publicFeedState by publicFeedViewModel.uiState.collectAsStateWithLifecycle()
+    val inboxState by inboxViewModel.inboxState.collectAsStateWithLifecycle()
+    val threadState by inboxViewModel.threadState.collectAsStateWithLifecycle()
+    val settingsState by settingsViewModel.uiState.collectAsStateWithLifecycle()
+    val appearanceMode by settingsViewModel.appearanceMode.collectAsStateWithLifecycle()
     val activityContext = LocalContext.current
 
     var showSplash by rememberSaveable { mutableStateOf(true) }
@@ -48,10 +60,13 @@ fun MainScaffold(
     var tabBeforeFolders by rememberSaveable { mutableStateOf(MainTab.Feed) }
     var foldersMenuOpen by rememberSaveable { mutableStateOf(false) }
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
+    var settingsRoute by rememberSaveable { mutableStateOf(SettingsRoute.Main) }
+    var inboxOpen by rememberSaveable { mutableStateOf(false) }
     var authOpen by rememberSaveable { mutableStateOf(false) }
     var editProfileOpen by rememberSaveable { mutableStateOf(false) }
     var openedFolderId by rememberSaveable { mutableStateOf<String?>(null) }
     var openedFolderName by rememberSaveable { mutableStateOf<String?>(null) }
+    var inboxBadgeCount by rememberSaveable { mutableIntStateOf(0) }
 
     val feedAuthorContext = FeedAuthorContext(
         userId = accountState.userId,
@@ -69,6 +84,27 @@ fun MainScaffold(
         }
     }
 
+    LaunchedEffect(accountState.isSignedIn, showSplash) {
+        if (!showSplash && accountState.isSignedIn) {
+            inboxViewModel.refreshBadge()
+            inboxBadgeCount = inboxState.unreadBadge
+        } else if (!accountState.isSignedIn) {
+            inboxBadgeCount = 0
+        }
+    }
+
+    LaunchedEffect(inboxState.unreadBadge) {
+        inboxBadgeCount = inboxState.unreadBadge
+    }
+
+    LaunchedEffect(settingsOpen) {
+        if (settingsOpen) {
+            settingsViewModel.loadPendingSubmissions()
+        } else {
+            settingsRoute = SettingsRoute.Main
+        }
+    }
+
     val backdropTab = when {
         selectedTab == MainTab.Folders || foldersMenuOpen -> tabBeforeFolders
         else -> selectedTab
@@ -81,6 +117,8 @@ fun MainScaffold(
                 MainTab.Favourites -> FavouritesTabScreen(onOpenSettings = { settingsOpen = true })
                 MainTab.PublicFeed -> PublicFeedTabScreen(
                     onOpenSettings = { settingsOpen = true },
+                    onOpenInbox = { inboxOpen = true },
+                    inboxBadgeCount = inboxBadgeCount,
                     onSignIn = { authOpen = true },
                     viewModel = publicFeedViewModel,
                     accountViewModel = accountViewModel,
@@ -142,17 +180,54 @@ fun MainScaffold(
                 .padding(bottom = PearlLayout.tabBarBottomPadding),
         )
 
-        SettingsSheet(
+        SettingsScreen(
             visible = settingsOpen,
+            route = settingsRoute,
             accountState = accountState,
+            settingsState = settingsState,
+            appearanceMode = appearanceMode,
             onDismiss = { settingsOpen = false },
+            onNavigate = { settingsRoute = it },
             onSignIn = { authOpen = true },
             onEditProfile = {
                 settingsOpen = false
                 editProfileOpen = true
             },
             onSignOut = { accountViewModel.signOut() },
+            onLoadPending = settingsViewModel::loadPendingSubmissions,
+            onWithdrawSubmission = settingsViewModel::withdrawSubmission,
+            onSetAppearance = settingsViewModel::setAppearanceMode,
+            onLoadBackups = settingsViewModel::loadBackups,
+            onCreateBackup = settingsViewModel::createBackup,
+            onRestoreBackup = settingsViewModel::restoreBackup,
+            onMeasureCache = settingsViewModel::measureCache,
+            onClearCache = settingsViewModel::clearCache,
+            onDeleteAccount = {
+                settingsViewModel.deleteAccount {
+                    settingsOpen = false
+                    accountViewModel.signOut()
+                }
+            },
         )
+
+        if (inboxOpen) {
+            InboxScreen(
+                inboxState = inboxState,
+                threadState = threadState,
+                onDismiss = {
+                    inboxOpen = false
+                    inboxViewModel.closeThread()
+                    inboxViewModel.refreshBadge()
+                },
+                onLoad = inboxViewModel::loadInbox,
+                onTabSelected = inboxViewModel::setTab,
+                onConversationClick = inboxViewModel::openConversation,
+                onCloseThread = inboxViewModel::closeThread,
+                onSendMessage = inboxViewModel::sendMessage,
+                onAcceptShare = { shareId -> inboxViewModel.respondToShare(shareId, accept = true) },
+                onDeclineShare = { shareId -> inboxViewModel.respondToShare(shareId, accept = false) },
+            )
+        }
 
         if (authOpen) {
             AuthScreen(
