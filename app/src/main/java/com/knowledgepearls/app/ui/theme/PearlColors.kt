@@ -62,6 +62,8 @@ object PearlLayout {
     val screenHorizontalPadding = 20.dp
     val tabBarHeight = 58.dp
     val tabBarBottomPadding = 10.dp
+    /** Space reserved above the floating tab bar for FABs and bottom actions. */
+    val tabBarOverlayInset = tabBarHeight + tabBarBottomPadding + 20.dp
     val cardCornerRadius = 18.dp
     val headerContentHeight = 52.dp
     val headerActionSize = 36.dp

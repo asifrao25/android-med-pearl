@@ -7,6 +7,7 @@ import com.knowledgepearls.app.data.local.model.clinicalCasePayload
 import com.knowledgepearls.app.data.local.model.isClinicalCase
 import com.knowledgepearls.app.data.local.model.matches
 import com.knowledgepearls.app.data.model.ContentTypeFilter
+import com.knowledgepearls.app.data.repository.AccountRepository
 import com.knowledgepearls.app.data.repository.KnowledgePearlRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -34,6 +35,7 @@ data class FeedUiState(
 @HiltViewModel
 class FeedViewModel @Inject constructor(
     private val pearlRepository: KnowledgePearlRepository,
+    private val accountRepository: AccountRepository,
 ) : ViewModel() {
     private val searchQuery = MutableStateFlow("")
     private val selectedTag = MutableStateFlow<String?>(null)
@@ -146,6 +148,9 @@ class FeedViewModel @Inject constructor(
             pearlRepository.toggleFavourite(pearlId)
         }
     }
+
+    suspend fun fetchAvatarUrl(userId: String): String? =
+        accountRepository.fetchAvatarUrl(userId)
 
     private fun pearlMatchesQuery(pearl: PearlWithMedia, query: String): Boolean {
         val needle = query.trim().lowercase()

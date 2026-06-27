@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -60,7 +61,8 @@ fun CaptureShell(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .statusBarsPadding(),
+                .statusBarsPadding()
+                .imePadding(),
         ) {
             Row(
                 modifier = Modifier
@@ -84,7 +86,8 @@ fun CaptureShell(
                 modifier = Modifier
                     .weight(1f)
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = PearlLayout.screenHorizontalPadding),
+                    .padding(horizontal = PearlLayout.screenHorizontalPadding)
+                    .padding(bottom = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 GlassSurface(cornerRadius = PearlLayout.cardCornerRadius) {
@@ -112,8 +115,17 @@ fun CaptureShell(
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding()
-                    .padding(horizontal = PearlLayout.screenHorizontalPadding, vertical = 12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = kind.primary),
+                    .padding(
+                        start = PearlLayout.screenHorizontalPadding,
+                        end = PearlLayout.screenHorizontalPadding,
+                        top = 12.dp,
+                        bottom = PearlLayout.tabBarOverlayInset,
+                    ),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = kind.primary,
+                    disabledContainerColor = kind.primary.copy(alpha = 0.45f),
+                    disabledContentColor = Color.White.copy(alpha = 0.85f),
+                ),
             ) {
                 if (isSaving) {
                     CircularProgressIndicator(

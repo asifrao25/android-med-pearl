@@ -142,6 +142,14 @@ class AccountRepository @Inject constructor(
         supabase.auth.signOut()
     }
 
+    suspend fun fetchAvatarUrl(userId: String): String? {
+        val rows = supabase.from("profiles").select {
+            filter { eq("id", userId) }
+            limit(1)
+        }.decodeList<AvatarUrlRow>()
+        return rows.firstOrNull()?.avatarUrl
+    }
+
     suspend fun fetchProfile(userId: String): UserProfile? {
         val profiles = supabase.from("profiles").select {
             filter { eq("id", userId) }
@@ -313,6 +321,9 @@ class AccountRepository @Inject constructor(
         @SerialName("allow_pearl_shares") val allowPearlShares: Boolean = true,
         @SerialName("notify_pearl_shares_email") val notifyPearlSharesEmail: Boolean = true,
     )
+
+    @Serializable
+    private data class AvatarUrlRow(@SerialName("avatar_url") val avatarUrl: String? = null)
 
     @Serializable
     private data class AvatarPatch(@SerialName("avatar_url") val avatarUrl: String)

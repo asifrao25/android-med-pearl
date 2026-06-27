@@ -32,6 +32,8 @@ import com.knowledgepearls.app.ui.theme.isPearlDarkTheme
 @Composable
 fun PearlList(
     pearls: List<PearlWithMedia>,
+    feedAuthorContext: FeedAuthorContext,
+    onResolveAvatarUrl: suspend (String) -> String?,
     onPearlClick: (PearlWithMedia) -> Unit,
     onDeleteRequest: (PearlWithMedia) -> Unit,
     modifier: Modifier = Modifier,
@@ -99,12 +101,21 @@ fun PearlList(
                     }
                 },
                 content = {
-                    PearlCard(
-                        pearl = pearl,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onPearlClick(pearl) },
-                    )
+                    val author = FeedPearlAuthorInfo.resolve(pearl, feedAuthorContext)
+                    PearlFeedAuthorLayout(
+                        displayName = author.displayName,
+                        avatarUrl = author.avatarUrl,
+                        createdAtMillis = pearl.pearl.createdAt,
+                        userId = author.userId,
+                        onResolveAvatarUrl = onResolveAvatarUrl,
+                    ) {
+                        PearlCard(
+                            pearl = pearl,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onPearlClick(pearl) },
+                        )
+                    }
                 },
             )
         }

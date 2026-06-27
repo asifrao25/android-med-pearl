@@ -34,6 +34,8 @@ import com.knowledgepearls.app.data.capture.CaptureSheet
 @Composable
 fun FeedScreen(
     uiState: FeedUiState,
+    feedAuthorContext: FeedAuthorContext,
+    onResolveAvatarUrl: suspend (String) -> String?,
     onOpenSettings: () -> Unit,
     onPearlClick: (String) -> Unit,
     onSearchQueryChange: (String) -> Unit,
@@ -119,6 +121,8 @@ fun FeedScreen(
 
             PearlList(
                 pearls = uiState.filteredPearls,
+                feedAuthorContext = feedAuthorContext,
+                onResolveAvatarUrl = onResolveAvatarUrl,
                 onPearlClick = { onPearlClick(it.pearl.id) },
                 onDeleteRequest = onDeleteRequest,
                 modifier = Modifier.weight(1f),
@@ -154,7 +158,7 @@ fun FeedScreen(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .navigationBarsPadding()
-                .padding(end = 20.dp, bottom = 88.dp),
+                .padding(end = 20.dp, bottom = PearlLayout.tabBarOverlayInset),
         )
     }
 }
