@@ -194,6 +194,46 @@ class PublicFeedViewModel @Inject constructor(
         }
     }
 
+    fun saveToFolder(pearl: PublicPearl, folderId: String, folderName: String) {
+        viewModelScope.launch {
+            runCatching { repository.saveToFolder(pearl, folderId) }
+                .onSuccess {
+                    _uiState.update {
+                        it.copy(
+                            actionOutcome = com.knowledgepearls.app.ui.components.PearlActionOutcome.SavedToFolder,
+                            actionSuccessMessage = folderName,
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _uiState.update {
+                        it.copy(errorMessage = error.message ?: "Could not save pearl.")
+                    }
+                }
+        }
+    }
+
+    fun createFolderAndSavePearl(pearl: PublicPearl, folderName: String) {
+        viewModelScope.launch {
+            runCatching {
+                val folder = repository.createFolder(folderName)
+                repository.saveToFolder(pearl, folder.id)
+                folder.name
+            }.onSuccess { name ->
+                _uiState.update {
+                    it.copy(
+                        actionOutcome = com.knowledgepearls.app.ui.components.PearlActionOutcome.SavedToFolder,
+                        actionSuccessMessage = name,
+                    )
+                }
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(errorMessage = error.message ?: "Could not save pearl.")
+                }
+            }
+        }
+    }
+
     fun dismissActionSuccess() {
         _uiState.update { it.copy(actionSuccessMessage = null, actionOutcome = null) }
     }

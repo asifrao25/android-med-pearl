@@ -18,10 +18,19 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.knowledgepearls.app.ui.folders.FolderPickerOverlay
+import com.knowledgepearls.app.ui.folders.FoldersViewModel
 import com.knowledgepearls.app.ui.components.HeaderIconButton
 import com.knowledgepearls.app.ui.components.TabScreenHeader
 import com.knowledgepearls.app.ui.theme.LiquidBackground
@@ -53,6 +62,19 @@ fun FeedScreen(
     onCaptureSheetSelected: (CaptureSheet) -> Unit,
 ) {
     val theme = TabTheme.Feed
+    val foldersViewModel: FoldersViewModel = hiltViewModel()
+    val folders by foldersViewModel.foldersWithCounts.collectAsStateWithLifecycle()
+    var folderPickerPearl by remember { mutableStateOf<com.knowledgepearls.app.data.local.model.PearlWithMedia?>(null) }
+    var memberFolderIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    val folderPearlId = folderPickerPearl?.pearl?.id
+
+    LaunchedEffect(folderPearlId) {
+        if (folderPearlId == null) {
+            memberFolderIds = emptySet()
+        } else {
+            foldersViewModel.observePearlFolderIds(folderPearlId).collect { memberFolderIds = it }
+        }
+    }
 
     Box(Modifier.fillMaxSize()) {
         LiquidBackground(theme = theme)
@@ -125,6 +147,7 @@ fun FeedScreen(
                 onResolveAvatarUrl = onResolveAvatarUrl,
                 onPearlClick = { onPearlClick(it.pearl.id) },
                 onDeleteRequest = onDeleteRequest,
+                onFoldersRequest = { folderPickerPearl = it },
                 modifier = Modifier.weight(1f),
             )
         }
@@ -134,6 +157,21 @@ fun FeedScreen(
                 pearlTitle = target.pearl.title,
                 onConfirm = onDeleteConfirm,
                 onDismiss = onDeleteCancel,
+            )
+        }
+
+        folderPickerPearl?.let { pearl ->
+            FolderPickerOverlay(
+                pearl = pearl,
+                folders = folders,
+                memberFolderIds = memberFolderIds,
+                onDismiss = { folderPickerPearl = null },
+                onToggleFolder = { folderId ->
+                    foldersViewModel.togglePearlFolderMembership(pearl.pearl.id, folderId)
+                },
+                onCreateFolder = { name ->
+                    foldersViewModel.createFolderAndAddPearl(name, pearl.pearl.id)
+                },
             )
         }
 

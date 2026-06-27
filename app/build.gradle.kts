@@ -73,6 +73,17 @@ android {
     }
 }
 
+configurations.configureEach {
+    resolutionStrategy {
+        eachDependency {
+            if (requested.group == "androidx.activity") {
+                useVersion(libs.versions.activityCompose.get())
+                because("Keep Activity artifacts on one version to avoid duplicate androidx.activity.compose.R at dex merge")
+            }
+        }
+    }
+}
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

@@ -26,7 +26,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.CreateNewFolder
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.ui.graphics.Color
+import com.knowledgepearls.app.data.local.model.FolderWithCount
+import com.knowledgepearls.app.data.model.PublicPearl
+import com.knowledgepearls.app.ui.components.PearlSwipeAction
+import com.knowledgepearls.app.ui.components.PearlSwipeRow
+import com.knowledgepearls.app.ui.feed.PearlDeleteConfirmationDialog
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -63,6 +73,11 @@ fun PublicFeedScreen(
     onDismissActionSuccess: () -> Unit,
     onDismissError: () -> Unit,
     onDismissSeenToast: () -> Unit,
+    folders: List<FolderWithCount> = emptyList(),
+    onHidePearl: (PublicPearl) -> Unit = {},
+    onSaveToMyFeed: (PublicPearl) -> Unit = {},
+    onSaveToFolder: (PublicPearl, FolderWithCount) -> Unit = { _, _ -> },
+    onCreateFolderAndSave: (PublicPearl, String) -> Unit = { _, _ -> },
     isNetworkAvailable: Boolean = true,
     isOfflineMode: Boolean = false,
     onRetryConnection: () -> Unit = {},
@@ -70,6 +85,8 @@ fun PublicFeedScreen(
     val theme = TabTheme.PublicFeed
     val darkTheme = isPearlDarkTheme()
     val listState = rememberLazyListState()
+    var saveTarget by remember { mutableStateOf<PublicPearl?>(null) }
+    var removeTarget by remember { mutableStateOf<PublicPearl?>(null) }
 
     val shouldLoadMore by remember {
         derivedStateOf {
@@ -197,11 +214,26 @@ fun PublicFeedScreen(
                             }
                         } else {
                             items(uiState.filteredPearls, key = { it.id }) { pearl ->
-                                PublicFeedCard(
-                                    pearl = pearl,
-                                    theme = theme,
-                                    onClick = { onPearlClick(pearl.id) },
-                                )
+                                PearlSwipeRow(
+                                    leadingAction = PearlSwipeAction(
+                                        icon = Icons.Default.CreateNewFolder,
+                                        title = "Save",
+                                        color = theme.primary,
+                                        onClick = { saveTarget = pearl },
+                                    ),
+                                    trailingAction = PearlSwipeAction(
+                                        icon = Icons.Default.Delete,
+                                        title = "Remove",
+                                        color = Color(0xFFFF3B30),
+                                        onClick = { removeTarget = pearl },
+                                    ),
+                                ) {
+                                    PublicFeedCard(
+                                        pearl = pearl,
+                                        theme = theme,
+                                        onClick = { onPearlClick(pearl.id) },
+                                    )
+                                }
                             }
                         }
 
@@ -248,7 +280,42 @@ fun PublicFeedScreen(
             PearlActionSuccessAlert(
                 outcome = outcome,
                 theme = theme,
+                folderName = uiState.actionSuccessMessage,
                 onDismiss = onDismissActionSuccess,
+            )
+        }
+
+        removeTarget?.let { pearl ->
+            PearlDeleteConfirmationDialog(
+                pearlTitle = pearl.titleDisplay,
+                onConfirm = {
+                    removeTarget = null
+                    onHidePearl(pearl)
+                },
+                onDismiss = { removeTarget = null },
+                headline = "Remove pearl?",
+                confirmLabel = "Remove",
+                message = "This pearl will be hidden from your public feed.",
+            )
+        }
+
+        saveTarget?.let { pearl ->
+            PublicPearlSaveOverlay(
+                folders = folders,
+                theme = theme,
+                onSaveToMyFeed = {
+                    saveTarget = null
+                    onSaveToMyFeed(pearl)
+                },
+                onSaveToFolder = { folder ->
+                    saveTarget = null
+                    onSaveToFolder(pearl, folder)
+                },
+                onCreateFolder = { name ->
+                    saveTarget = null
+                    onCreateFolderAndSave(pearl, name)
+                },
+                onDismiss = { saveTarget = null },
             )
         }
 

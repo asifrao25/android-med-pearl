@@ -85,6 +85,14 @@ class PublicFeedRepository @Inject constructor(
         return entity
     }
 
+    suspend fun saveToFolder(pearl: PublicPearl, folderId: String): KnowledgePearlEntity {
+        val local = addToMyFeed(pearl)
+        pearlRepository.addPearlToFolder(local.id, folderId)
+        return local
+    }
+
+    suspend fun createFolder(name: String) = pearlRepository.createFolder(name.trim())
+
     companion object {
         const val PAGE_SIZE = 20
         private const val PREFS_NAME = "public_feed_prefs"

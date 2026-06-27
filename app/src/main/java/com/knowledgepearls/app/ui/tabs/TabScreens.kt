@@ -224,10 +224,12 @@ fun PublicFeedTabScreen(
     onRetryConnection: () -> Unit = {},
     viewModel: PublicFeedViewModel = hiltViewModel(),
     accountViewModel: AccountViewModel = hiltViewModel(),
+    foldersViewModel: com.knowledgepearls.app.ui.folders.FoldersViewModel = hiltViewModel(),
 ) {
     val navController = rememberNavController()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val accountState by accountViewModel.uiState.collectAsStateWithLifecycle()
+    val folders by foldersViewModel.foldersWithCounts.collectAsStateWithLifecycle()
 
     NavHost(
         navController = navController,
@@ -253,6 +255,15 @@ fun PublicFeedTabScreen(
                 onDismissActionSuccess = viewModel::dismissActionSuccess,
                 onDismissError = viewModel::dismissError,
                 onDismissSeenToast = viewModel::dismissSeenToast,
+                folders = folders,
+                onHidePearl = viewModel::hide,
+                onSaveToMyFeed = viewModel::addToMyFeed,
+                onSaveToFolder = { pearl, folder ->
+                    viewModel.saveToFolder(pearl, folder.folder.id, folder.folder.name)
+                },
+                onCreateFolderAndSave = { pearl, name ->
+                    viewModel.createFolderAndSavePearl(pearl, name)
+                },
                 isNetworkAvailable = connectivityState.isConnected,
                 isOfflineMode = connectivityState.isOfflineMode,
                 onRetryConnection = onRetryConnection,
@@ -280,6 +291,15 @@ fun PublicFeedTabScreen(
                     onDismissActionSuccess = viewModel::dismissActionSuccess,
                     onDismissError = viewModel::dismissError,
                     onDismissSeenToast = viewModel::dismissSeenToast,
+                    folders = folders,
+                    onHidePearl = viewModel::hide,
+                    onSaveToMyFeed = viewModel::addToMyFeed,
+                    onSaveToFolder = { pearl, folder ->
+                        viewModel.saveToFolder(pearl, folder.folder.id, folder.folder.name)
+                    },
+                    onCreateFolderAndSave = { pearl, name ->
+                        viewModel.createFolderAndSavePearl(pearl, name)
+                    },
                     isNetworkAvailable = connectivityState.isConnected,
                     isOfflineMode = connectivityState.isOfflineMode,
                     onRetryConnection = onRetryConnection,

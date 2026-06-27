@@ -34,8 +34,12 @@ fun PearlDeleteConfirmationDialog(
     pearlTitle: String,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
+    headline: String = "Delete pearl?",
+    confirmLabel: String = "Delete",
+    message: String? = null,
 ) {
     val darkTheme = isPearlDarkTheme()
+    val body = message ?: "\"${pearlTitle.ifBlank { "Untitled pearl" }}\" will be removed from this device."
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -54,13 +58,13 @@ fun PearlDeleteConfirmationDialog(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Text(
-                    text = "Delete pearl?",
+                    text = headline,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = PearlColors.heroPrimary(darkTheme),
                 )
                 Text(
-                    text = "\"${pearlTitle.ifBlank { "Untitled pearl" }}\" will be removed from this device.",
+                    text = body,
                     color = PearlColors.heroSecondary(darkTheme),
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -72,7 +76,7 @@ fun PearlDeleteConfirmationDialog(
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF453A)),
                     ) {
-                        Text("Delete")
+                        Text(confirmLabel)
                     }
                 }
             }

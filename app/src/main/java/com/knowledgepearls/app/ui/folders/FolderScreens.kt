@@ -79,6 +79,18 @@ fun FolderContentsScreen(
     val pearls by viewModel.observePearlsInFolder(folderId)
         .collectAsStateWithLifecycle(initialValue = emptyList())
     var deleteTarget by remember { mutableStateOf<PearlWithMedia?>(null) }
+    var folderPickerPearl by remember { mutableStateOf<PearlWithMedia?>(null) }
+    var memberFolderIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    val folders by viewModel.foldersWithCounts.collectAsStateWithLifecycle()
+    val folderPearlId = folderPickerPearl?.pearl?.id
+
+    androidx.compose.runtime.LaunchedEffect(folderPearlId) {
+        if (folderPearlId == null) {
+            memberFolderIds = emptySet()
+        } else {
+            viewModel.observePearlFolderIds(folderPearlId).collect { memberFolderIds = it }
+        }
+    }
 
     Box(Modifier.fillMaxSize()) {
         LiquidBackground(theme = theme, intensity = 0.5f)
@@ -118,7 +130,9 @@ fun FolderContentsScreen(
                         onResolveAvatarUrl = onResolveAvatarUrl,
                         onPearlClick = { navController.navigate("pearl/${it.pearl.id}") },
                         onDeleteRequest = { deleteTarget = it },
+                        onFoldersRequest = { folderPickerPearl = it },
                         modifier = Modifier.weight(1f),
+                        theme = theme,
                     )
                 }
             }
@@ -140,6 +154,21 @@ fun FolderContentsScreen(
                     deleteTarget = null
                 },
                 onDismiss = { deleteTarget = null },
+            )
+        }
+
+        folderPickerPearl?.let { pearl ->
+            FolderPickerOverlay(
+                pearl = pearl,
+                folders = folders,
+                memberFolderIds = memberFolderIds,
+                onDismiss = { folderPickerPearl = null },
+                onToggleFolder = { folderId ->
+                    viewModel.togglePearlFolderMembership(pearl.pearl.id, folderId)
+                },
+                onCreateFolder = { name ->
+                    viewModel.createFolderAndAddPearl(name, pearl.pearl.id)
+                },
             )
         }
     }
