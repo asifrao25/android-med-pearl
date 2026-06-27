@@ -60,6 +60,13 @@ class PearlShareRepository @Inject constructor(
         return recipientIds
     }
 
+    suspend fun fetchShareById(shareId: String): PearlShareRecord? =
+        runCatching {
+            supabase.from("pearl_shares").select {
+                filter { eq("id", shareId.lowercase()) }
+            }.decodeSingle<PearlShareRecord>()
+        }.getOrNull()
+
     suspend fun fetchPendingShares(recipientId: String): List<PearlShareInboxRow> {
         val shares = supabase.from("pearl_shares").select {
             filter {

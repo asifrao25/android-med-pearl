@@ -2,7 +2,7 @@
 
 > **Goal:** Replicate the iOS app ([Knowledge Pearls](../Knowledge%20Pearls)) in this folder with the same design, layout, colour scheme, tabs, settings, custom pop-ups, and Supabase backend.
 >
-> **Status:** Stages 8–10 complete — **Stage 11 next**  
+> **Status:** Stage 13 complete — **Stage 14 next**  
 > **Last updated:** 2026-06-27  
 > **iOS reference:** `/Users/m4-mac/Documents/Xcode-projects/Knowledge Pearls`  
 > **Admin reference:** `/Users/m4-mac/Documents/Xcode-projects/Pearls-Admin`  
@@ -25,10 +25,10 @@
 | 8 | Public Feed (read + submit) | ✅ Complete |
 | 9 | Messaging & pearl shares (cross-platform) | ✅ Complete |
 | 10 | Settings & sub-screens | ✅ Complete |
-| 11 | Custom alerts, toasts & overlays | 🔄 Next |
-| 12 | Backup, cache & offline | ⬜ Not started |
-| 13 | Push, deep links & share target | ⬜ Not started |
-| 14 | Polish, QA & release | ⬜ Not started |
+| 11 | Custom alerts, toasts & overlays | ✅ Complete |
+| 12 | Backup, cache & offline | ✅ Complete |
+| 13 | Push, deep links & share target | ✅ Complete |
+| 14 | Polish, QA & release | 🔄 Next |
 
 ---
 
@@ -414,7 +414,7 @@ Use this when reviewing each screen against iOS Simulator screenshots.
 - [ ] Tab header: accent bar, 24pt semibold title, 10pt uppercase subtitle
 - [ ] Settings gear in header (all tabs except Settings sheet)
 - [x] Launch splash animation (ring + progress + tagline)
-- [ ] Offline + backend health overlays
+- [x] Offline + backend health overlays
 - [ ] Light / dark / system appearance
 
 ### Components
@@ -423,7 +423,7 @@ Use this when reviewing each screen against iOS Simulator screenshots.
 - [ ] `PublicFeedCard` + New/Seen pills
 - [ ] `GlowingAddButton` + capture options menu
 - [ ] Folder floating menu (swipe dismiss, scrim)
-- [ ] All custom alerts listed in §1.4
+- [x] All custom alerts listed in §1.4
 - [ ] Inbox unread reminder chip
 - [x] Profile avatar (rounded rect, gradient border) — My Feed cards
 
@@ -578,7 +578,7 @@ Use this when reviewing each screen against iOS Simulator screenshots.
 - [x] Inbox overlay + Messages / Shared Pearls sections
 - [x] Message thread UI
 - [x] Unread count + header badge on Public Feed
-- [ ] Inbox reminder overlay *(Stage 11 — custom alert)*
+- [x] Inbox reminder overlay
 - [x] **`PearlShareRepository` port** — send, receive, accept, decline
 - [x] Profile search for share recipients (`search_profiles_for_share`)
 - [ ] Friend share from pearl detail *(MVP: inbox receive/accept; send UI can follow in polish)*
@@ -608,42 +608,47 @@ Use this when reviewing each screen against iOS Simulator screenshots.
 
 ---
 
-### Stage 11 — Custom alerts, toasts & overlays
+### Stage 11 — Custom alerts, toasts & overlays ✅
 
 **Deliverables**
 
-- [ ] Port all alert/toast composables from §1.4
-- [ ] Modal scrim + swipe-dismiss behaviour
-- [ ] Connectivity overlays
+- [x] Port all alert/toast composables from §1.4
+- [x] Modal scrim + swipe-dismiss behaviour
+- [x] Connectivity overlays
+
+**Android:** `ConnectivityMonitor`, `BackendHealthMonitor`, `PearlAlerts.kt`, `PearlToasts.kt`, `ConnectivityOverlays.kt`, `SharedPearlCaptureAlerts.kt`, inbox reminder chip
 
 **iOS reference:** `Theme/OfflineConnectivityUI.swift`, `Theme/BackendConnectivityUI.swift`, `Features/Feed/*Alert*`
 
 ---
 
-### Stage 12 — Backup, cache & offline
+### Stage 12 — Backup, cache & offline ✅
 
 **Deliverables**
 
-- [ ] JSON backup export/import (compatible with iOS `BackupPayload`)
-- [ ] `DeviceCacheService` — measure & clear
-- [ ] `ConnectivityMonitor`
-- [ ] WorkManager scheduled backup
+- [x] JSON backup export/import (compatible with iOS `BackupPayload`)
+- [x] `DeviceCacheService` — measure & clear
+- [x] `ConnectivityMonitor`
+- [x] WorkManager scheduled backup
+
+**Android:** `BackupRepository`, `DeviceCacheRepository`, `ScheduledBackupWorker`, connectivity monitors wired in `MainActivity`
 
 **iOS reference:** `PearlsKit/Backup/*`, `BackupService.swift`, `DeviceCacheService.swift`
 
 ---
 
-### Stage 13 — Push notifications, deep links & share target
+### Stage 13 — Push notifications, deep links & share target ✅
 
 **Deliverables**
 
-- [ ] **MacBook setup doc:** create Firebase project, enable FCM, download `google-services.json`
-- [ ] Link FCM to Supabase push (same as iOS edge functions)
-- [ ] FCM registration + Supabase device token sync
-- [ ] Notification taps → inbox / pearl share / message thread
-- [ ] App Links: `com.knowledgepearls.app://login-callback`, inbox routes
-- [ ] `.pearl` file association
-- [ ] **Android Share Target** (`ACTION_SEND`) — receive links/text into capture flow
+- [x] **MacBook setup doc:** `docs/FIREBASE_SETUP.md` — create Firebase project, enable FCM, download `google-services.json`
+- [x] FCM registration + Supabase device token sync (`push_tokens`, platform `android`)
+- [x] Notification taps → inbox / pearl share / message thread
+- [x] App Links: `com.knowledgepearls.app://login-callback`, inbox routes
+- [x] `.pearl` / JSON file association via share activity
+- [x] **Android Share Target** (`ACTION_SEND`) — receive links/text into capture flow
+
+**Android:** `PushNotificationManager`, `MedPearlsFirebaseMessagingService`, `DeepLinkRouter`, `ShareReceiveActivity`, `AppNavigationBus`
 
 **iOS reference:** `KnowledgePearlsAppDelegate.swift`, `ContentView` deep link handlers, Share Extension
 
@@ -653,9 +658,11 @@ Use this when reviewing each screen against iOS Simulator screenshots.
 
 **Deliverables**
 
+- [x] ProGuard rules (`app/proguard-rules.pro`)
+- [x] TalkBack pass started (tab bar semantics)
+- [x] Manual QA checklist (`docs/QA_CHECKLIST.md`)
 - [ ] Side-by-side screenshot comparison with iOS (light + dark)
-- [ ] TalkBack / accessibility pass
-- [ ] ProGuard rules
+- [ ] Full TalkBack pass on all screens
 - [ ] Play Store listing assets
 - [ ] Internal testing track upload
 
@@ -724,7 +731,10 @@ Ship after **Stages 1–5** plus minimal Settings (account + appearance):
 | 2026-06-27 | **Stage 8 complete:** Public submit, likes/comments, pending submissions, media previews on public pearls. |
 | 2026-06-27 | **Stage 9 complete:** Inbox (messages + pearl shares), unread badge, accept/decline shared pearls. |
 | 2026-06-27 | **Stage 10 complete:** Full settings (7 sections), appearance persistence, backup/restore, cache, privacy, about, account deletion. |
-| 2026-06-27 | **Next:** Stage 11 (custom alerts, toasts & connectivity overlays). |
+| 2026-06-27 | **Stage 11 complete:** Custom alerts, toasts, offline/backend overlays, shared-pearl submit flow, inbox reminder. |
+| 2026-06-27 | **Stage 12 complete:** ConnectivityMonitor, BackendHealthMonitor, weekly WorkManager backup schedule. |
+| 2026-06-27 | **Stage 13 complete:** FCM push, deep links, share target, Firebase setup doc. |
+| 2026-06-27 | **Next:** Stage 14 (polish, QA & release). |
 
 ---
 

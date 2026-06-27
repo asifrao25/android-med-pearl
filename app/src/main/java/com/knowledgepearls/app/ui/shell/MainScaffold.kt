@@ -11,6 +11,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -22,7 +23,19 @@ import com.knowledgepearls.app.ui.account.AccountViewModel
 import com.knowledgepearls.app.ui.account.AuthScreen
 import com.knowledgepearls.app.ui.account.EditProfileScreen
 import com.knowledgepearls.app.ui.account.ProfileSetupScreen
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.unit.dp
+import com.knowledgepearls.app.data.connectivity.BackendHealthMonitor
+import com.knowledgepearls.app.data.connectivity.ConnectivityMonitor
+import com.knowledgepearls.app.ui.components.ConnectivityOverlays
+import com.knowledgepearls.app.ui.components.InboxUnreadReminderChip
+import com.knowledgepearls.app.ui.components.CacheClearedSuccessAlert
 import com.knowledgepearls.app.ui.components.LiquidTabBar
+import com.knowledgepearls.app.navigation.AppNavigationBus
+import com.knowledgepearls.app.navigation.AppNavigationEvent
+import com.knowledgepearls.app.navigation.ShareImportPayload
+import com.knowledgepearls.app.ui.components.PearlShareReceivedToast
 import com.knowledgepearls.app.ui.feed.FeedAuthorContext
 import com.knowledgepearls.app.ui.feed.FeedViewModel
 import com.knowledgepearls.app.ui.folders.FolderContentsScreen
@@ -37,6 +50,8 @@ import com.knowledgepearls.app.ui.tabs.FeedTabScreen
 import com.knowledgepearls.app.ui.tabs.PublicFeedTabScreen
 import com.knowledgepearls.app.ui.publicfeed.PublicFeedViewModel
 import com.knowledgepearls.app.ui.theme.PearlLayout
+import com.knowledgepearls.app.ui.theme.TabTheme
+import kotlinx.coroutines.launch
 
 @Composable
 fun MainScaffold(
@@ -46,6 +61,11 @@ fun MainScaffold(
     publicFeedViewModel: PublicFeedViewModel = hiltViewModel(),
     inboxViewModel: InboxViewModel = hiltViewModel(),
     settingsViewModel: SettingsViewModel = hiltViewModel(),
+    connectivityMonitor: ConnectivityMonitor,
+    backendHealthMonitor: BackendHealthMonitor,
+    navigationBus: AppNavigationBus,
+    initialShareImport: ShareImportPayload? = null,
+    onShareImportConsumed: () -> Unit = {},
 ) {
     val accountState by accountViewModel.uiState.collectAsStateWithLifecycle()
     val publicFeedState by publicFeedViewModel.uiState.collectAsStateWithLifecycle()
@@ -53,7 +73,10 @@ fun MainScaffold(
     val threadState by inboxViewModel.threadState.collectAsStateWithLifecycle()
     val settingsState by settingsViewModel.uiState.collectAsStateWithLifecycle()
     val appearanceMode by settingsViewModel.appearanceMode.collectAsStateWithLifecycle()
+    val connectivityState by connectivityMonitor.state.collectAsStateWithLifecycle()
+    val backendHealthState by backendHealthMonitor.state.collectAsStateWithLifecycle()
     val activityContext = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     var showSplash by rememberSaveable { mutableStateOf(true) }
     var selectedTab by rememberSaveable { mutableStateOf(MainTab.Feed) }
@@ -67,6 +90,51 @@ fun MainScaffold(
     var openedFolderId by rememberSaveable { mutableStateOf<String?>(null) }
     var openedFolderName by rememberSaveable { mutableStateOf<String?>(null) }
     var inboxBadgeCount by rememberSaveable { mutableIntStateOf(0) }
+    var inboxReminderDismissed by rememberSaveable { mutableStateOf(false) }
+    var shareImport by remember { mutableStateOf(initialShareImport) }
+    var pearlShareToast by remember { mutableStateOf<Pair<String, String>?>(null) }
+
+    LaunchedEffect(initialShareImport) {
+        if (initialShareImport != null) {
+            shareImport = initialShareImport
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        navigationBus.events.collect { event ->
+            when (event) {
+                AppNavigationEvent.OpenInbox -> {
+                    selectedTab = MainTab.PublicFeed
+                    inboxOpen = true
+                    inboxViewModel.loadInbox()
+                }
+                AppNavigationEvent.OpenSharedPearls -> {
+                    selectedTab = MainTab.PublicFeed
+                    inboxOpen = true
+                    inboxViewModel.openSharedPearlsTab()
+                    inboxViewModel.loadInbox()
+                }
+                is AppNavigationEvent.OpenPearlShare -> {
+                    selectedTab = MainTab.PublicFeed
+                    inboxOpen = true
+                    inboxViewModel.openPearlShareById(event.shareId)
+                }
+                is AppNavigationEvent.OpenConversation -> {
+                    selectedTab = MainTab.PublicFeed
+                    inboxOpen = true
+                    inboxViewModel.openConversationById(event.conversationId)
+                }
+                is AppNavigationEvent.ImportShare -> {
+                    selectedTab = MainTab.Feed
+                    shareImport = ShareImportPayload(event.text, event.url)
+                }
+                is AppNavigationEvent.PearlShareReceivedToast -> {
+                    pearlShareToast = event.senderName to event.pearlTitle
+                    inboxViewModel.refreshBadge()
+                }
+            }
+        }
+    }
 
     val feedAuthorContext = FeedAuthorContext(
         userId = accountState.userId,
@@ -95,6 +163,9 @@ fun MainScaffold(
 
     LaunchedEffect(inboxState.unreadBadge) {
         inboxBadgeCount = inboxState.unreadBadge
+        if (inboxState.unreadBadge > 0) {
+            inboxReminderDismissed = false
+        }
     }
 
     LaunchedEffect(settingsOpen) {
@@ -113,12 +184,21 @@ fun MainScaffold(
     Box(Modifier.fillMaxSize()) {
         Crossfade(targetState = backdropTab, label = "tabBackdrop") { tab ->
             when (tab) {
-                MainTab.Feed -> FeedTabScreen(onOpenSettings = { settingsOpen = true })
+                MainTab.Feed -> FeedTabScreen(
+                    onOpenSettings = { settingsOpen = true },
+                    shareImport = shareImport,
+                    onShareImportConsumed = {
+                        shareImport = null
+                        onShareImportConsumed()
+                    },
+                )
                 MainTab.Favourites -> FavouritesTabScreen(onOpenSettings = { settingsOpen = true })
                 MainTab.PublicFeed -> PublicFeedTabScreen(
                     onOpenSettings = { settingsOpen = true },
                     onOpenInbox = { inboxOpen = true },
                     inboxBadgeCount = inboxBadgeCount,
+                    connectivityState = connectivityState,
+                    onRetryConnection = connectivityMonitor::retryConnection,
                     onSignIn = { authOpen = true },
                     viewModel = publicFeedViewModel,
                     accountViewModel = accountViewModel,
@@ -262,6 +342,64 @@ fun MainScaffold(
 
         if (showSplash) {
             LaunchSplashScreen(onFinished = { showSplash = false })
+        }
+
+        val showInboxReminder = !showSplash &&
+            accountState.isSignedIn &&
+            !inboxOpen &&
+            !inboxReminderDismissed &&
+            inboxBadgeCount > 0 &&
+            (selectedTab == MainTab.Feed || selectedTab == MainTab.PublicFeed)
+
+        if (showInboxReminder) {
+            InboxUnreadReminderChip(
+                unreadCount = inboxBadgeCount,
+                theme = if (selectedTab == MainTab.PublicFeed) TabTheme.PublicFeed else TabTheme.Feed,
+                onOpenInbox = {
+                    inboxReminderDismissed = true
+                    inboxOpen = true
+                },
+                onDismiss = { inboxReminderDismissed = true },
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .statusBarsPadding()
+                    .padding(top = 72.dp),
+            )
+        }
+
+        settingsState.cacheClearedAlert?.let { alert ->
+            CacheClearedSuccessAlert(
+                bytesFreedLabel = alert.bytesFreedLabel,
+                effectSummary = alert.effectSummary,
+                theme = TabTheme.Settings,
+                onDismiss = settingsViewModel::dismissCacheClearedAlert,
+            )
+        }
+
+        ConnectivityOverlays(
+            connectivity = connectivityState,
+            backendHealth = backendHealthState,
+            isActive = !showSplash,
+            onContinueOffline = connectivityMonitor::continueOffline,
+            onRetryConnection = connectivityMonitor::retryConnection,
+            onDismissBackendAlert = backendHealthMonitor::dismissUnavailableAlert,
+            onRetryBackend = backendHealthMonitor::retryNow,
+            onDismissRestoredToast = backendHealthMonitor::dismissRestoredNotice,
+            scope = scope,
+        )
+
+        pearlShareToast?.let { (sender, title) ->
+            PearlShareReceivedToast(
+                visible = true,
+                senderName = sender,
+                onOpenInbox = {
+                    pearlShareToast = null
+                    selectedTab = MainTab.PublicFeed
+                    inboxOpen = true
+                    inboxViewModel.loadInbox()
+                },
+                onDismiss = { pearlShareToast = null },
+            )
         }
     }
 }

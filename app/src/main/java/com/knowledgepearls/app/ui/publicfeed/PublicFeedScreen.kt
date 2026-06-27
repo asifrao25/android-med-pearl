@@ -31,6 +31,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.knowledgepearls.app.ui.components.PearlActionOutcome
+import com.knowledgepearls.app.ui.components.PearlActionSuccessAlert
+import com.knowledgepearls.app.ui.components.PublicFeedOfflineState
+import com.knowledgepearls.app.ui.components.SeenToastView
+import com.knowledgepearls.app.ui.feed.FeedEmptyFilterAlert
 import com.knowledgepearls.app.ui.components.HeaderIconButton
 import com.knowledgepearls.app.ui.components.TabScreenHeader
 import com.knowledgepearls.app.ui.feed.ContentTypePicker
@@ -57,6 +62,10 @@ fun PublicFeedScreen(
     onDismissEmptyFilterAlert: () -> Unit,
     onDismissActionSuccess: () -> Unit,
     onDismissError: () -> Unit,
+    onDismissSeenToast: () -> Unit,
+    isNetworkAvailable: Boolean = true,
+    isOfflineMode: Boolean = false,
+    onRetryConnection: () -> Unit = {},
 ) {
     val theme = TabTheme.PublicFeed
     val darkTheme = isPearlDarkTheme()
@@ -126,6 +135,12 @@ fun PublicFeedScreen(
 
             when {
                 !isSignedIn -> Unit
+                !isNetworkAvailable -> {
+                    PublicFeedOfflineState(
+                        isOfflineMode = isOfflineMode,
+                        onTryAgain = onRetryConnection,
+                    )
+                }
                 uiState.pearls.isEmpty() && uiState.isLoading -> {
                     Box(
                         modifier = Modifier
@@ -225,55 +240,26 @@ fun PublicFeedScreen(
             PublicFeedAuthGate(onSignIn = onSignIn)
         }
 
-        uiState.actionSuccessMessage?.let { message ->
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .statusBarsPadding()
-                    .padding(top = 72.dp)
-                    .padding(horizontal = PearlLayout.screenHorizontalPadding),
-            ) {
-                Text(
-                    text = message,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    color = PearlColors.heroPrimary(darkTheme),
-                    textAlign = TextAlign.Center,
-                )
-            }
-            LaunchedEffect(message) {
-                kotlinx.coroutines.delay(2200)
-                onDismissActionSuccess()
-            }
+        uiState.actionOutcome?.let { outcome ->
+            PearlActionSuccessAlert(
+                outcome = outcome,
+                theme = theme,
+                onDismiss = onDismissActionSuccess,
+            )
         }
 
+        SeenToastView(
+            visible = uiState.showSeenToast,
+            onDismiss = onDismissSeenToast,
+        )
+
         if (uiState.showEmptyFilterAlert) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .padding(horizontal = PearlLayout.screenHorizontalPadding),
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Text(
-                        text = "No pearls match this filter.",
-                        color = PearlColors.heroPrimary(darkTheme),
-                        textAlign = TextAlign.Center,
-                    )
-                    TextButton(onClick = onResetContentTypeFilter) {
-                        Text("Show all")
-                    }
-                    TextButton(onClick = onDismissEmptyFilterAlert) {
-                        Text("Dismiss")
-                    }
-                }
-            }
+            FeedEmptyFilterAlert(
+                filter = uiState.contentTypeFilter,
+                theme = theme,
+                onShowAll = onResetContentTypeFilter,
+                onDismiss = onDismissEmptyFilterAlert,
+            )
         }
 
         uiState.errorMessage?.takeIf { uiState.pearls.isNotEmpty() }?.let {

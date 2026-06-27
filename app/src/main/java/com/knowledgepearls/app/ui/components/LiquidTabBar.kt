@@ -29,6 +29,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -119,6 +124,11 @@ private fun RowScope.TabChip(
             .then(if (expand) Modifier.weight(1f) else Modifier)
             .height(PearlLayout.tabBarHeight - 12.dp)
             .clip(shape)
+            .semantics(mergeDescendants = true) {
+                contentDescription = label
+                role = Role.Tab
+                this.selected = selected
+            }
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -173,12 +183,18 @@ private fun RowScope.PublicFeedTabChip(
     val tab = MainTab.PublicFeed
     val inactive = PearlColors.tabInactive(darkTheme)
     val shape = RoundedCornerShape(999.dp)
+    val tabLabel = if (newCount > 0) "Public Feed, $newCount new" else "Public Feed"
 
     Box(
         modifier = Modifier
             .then(if (expand) Modifier.weight(1f) else Modifier)
             .height(PearlLayout.tabBarHeight - 12.dp)
             .clip(shape)
+            .semantics(mergeDescendants = true) {
+                contentDescription = tabLabel
+                role = Role.Tab
+                this.selected = selected
+            }
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -206,7 +222,7 @@ private fun RowScope.PublicFeedTabChip(
             Box {
                 Icon(
                     imageVector = Icons.Default.Public,
-                    contentDescription = "Public Feed",
+                    contentDescription = null,
                     modifier = Modifier.size(20.dp),
                     tint = if (selected) Color.White else inactive,
                 )

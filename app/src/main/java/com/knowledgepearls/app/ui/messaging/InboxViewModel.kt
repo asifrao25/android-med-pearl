@@ -178,4 +178,46 @@ class InboxViewModel @Inject constructor(
         _inboxState.update { it.copy(errorMessage = null) }
         _threadState.update { it.copy(errorMessage = null) }
     }
+
+    fun openSharedPearlsTab() {
+        _inboxState.update { it.copy(selectedTab = InboxTab.Shared) }
+    }
+
+    fun openConversationById(conversationId: String) {
+        viewModelScope.launch {
+            val userId = accountRepository.currentUserId() ?: return@launch
+            _inboxState.update { it.copy(isLoading = true, selectedTab = InboxTab.Messages) }
+            runCatching {
+                val conversations = messagingRepository.buildConversationRows(userId)
+                val target = conversations.firstOrNull { it.id.equals(conversationId, ignoreCase = true) }
+                _inboxState.update {
+                    it.copy(conversations = conversations, isLoading = false)
+                }
+                target?.let { openConversation(it) } ?: loadInbox()
+            }.onFailure {
+                loadInbox()
+            }
+        }
+    }
+
+    fun openPearlShareById(shareId: String) {
+        viewModelScope.launch {
+            _inboxState.update { it.copy(isLoading = true, selectedTab = InboxTab.Shared) }
+            runCatching {
+                val share = pearlShareRepository.fetchShareById(shareId) ?: return@runCatching
+                if (share.status != "pending") return@runCatching
+                val userId = accountRepository.currentUserId() ?: return@runCatching
+                val shares = pearlShareRepository.fetchPendingShares(userId)
+                _inboxState.update {
+                    it.copy(
+                        pendingShares = shares,
+                        isLoading = false,
+                        selectedTab = InboxTab.Shared,
+                    )
+                }
+            }.onFailure {
+                _inboxState.update { it.copy(isLoading = false) }
+            }
+        }
+    }
 }

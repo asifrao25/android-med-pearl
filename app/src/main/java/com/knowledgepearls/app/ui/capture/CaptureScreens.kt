@@ -26,9 +26,10 @@ fun QuickTextCaptureScreen(
     isSignedIn: Boolean,
     onBack: () -> Unit,
     onSaved: () -> Unit,
+    initialNotes: String? = null,
 ) {
     var title by remember { mutableStateOf("") }
-    var notes by remember { mutableStateOf("") }
+    var notes by remember { mutableStateOf(initialNotes.orEmpty()) }
     var sourceReference by remember { mutableStateOf("") }
     var tags by remember { mutableStateOf("") }
     var shareToPublicFeed by remember { mutableStateOf(false) }
@@ -37,16 +38,12 @@ fun QuickTextCaptureScreen(
     val pickers = rememberMediaPickers { attachments.add(it) }
     val kind = CaptureKind.QuickText
 
-    CaptureShell(
-        kind = kind,
-        saveTitle = if (isSaving) "Saving…" else "Save",
-        isSaveDisabled = title.isBlank(),
-        isSaving = isSaving,
-        onBack = onBack,
-        showShareToPublicToggle = isSignedIn,
+    SharedPearlCaptureHost(
+        pearlTitle = title,
+        sourceReference = sourceReference,
         shareToPublicFeed = shareToPublicFeed,
-        onShareToPublicFeedChange = { shareToPublicFeed = it },
-        onSave = {
+        isClinicalCase = false,
+        onPerformSave = { onSuccess, onError ->
             viewModel.saveQuickPearl(
                 title = title,
                 notes = notes,
@@ -54,16 +51,29 @@ fun QuickTextCaptureScreen(
                 tagsRaw = tags,
                 media = attachments.toList(),
                 shareToPublicFeed = shareToPublicFeed,
-                onSuccess = { onSaved() },
-                onError = { },
+                onSuccess = onSuccess,
+                onError = onError,
             )
         },
-    ) {
-        CaptureTextField("Title", title, { title = it }, kind.primary, placeholder = "Give your pearl a title")
-        CaptureNotesField("Description", notes, { notes = it }, kind.primary)
-        AttachmentSection(attachments, pickers, kind.primary)
-        CaptureTextField("Source / reference", sourceReference, { sourceReference = it }, kind.secondary)
-        CaptureTextField("Tags", tags, { tags = it }, kind.primary, placeholder = "cardiology, fluids")
+        onSaved = onSaved,
+    ) { requestSave ->
+        CaptureShell(
+            kind = kind,
+            saveTitle = if (isSaving) "Saving…" else "Save",
+            isSaveDisabled = title.isBlank(),
+            isSaving = isSaving,
+            onBack = onBack,
+            showShareToPublicToggle = isSignedIn,
+            shareToPublicFeed = shareToPublicFeed,
+            onShareToPublicFeedChange = { shareToPublicFeed = it },
+            onSave = requestSave,
+        ) {
+            CaptureTextField("Title", title, { title = it }, kind.primary, placeholder = "Give your pearl a title")
+            CaptureNotesField("Description", notes, { notes = it }, kind.primary)
+            AttachmentSection(attachments, pickers, kind.primary)
+            CaptureTextField("Source / reference", sourceReference, { sourceReference = it }, kind.secondary)
+            CaptureTextField("Tags", tags, { tags = it }, kind.primary, placeholder = "cardiology, fluids")
+        }
     }
 }
 
@@ -73,10 +83,12 @@ fun WebLinkCaptureScreen(
     isSignedIn: Boolean,
     onBack: () -> Unit,
     onSaved: () -> Unit,
+    initialUrl: String? = null,
+    initialNotes: String? = null,
 ) {
-    var url by remember { mutableStateOf("") }
+    var url by remember { mutableStateOf(initialUrl.orEmpty()) }
     var title by remember { mutableStateOf("") }
-    var notes by remember { mutableStateOf("") }
+    var notes by remember { mutableStateOf(initialNotes.orEmpty()) }
     var sourceReference by remember { mutableStateOf("") }
     var tags by remember { mutableStateOf("") }
     var shareToPublicFeed by remember { mutableStateOf(false) }
@@ -84,16 +96,16 @@ fun WebLinkCaptureScreen(
     val previewState by viewModel.linkPreview.collectAsStateWithLifecycle()
     val kind = CaptureKind.WebLink
 
-    CaptureShell(
-        kind = kind,
-        saveTitle = if (isSaving) "Saving…" else "Save",
-        isSaveDisabled = url.isBlank(),
-        isSaving = isSaving,
-        onBack = onBack,
-        showShareToPublicToggle = isSignedIn,
+    androidx.compose.runtime.LaunchedEffect(initialUrl) {
+        initialUrl?.let { viewModel.fetchLinkPreview(it) }
+    }
+
+    SharedPearlCaptureHost(
+        pearlTitle = title.ifBlank { previewState.preview?.title.orEmpty() },
+        sourceReference = sourceReference,
         shareToPublicFeed = shareToPublicFeed,
-        onShareToPublicFeedChange = { shareToPublicFeed = it },
-        onSave = {
+        isClinicalCase = false,
+        onPerformSave = { onSuccess, onError ->
             viewModel.saveWebLinkPearl(
                 title = title,
                 notes = notes,
@@ -101,25 +113,38 @@ fun WebLinkCaptureScreen(
                 tagsRaw = tags,
                 url = url,
                 shareToPublicFeed = shareToPublicFeed,
-                onSuccess = { onSaved() },
-                onError = { },
+                onSuccess = onSuccess,
+                onError = onError,
             )
         },
-    ) {
-        CaptureTextField("URL", url, {
-            url = it
-            viewModel.fetchLinkPreview(it)
-        }, kind.primary, placeholder = "https://…")
-        previewState.error?.let {
-            Text(it, color = Color(0xFFFF6B6B), style = MaterialTheme.typography.bodySmall)
+        onSaved = onSaved,
+    ) { requestSave ->
+        CaptureShell(
+            kind = kind,
+            saveTitle = if (isSaving) "Saving…" else "Save",
+            isSaveDisabled = url.isBlank(),
+            isSaving = isSaving,
+            onBack = onBack,
+            showShareToPublicToggle = isSignedIn,
+            shareToPublicFeed = shareToPublicFeed,
+            onShareToPublicFeedChange = { shareToPublicFeed = it },
+            onSave = requestSave,
+        ) {
+            CaptureTextField("URL", url, {
+                url = it
+                viewModel.fetchLinkPreview(it)
+            }, kind.primary, placeholder = "https://…")
+            previewState.error?.let {
+                Text(it, color = Color(0xFFFF6B6B), style = MaterialTheme.typography.bodySmall)
+            }
+            previewState.preview?.description?.takeIf { it.isNotBlank() }?.let {
+                Text(it, style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+            }
+            CaptureTextField("Title", title, { title = it }, kind.primary, placeholder = previewState.preview?.title ?: "Title")
+            CaptureNotesField("Description", notes, { notes = it }, kind.primary)
+            CaptureTextField("Source / reference", sourceReference, { sourceReference = it }, kind.secondary, placeholder = "Usually the same URL")
+            CaptureTextField("Tags", tags, { tags = it }, kind.primary, placeholder = "guidelines, link")
         }
-        previewState.preview?.description?.takeIf { it.isNotBlank() }?.let {
-            Text(it, style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
-        }
-        CaptureTextField("Title", title, { title = it }, kind.primary, placeholder = previewState.preview?.title ?: "Title")
-        CaptureNotesField("Description", notes, { notes = it }, kind.primary)
-        CaptureTextField("Source / reference", sourceReference, { sourceReference = it }, kind.secondary, placeholder = "Usually the same URL")
-        CaptureTextField("Tags", tags, { tags = it }, kind.primary, placeholder = "guidelines, link")
     }
 }
 
@@ -149,16 +174,12 @@ fun AddMediaCaptureScreen(
         }
     }
 
-    CaptureShell(
-        kind = kind,
-        saveTitle = if (isSaving) "Saving…" else "Save",
-        isSaveDisabled = title.isBlank() || attachments.isEmpty(),
-        isSaving = isSaving,
-        onBack = onBack,
-        showShareToPublicToggle = isSignedIn,
+    SharedPearlCaptureHost(
+        pearlTitle = title,
+        sourceReference = sourceReference,
         shareToPublicFeed = shareToPublicFeed,
-        onShareToPublicFeedChange = { shareToPublicFeed = it },
-        onSave = {
+        isClinicalCase = false,
+        onPerformSave = { onSuccess, onError ->
             viewModel.saveMediaPearl(
                 title = title,
                 notes = notes,
@@ -166,16 +187,29 @@ fun AddMediaCaptureScreen(
                 tagsRaw = tags,
                 media = attachments.toList(),
                 shareToPublicFeed = shareToPublicFeed,
-                onSuccess = { onSaved() },
-                onError = { },
+                onSuccess = onSuccess,
+                onError = onError,
             )
         },
-    ) {
-        AttachmentSection(attachments, pickers, kind.primary)
-        CaptureTextField("Title", title, { title = it }, kind.primary, placeholder = "Give your pearl a title")
-        CaptureNotesField("Description", notes, { notes = it }, kind.primary)
-        CaptureTextField("Source / reference", sourceReference, { sourceReference = it }, kind.secondary)
-        CaptureTextField("Tags", tags, { tags = it }, kind.primary)
+        onSaved = onSaved,
+    ) { requestSave ->
+        CaptureShell(
+            kind = kind,
+            saveTitle = if (isSaving) "Saving…" else "Save",
+            isSaveDisabled = title.isBlank() || attachments.isEmpty(),
+            isSaving = isSaving,
+            onBack = onBack,
+            showShareToPublicToggle = isSignedIn,
+            shareToPublicFeed = shareToPublicFeed,
+            onShareToPublicFeedChange = { shareToPublicFeed = it },
+            onSave = requestSave,
+        ) {
+            AttachmentSection(attachments, pickers, kind.primary)
+            CaptureTextField("Title", title, { title = it }, kind.primary, placeholder = "Give your pearl a title")
+            CaptureNotesField("Description", notes, { notes = it }, kind.primary)
+            CaptureTextField("Source / reference", sourceReference, { sourceReference = it }, kind.secondary)
+            CaptureTextField("Tags", tags, { tags = it }, kind.primary)
+        }
     }
 }
 
@@ -201,16 +235,12 @@ fun ClinicalCaseCaptureScreen(
     val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
     val kind = CaptureKind.ClinicalCase
 
-    CaptureShell(
-        kind = kind,
-        saveTitle = if (isSaving) "Saving…" else "Save",
-        isSaveDisabled = title.isBlank() || history.isBlank(),
-        isSaving = isSaving,
-        onBack = onBack,
-        showShareToPublicToggle = isSignedIn,
+    SharedPearlCaptureHost(
+        pearlTitle = title,
+        sourceReference = references,
         shareToPublicFeed = shareToPublicFeed,
-        onShareToPublicFeedChange = { shareToPublicFeed = it },
-        onSave = {
+        isClinicalCase = true,
+        onPerformSave = { onSuccess, onError ->
             viewModel.saveClinicalCasePearl(
                 title = title.take(120),
                 payload = com.knowledgepearls.app.data.local.model.ClinicalCasePayload(
@@ -228,19 +258,32 @@ fun ClinicalCaseCaptureScreen(
                     "discussion" to discussionMedia.toList(),
                 ),
                 shareToPublicFeed = shareToPublicFeed,
-                onSuccess = { onSaved() },
-                onError = { },
+                onSuccess = onSuccess,
+                onError = onError,
             )
         },
-    ) {
-        CaptureTextField("Title of the case", title.take(120), { title = it.take(120) }, kind.primary, placeholder = "One sentence — max 120 characters")
-        CaptureNotesField("History", history, { history = it }, kind.primary, minLines = 5)
-        SectionWithMedia("Examination", examination, { examination = it }, examMedia, kind)
-        SectionWithMedia("Investigation", investigation, { investigation = it }, investigationMedia, kind)
-        CaptureNotesField("Diagnosis", diagnosis, { diagnosis = it }, kind.primary, minLines = 3)
-        SectionWithMedia("Discussion", discussion, { discussion = it }, discussionMedia, kind)
-        CaptureNotesField("References", references, { references = it }, kind.secondary, minLines = 2)
-        CaptureTextField("Tags", tags, { tags = it }, kind.primary)
+        onSaved = onSaved,
+    ) { requestSave ->
+        CaptureShell(
+            kind = kind,
+            saveTitle = if (isSaving) "Saving…" else "Save",
+            isSaveDisabled = title.isBlank() || history.isBlank(),
+            isSaving = isSaving,
+            onBack = onBack,
+            showShareToPublicToggle = isSignedIn,
+            shareToPublicFeed = shareToPublicFeed,
+            onShareToPublicFeedChange = { shareToPublicFeed = it },
+            onSave = requestSave,
+        ) {
+            CaptureTextField("Title of the case", title.take(120), { title = it.take(120) }, kind.primary, placeholder = "One sentence — max 120 characters")
+            CaptureNotesField("History", history, { history = it }, kind.primary, minLines = 5)
+            SectionWithMedia("Examination", examination, { examination = it }, examMedia, kind)
+            SectionWithMedia("Investigation", investigation, { investigation = it }, investigationMedia, kind)
+            CaptureNotesField("Diagnosis", diagnosis, { diagnosis = it }, kind.primary, minLines = 3)
+            SectionWithMedia("Discussion", discussion, { discussion = it }, discussionMedia, kind)
+            CaptureNotesField("References", references, { references = it }, kind.secondary, minLines = 2)
+            CaptureTextField("Tags", tags, { tags = it }, kind.primary)
+        }
     }
 }
 

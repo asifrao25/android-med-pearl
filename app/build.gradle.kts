@@ -110,6 +110,9 @@ dependencies {
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.ui)
 
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.messaging)
+
     implementation(libs.kotlinx.serialization.json)
 
     implementation(libs.androidx.credentials)
@@ -121,4 +124,8 @@ dependencies {
     ksp(libs.room.compiler)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
+}
+
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.android.gms.google-services")
 }

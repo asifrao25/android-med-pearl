@@ -12,6 +12,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.knowledgepearls.app.data.capture.CaptureSheet
+import com.knowledgepearls.app.navigation.ShareImportPayload
 import com.knowledgepearls.app.ui.capture.AddMediaCaptureScreen
 import com.knowledgepearls.app.ui.capture.CaptureViewModel
 import com.knowledgepearls.app.ui.capture.ClinicalCaseCaptureScreen
@@ -24,11 +25,14 @@ import com.knowledgepearls.app.ui.feed.FeedViewModel
 import com.knowledgepearls.app.ui.feed.PearlDetailScreen
 import com.knowledgepearls.app.ui.publicfeed.PublicFeedScreen
 import com.knowledgepearls.app.ui.publicfeed.PublicFeedViewModel
+import com.knowledgepearls.app.data.connectivity.ConnectivityState
 import com.knowledgepearls.app.ui.publicfeed.PublicPearlDetailScreen
 
 @Composable
 fun FeedTabScreen(
     onOpenSettings: () -> Unit,
+    shareImport: ShareImportPayload? = null,
+    onShareImportConsumed: () -> Unit = {},
     feedViewModel: FeedViewModel = hiltViewModel(),
     captureViewModel: CaptureViewModel = hiltViewModel(),
     accountViewModel: AccountViewModel = hiltViewModel(),
@@ -45,6 +49,15 @@ fun FeedTabScreen(
 
     LaunchedEffect(Unit) {
         feedViewModel.resetContentTypeFilter()
+    }
+
+    LaunchedEffect(shareImport) {
+        val payload = shareImport ?: return@LaunchedEffect
+        when {
+            !payload.url.isNullOrBlank() -> navController.navigate("capture/link/import")
+            !payload.text.isNullOrBlank() -> navController.navigate("capture/quick/import")
+        }
+        onShareImportConsumed()
     }
 
     NavHost(
@@ -102,6 +115,18 @@ fun FeedTabScreen(
                 },
             )
         }
+        composable("capture/quick/import") {
+            QuickTextCaptureScreen(
+                viewModel = captureViewModel,
+                isSignedIn = accountState.isSignedIn,
+                initialNotes = shareImport?.text,
+                onBack = { navController.popBackStack() },
+                onSaved = {
+                    feedViewModel.showCaptureSavedMessage()
+                    navController.popBackStack("feed", false)
+                },
+            )
+        }
         composable("capture/link") {
             WebLinkCaptureScreen(
                 viewModel = captureViewModel,
@@ -110,6 +135,19 @@ fun FeedTabScreen(
                 onSaved = {
                     feedViewModel.showCaptureSavedMessage()
                     navController.popBackStack()
+                },
+            )
+        }
+        composable("capture/link/import") {
+            WebLinkCaptureScreen(
+                viewModel = captureViewModel,
+                isSignedIn = accountState.isSignedIn,
+                initialUrl = shareImport?.url,
+                initialNotes = shareImport?.text,
+                onBack = { navController.popBackStack() },
+                onSaved = {
+                    feedViewModel.showCaptureSavedMessage()
+                    navController.popBackStack("feed", false)
                 },
             )
         }
@@ -182,6 +220,8 @@ fun PublicFeedTabScreen(
     onOpenInbox: () -> Unit,
     onSignIn: () -> Unit,
     inboxBadgeCount: Int = 0,
+    connectivityState: ConnectivityState = ConnectivityState(),
+    onRetryConnection: () -> Unit = {},
     viewModel: PublicFeedViewModel = hiltViewModel(),
     accountViewModel: AccountViewModel = hiltViewModel(),
 ) {
@@ -212,6 +252,10 @@ fun PublicFeedTabScreen(
                 onDismissEmptyFilterAlert = viewModel::dismissEmptyFilterAlert,
                 onDismissActionSuccess = viewModel::dismissActionSuccess,
                 onDismissError = viewModel::dismissError,
+                onDismissSeenToast = viewModel::dismissSeenToast,
+                isNetworkAvailable = connectivityState.isConnected,
+                isOfflineMode = connectivityState.isOfflineMode,
+                onRetryConnection = onRetryConnection,
             )
         }
 
@@ -235,12 +279,16 @@ fun PublicFeedTabScreen(
                     onDismissEmptyFilterAlert = viewModel::dismissEmptyFilterAlert,
                     onDismissActionSuccess = viewModel::dismissActionSuccess,
                     onDismissError = viewModel::dismissError,
+                    onDismissSeenToast = viewModel::dismissSeenToast,
+                    isNetworkAvailable = connectivityState.isConnected,
+                    isOfflineMode = connectivityState.isOfflineMode,
+                    onRetryConnection = onRetryConnection,
                 )
                 return@composable
             }
 
             LaunchedEffect(pearl.id) {
-                viewModel.markSeen(pearl)
+                viewModel.markSeen(pearl, showToast = true)
             }
 
             PublicPearlDetailScreen(

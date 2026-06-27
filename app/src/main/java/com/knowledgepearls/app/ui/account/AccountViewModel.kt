@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import android.content.Context
 import com.knowledgepearls.app.data.auth.GoogleSignInCancelledException
 import com.knowledgepearls.app.data.auth.GoogleSignInHelper
+import com.knowledgepearls.app.data.push.PushNotificationManager
 import com.knowledgepearls.app.data.repository.AccountAuthException
 import com.knowledgepearls.app.data.repository.AccountRepository
 import com.knowledgepearls.app.data.repository.EmailSignUpOutcome
@@ -22,6 +23,7 @@ class AccountViewModel @Inject constructor(
     private val accountRepository: AccountRepository,
     private val googleSignInHelper: GoogleSignInHelper,
     private val pearlSyncCoordinator: PearlSyncCoordinator,
+    private val pushNotificationManager: PushNotificationManager,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(AccountUiState())
     val uiState: StateFlow<AccountUiState> = _uiState.asStateFlow()
@@ -192,7 +194,10 @@ class AccountViewModel @Inject constructor(
     fun signOut() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-            runCatching { accountRepository.signOut() }
+            runCatching {
+                pushNotificationManager.syncAuthState(null)
+                accountRepository.signOut()
+            }
             _uiState.value = AccountUiState(isLoading = false)
         }
     }
@@ -347,5 +352,6 @@ class AccountViewModel @Inject constructor(
         if (triggerSync) {
             pearlSyncCoordinator.runIfAuthenticated(userId)
         }
+        pushNotificationManager.syncAuthState(userId)
     }
 }

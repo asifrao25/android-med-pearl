@@ -29,7 +29,9 @@ data class PublicFeedUiState(
     val hasMore: Boolean = true,
     val errorMessage: String? = null,
     val actionSuccessMessage: String? = null,
+    val actionOutcome: com.knowledgepearls.app.ui.components.PearlActionOutcome? = null,
     val showEmptyFilterAlert: Boolean = false,
+    val showSeenToast: Boolean = false,
     val seenIds: Set<String> = emptySet(),
     val likedPearlIds: Set<String> = emptySet(),
     val commentCounts: Map<String, Int> = emptyMap(),
@@ -147,11 +149,15 @@ class PublicFeedViewModel @Inject constructor(
         _uiState.update { it.copy(showEmptyFilterAlert = false) }
     }
 
-    fun markSeen(pearl: PublicPearl) {
+    fun markSeen(pearl: PublicPearl, showToast: Boolean = false) {
         if (pearl.id in seenIds) return
         repository.markSeen(pearl.id)
         seenIds = repository.getSeenIds()
-        _uiState.update { it.copy(seenIds = seenIds) }
+        _uiState.update { it.copy(seenIds = seenIds, showSeenToast = showToast) }
+    }
+
+    fun dismissSeenToast() {
+        _uiState.update { it.copy(showSeenToast = false) }
     }
 
     fun markUnseen(pearl: PublicPearl) {
@@ -164,7 +170,11 @@ class PublicFeedViewModel @Inject constructor(
         hiddenIds = hiddenIds + pearl.id
         repository.hide(pearl.id)
         _uiState.update { current ->
-            current.copy(pearls = current.pearls.filter { it.id != pearl.id }, seenIds = seenIds)
+            current.copy(
+                pearls = current.pearls.filter { it.id != pearl.id },
+                seenIds = seenIds,
+                actionOutcome = com.knowledgepearls.app.ui.components.PearlActionOutcome.RemovedFromFeed,
+            )
         }
     }
 
@@ -172,7 +182,9 @@ class PublicFeedViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching { repository.addToMyFeed(pearl) }
                 .onSuccess {
-                    _uiState.update { it.copy(actionSuccessMessage = "Saved to My Feed") }
+                    _uiState.update {
+                        it.copy(actionOutcome = com.knowledgepearls.app.ui.components.PearlActionOutcome.SavedToMyFeed)
+                    }
                 }
                 .onFailure { error ->
                     _uiState.update {
@@ -183,7 +195,7 @@ class PublicFeedViewModel @Inject constructor(
     }
 
     fun dismissActionSuccess() {
-        _uiState.update { it.copy(actionSuccessMessage = null) }
+        _uiState.update { it.copy(actionSuccessMessage = null, actionOutcome = null) }
     }
 
     fun dismissError() {

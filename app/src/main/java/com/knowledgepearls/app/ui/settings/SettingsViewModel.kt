@@ -31,6 +31,12 @@ data class SettingsUiState(
     val statusMessage: String? = null,
     val errorMessage: String? = null,
     val isDeletingAccount: Boolean = false,
+    val cacheClearedAlert: CacheClearedAlert? = null,
+)
+
+data class CacheClearedAlert(
+    val bytesFreedLabel: String,
+    val effectSummary: String,
 )
 
 @HiltViewModel
@@ -156,7 +162,12 @@ class SettingsViewModel @Inject constructor(
                 val cleared = deviceCacheRepository.clearCache()
                 measureCache()
                 _uiState.update {
-                    it.copy(statusMessage = "Cleared ${deviceCacheRepository.formattedBytes(cleared)}.")
+                    it.copy(
+                        cacheClearedAlert = CacheClearedAlert(
+                            bytesFreedLabel = deviceCacheRepository.formattedBytes(cleared),
+                            effectSummary = "Thumbnails, temporary files, and downloaded previews were removed.",
+                        ),
+                    )
                 }
             }.onFailure { error ->
                 _uiState.update { it.copy(errorMessage = error.message ?: "Could not clear cache.") }
@@ -184,5 +195,9 @@ class SettingsViewModel @Inject constructor(
 
     fun dismissMessages() {
         _uiState.update { it.copy(statusMessage = null, errorMessage = null) }
+    }
+
+    fun dismissCacheClearedAlert() {
+        _uiState.update { it.copy(cacheClearedAlert = null) }
     }
 }
