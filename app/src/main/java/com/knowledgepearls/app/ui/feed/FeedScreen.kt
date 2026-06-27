@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.text.KeyboardActions
@@ -18,6 +19,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.knowledgepearls.app.ui.components.HeaderIconButton
@@ -25,6 +27,9 @@ import com.knowledgepearls.app.ui.components.TabScreenHeader
 import com.knowledgepearls.app.ui.theme.LiquidBackground
 import com.knowledgepearls.app.ui.theme.PearlLayout
 import com.knowledgepearls.app.ui.theme.TabTheme
+import com.knowledgepearls.app.ui.capture.CaptureOptionsOverlay
+import com.knowledgepearls.app.ui.capture.GlowingAddButton
+import com.knowledgepearls.app.data.capture.CaptureSheet
 
 @Composable
 fun FeedScreen(
@@ -41,6 +46,9 @@ fun FeedScreen(
     onEmptyFilterShowAll: () -> Unit,
     onEmptyFilterDismiss: () -> Unit,
     onActionSuccessDismiss: () -> Unit,
+    captureMenuOpen: Boolean,
+    onCaptureMenuOpenChange: (Boolean) -> Unit,
+    onCaptureSheetSelected: (CaptureSheet) -> Unit,
 ) {
     val theme = TabTheme.Feed
 
@@ -133,5 +141,20 @@ fun FeedScreen(
                 onDismiss = onEmptyFilterDismiss,
             )
         }
+
+        CaptureOptionsOverlay(
+            visible = captureMenuOpen,
+            onDismiss = { onCaptureMenuOpenChange(false) },
+            onSelect = onCaptureSheetSelected,
+        )
+
+        GlowingAddButton(
+            isMenuOpen = captureMenuOpen,
+            onClick = { onCaptureMenuOpenChange(!captureMenuOpen) },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .navigationBarsPadding()
+                .padding(end = 20.dp, bottom = 88.dp),
+        )
     }
 }

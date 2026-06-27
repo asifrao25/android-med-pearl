@@ -1,46 +1,54 @@
 package com.knowledgepearls.app.ui.tabs
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.knowledgepearls.app.ui.components.TabScreenHeader
+import com.knowledgepearls.app.data.capture.CaptureSheet
+import com.knowledgepearls.app.ui.capture.AddMediaCaptureScreen
+import com.knowledgepearls.app.ui.capture.CaptureViewModel
+import com.knowledgepearls.app.ui.capture.ClinicalCaseCaptureScreen
+import com.knowledgepearls.app.ui.capture.QuickTextCaptureScreen
+import com.knowledgepearls.app.ui.capture.WebLinkCaptureScreen
 import com.knowledgepearls.app.ui.feed.FeedScreen
 import com.knowledgepearls.app.ui.feed.FeedViewModel
 import com.knowledgepearls.app.ui.feed.PearlDetailScreen
+import com.knowledgepearls.app.ui.components.TabScreenHeader
 import com.knowledgepearls.app.ui.theme.LiquidBackground
 import com.knowledgepearls.app.ui.theme.PearlColors
 import com.knowledgepearls.app.ui.theme.PearlLayout
 import com.knowledgepearls.app.ui.theme.TabTheme
 import com.knowledgepearls.app.ui.theme.isPearlDarkTheme
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 
 @Composable
 fun FeedTabScreen(
     onOpenSettings: () -> Unit,
-    viewModel: FeedViewModel = hiltViewModel(),
+    feedViewModel: FeedViewModel = hiltViewModel(),
+    captureViewModel: CaptureViewModel = hiltViewModel(),
 ) {
     val navController = rememberNavController()
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val uiState by feedViewModel.uiState.collectAsStateWithLifecycle()
+    var captureMenuOpen by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        viewModel.resetContentTypeFilter()
+        feedViewModel.resetContentTypeFilter()
     }
 
     NavHost(
@@ -52,24 +60,79 @@ fun FeedTabScreen(
                 uiState = uiState,
                 onOpenSettings = onOpenSettings,
                 onPearlClick = { id -> navController.navigate("pearl/$id") },
-                onSearchQueryChange = viewModel::setSearchQuery,
-                onSearchActiveChange = viewModel::setSearchActive,
-                onTagSelected = viewModel::setSelectedTag,
-                onContentTypeSelected = viewModel::setContentTypeFilter,
-                onDeleteRequest = viewModel::requestDelete,
-                onDeleteConfirm = viewModel::confirmDelete,
-                onDeleteCancel = viewModel::cancelDelete,
-                onEmptyFilterShowAll = viewModel::dismissEmptyFilterAlert,
-                onEmptyFilterDismiss = viewModel::dismissEmptyFilterAlert,
-                onActionSuccessDismiss = viewModel::dismissActionSuccess,
+                onSearchQueryChange = feedViewModel::setSearchQuery,
+                onSearchActiveChange = feedViewModel::setSearchActive,
+                onTagSelected = feedViewModel::setSelectedTag,
+                onContentTypeSelected = feedViewModel::setContentTypeFilter,
+                onDeleteRequest = feedViewModel::requestDelete,
+                onDeleteConfirm = feedViewModel::confirmDelete,
+                onDeleteCancel = feedViewModel::cancelDelete,
+                onEmptyFilterShowAll = feedViewModel::dismissEmptyFilterAlert,
+                onEmptyFilterDismiss = feedViewModel::dismissEmptyFilterAlert,
+                onActionSuccessDismiss = feedViewModel::dismissActionSuccess,
+                captureMenuOpen = captureMenuOpen,
+                onCaptureMenuOpenChange = { captureMenuOpen = it },
+                onCaptureSheetSelected = { sheet ->
+                    captureMenuOpen = false
+                    when (sheet) {
+                        CaptureSheet.QuickText -> navController.navigate("capture/quick")
+                        CaptureSheet.WebLink -> navController.navigate("capture/link")
+                        CaptureSheet.ClinicalCase -> navController.navigate("capture/clinical")
+                        CaptureSheet.Camera -> navController.navigate("capture/media/camera")
+                        CaptureSheet.PhotoLibrary -> navController.navigate("capture/media/gallery")
+                        CaptureSheet.Files -> navController.navigate("capture/media/files")
+                    }
+                },
             )
         }
         composable("pearl/{pearlId}") { entry ->
             val pearlId = entry.arguments?.getString("pearlId").orEmpty()
             PearlDetailScreen(
                 pearlId = pearlId,
-                viewModel = viewModel,
+                viewModel = feedViewModel,
                 onBack = { navController.popBackStack() },
+            )
+        }
+        composable("capture/quick") {
+            QuickTextCaptureScreen(
+                viewModel = captureViewModel,
+                onBack = { navController.popBackStack() },
+                onSaved = {
+                    feedViewModel.showCaptureSavedMessage()
+                    navController.popBackStack()
+                },
+            )
+        }
+        composable("capture/link") {
+            WebLinkCaptureScreen(
+                viewModel = captureViewModel,
+                onBack = { navController.popBackStack() },
+                onSaved = {
+                    feedViewModel.showCaptureSavedMessage()
+                    navController.popBackStack()
+                },
+            )
+        }
+        composable("capture/clinical") {
+            ClinicalCaseCaptureScreen(
+                viewModel = captureViewModel,
+                onBack = { navController.popBackStack() },
+                onSaved = {
+                    feedViewModel.showCaptureSavedMessage()
+                    navController.popBackStack()
+                },
+            )
+        }
+        composable("capture/media/{route}") { entry ->
+            val route = entry.arguments?.getString("route")
+            AddMediaCaptureScreen(
+                viewModel = captureViewModel,
+                initialRoute = route,
+                onBack = { navController.popBackStack() },
+                onSaved = {
+                    feedViewModel.showCaptureSavedMessage()
+                    navController.popBackStack()
+                },
             )
         }
     }

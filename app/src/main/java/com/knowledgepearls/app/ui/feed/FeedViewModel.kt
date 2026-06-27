@@ -128,6 +128,10 @@ class FeedViewModel @Inject constructor(
         actionSuccessMessage.value = null
     }
 
+    fun showCaptureSavedMessage() {
+        actionSuccessMessage.value = "Pearl saved to My Feed"
+    }
+
     fun observePearl(id: String) = pearlRepository.observePearl(id)
 
     fun confirmDeleteForPearl(pearlId: String) {

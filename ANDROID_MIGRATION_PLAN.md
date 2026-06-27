@@ -2,8 +2,8 @@
 
 > **Goal:** Replicate the iOS app ([Knowledge Pearls](../Knowledge%20Pearls)) in this folder with the same design, layout, colour scheme, tabs, settings, custom pop-ups, and Supabase backend.
 >
-> **Status:** Stage 5 complete — **Stage 6 next**  
-> **Last updated:** 2026-06-27  
+> **Status:** Stage 6 complete — **Stage 7 next**  
+> **Last updated:** 2026-06-26  
 > **iOS reference:** `/Users/m4-mac/Documents/Xcode-projects/Knowledge Pearls`  
 > **Admin reference:** `/Users/m4-mac/Documents/Xcode-projects/Pearls-Admin`  
 > **Dev workflow:** This folder syncs to your MacBook where Android Studio runs (not built on this Mac).
@@ -20,8 +20,8 @@
 | 3 | Local data layer + sync hooks | ✅ Complete |
 | 4 | Auth, profile & sync services | ✅ Complete (Google Cloud config optional — see §6.5) |
 | 5 | My Feed & pearl detail | ✅ Complete |
-| 6 | Capture flows | 🔄 Next |
-| 7 | Folders & Favourites | ⬜ Not started |
+| 6 | Capture flows | ✅ Complete |
+| 7 | Folders & Favourites | 🔄 Next |
 | 8 | Public Feed (read + submit) | ⬜ Not started |
 | 9 | Messaging & pearl shares (cross-platform) | ⬜ Not started |
 | 10 | Settings & sub-screens | ⬜ Not started |
@@ -530,13 +530,13 @@ Use this when reviewing each screen against iOS Simulator screenshots.
 
 **Deliverables**
 
-- [ ] Capture options menu (quick text, link, media, clinical case)
-- [ ] `QuickTextCapture`, `WebLinkCapture`, `AddMediaCapture`, `ClinicalCaseCapture`
-- [ ] Media pickers (camera, gallery, files)
-- [ ] Link preview fetch
-- [ ] Share-to-public / share-with-friend entry points
+- [x] Capture options menu (quick text, link, media, clinical case)
+- [x] `QuickTextCapture`, `WebLinkCapture`, `AddMediaCapture`, `ClinicalCaseCapture`
+- [x] Media pickers (camera, gallery, files)
+- [x] Link preview fetch
+- [ ] Share-to-public / share-with-friend entry points *(deferred to Stage 8 — no public sharing service yet)*
 
-**iOS reference:** `Features/Capture/*`
+**Android:** `ui/capture/*`, `data/capture/*`, `data/media/MediaStorage.kt`, FAB on `FeedScreen`
 
 ---
 
@@ -712,7 +712,8 @@ Ship after **Stages 1–5** plus minimal Settings (account + appearance):
 | 2026-06-26 | **Stage 4 complete:** Auth, profile UI, Supabase sync runners, tab backgrounds. |
 | 2026-06-27 | **Build verified:** Fixed supabase-kt 3.0 APIs, `AppBrand.NAME`, `setFilterByAuthorizedAccounts`. `assembleDebug` succeeds. |
 | 2026-06-27 | **Stage 5 complete:** My Feed list, filters, pearl cards, detail, delete alerts. |
-| 2026-06-27 | **Next:** Stage 6 (Capture flows). |
+| 2026-06-27 | **Stage 6 complete:** Capture menu, quick/link/media/clinical flows, media pickers, link preview, Room + local file storage. |
+| 2026-06-27 | **Next:** Stage 7 (Folders & Favourites). |
 
 ---
 
