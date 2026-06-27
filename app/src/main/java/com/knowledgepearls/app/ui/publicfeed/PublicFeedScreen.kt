@@ -109,7 +109,11 @@ fun PublicFeedScreen(
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = Icons.Default.Inbox,
-                                    contentDescription = "Inbox",
+                                    contentDescription = if (inboxBadgeCount > 0) {
+                                        "Inbox, $inboxBadgeCount unread"
+                                    } else {
+                                        "Inbox"
+                                    },
                                     tint = theme.primary,
                                     modifier = Modifier.size(18.dp),
                                 )

@@ -18,6 +18,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -83,6 +88,11 @@ private fun SectionTab(
         modifier = modifier
             .fillMaxHeight()
             .clip(shape)
+            .semantics(mergeDescendants = true) {
+                contentDescription = if (count > 0) "$label, $count" else label
+                role = Role.Tab
+                this.selected = selected
+            }
             .then(
                 if (selected) {
                     Modifier.background(

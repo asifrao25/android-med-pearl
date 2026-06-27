@@ -2,7 +2,7 @@
 
 > **Goal:** Replicate the iOS app ([Knowledge Pearls](../Knowledge%20Pearls)) in this folder with the same design, layout, colour scheme, tabs, settings, custom pop-ups, and Supabase backend.
 >
-> **Status:** Stage 13 complete — **Stage 14 next**  
+> **Status:** Stage 14 in progress — polish, QA & release  
 > **Last updated:** 2026-06-27  
 > **iOS reference:** `/Users/m4-mac/Documents/Xcode-projects/Knowledge Pearls`  
 > **Admin reference:** `/Users/m4-mac/Documents/Xcode-projects/Pearls-Admin`  
@@ -28,7 +28,7 @@
 | 11 | Custom alerts, toasts & overlays | ✅ Complete |
 | 12 | Backup, cache & offline | ✅ Complete |
 | 13 | Push, deep links & share target | ✅ Complete |
-| 14 | Polish, QA & release | 🔄 Next |
+| 14 | Polish, QA & release | 🔄 In progress |
 
 ---
 
@@ -659,11 +659,11 @@ Use this when reviewing each screen against iOS Simulator screenshots.
 **Deliverables**
 
 - [x] ProGuard rules (`app/proguard-rules.pro`)
-- [x] TalkBack pass started (tab bar semantics)
-- [x] Manual QA checklist (`docs/QA_CHECKLIST.md`)
+- [x] TalkBack pass on primary navigation, tabs, inbox, settings, and media
+- [x] Play Store listing draft (`docs/PLAY_STORE_LISTING.md`)
 - [ ] Side-by-side screenshot comparison with iOS (light + dark)
-- [ ] Full TalkBack pass on all screens
-- [ ] Play Store listing assets
+- [x] Manual QA checklist (`docs/QA_CHECKLIST.md`)
+- [ ] Device QA sign-off
 - [ ] Internal testing track upload
 
 ---
@@ -734,7 +734,8 @@ Ship after **Stages 1–5** plus minimal Settings (account + appearance):
 | 2026-06-27 | **Stage 11 complete:** Custom alerts, toasts, offline/backend overlays, shared-pearl submit flow, inbox reminder. |
 | 2026-06-27 | **Stage 12 complete:** ConnectivityMonitor, BackendHealthMonitor, weekly WorkManager backup schedule. |
 | 2026-06-27 | **Stage 13 complete:** FCM push, deep links, share target, Firebase setup doc. |
-| 2026-06-27 | **Next:** Stage 14 (polish, QA & release). |
+| 2026-06-27 | **Stage 14 progress:** TalkBack semantics, Play Store listing draft. |
+| 2026-06-27 | **Next:** Device QA, screenshots, internal testing upload. |
 
 ---
 

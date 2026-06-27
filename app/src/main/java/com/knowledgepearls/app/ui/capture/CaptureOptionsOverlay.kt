@@ -30,6 +30,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -137,6 +139,9 @@ private fun CaptureOptionRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
+            .semantics(mergeDescendants = true) {
+                contentDescription = "${option.title}, ${option.subtitle}"
+            }
             .background(PearlColors.controlFill(darkTheme))
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 10.dp),

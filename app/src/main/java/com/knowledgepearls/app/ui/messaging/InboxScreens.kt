@@ -39,6 +39,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -290,6 +295,11 @@ private fun InboxTabRow(
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(999.dp))
+                    .semantics(mergeDescendants = true) {
+                        contentDescription = if (tab == InboxTab.Messages) "Messages" else "Shared pearls"
+                        role = Role.Tab
+                        this.selected = isSelected
+                    }
                     .background(
                         if (isSelected) theme.primary.copy(alpha = 0.25f) else PearlColors.controlFill(darkTheme),
                     )
@@ -322,6 +332,18 @@ private fun ConversationRowItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .semantics(mergeDescendants = true) {
+                    contentDescription = buildString {
+                        append(row.otherDisplayName)
+                        append(", ")
+                        append(row.lastMessageBody.orEmpty().ifBlank { "No messages yet" })
+                        if (row.unreadCount > 0) {
+                            append(", ")
+                            append(row.unreadCount)
+                            append(" unread")
+                        }
+                    }
+                }
                 .clickable(onClick = onClick)
                 .padding(14.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),

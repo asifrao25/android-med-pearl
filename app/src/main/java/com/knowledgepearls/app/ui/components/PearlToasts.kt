@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -29,6 +28,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.knowledgepearls.app.ui.theme.PearlLayout
@@ -63,6 +64,7 @@ fun BackendRestoredToast(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .semantics { contentDescription = "Connection restored. Knowledge Pearls is back online." }
                     .background(Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
                     .border(1.dp, restoredAccent.copy(alpha = 0.35f), RoundedCornerShape(16.dp))
                     .padding(horizontal = 16.dp, vertical = 12.dp),
@@ -106,6 +108,7 @@ fun SeenToastView(
         ) {
             Box(
                 modifier = Modifier
+                    .semantics { contentDescription = "Marked as seen" }
                     .background(TabTheme.PublicFeed.primary.copy(alpha = 0.18f), RoundedCornerShape(999.dp))
                     .padding(horizontal = 18.dp, vertical = 10.dp),
             ) {
@@ -139,27 +142,43 @@ fun InboxUnreadReminderChip(
 ) {
     if (unreadCount <= 0) return
 
-    Box(
+    Row(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = PearlLayout.screenHorizontalPadding)
             .background(theme.primary.copy(alpha = 0.14f), RoundedCornerShape(16.dp))
-            .clickable(onClick = onOpenInbox)
             .padding(horizontal = 14.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .semantics(mergeDescendants = true) {
+                    contentDescription = if (unreadCount == 1) {
+                        "1 unread item in your inbox. Tap to open."
+                    } else {
+                        "$unreadCount unread items in your inbox. Tap to open."
+                    }
+                }
+                .clickable(onClick = onOpenInbox),
+        ) {
             Icon(Icons.Default.Inbox, contentDescription = null, tint = theme.primary)
             Text(
                 text = if (unreadCount == 1) "1 unread item in your inbox" else "$unreadCount unread items in your inbox",
                 fontWeight = FontWeight.SemiBold,
                 color = theme.primary,
             )
-            Text(
-                text = "Tap to open · Dismiss",
-                style = MaterialTheme.typography.labelSmall,
-                modifier = Modifier.clickable(onClick = onDismiss),
-            )
         }
+        Text(
+            text = "Dismiss",
+            style = MaterialTheme.typography.labelSmall,
+            color = theme.primary,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier
+                .clickable(onClick = onDismiss)
+                .semantics { contentDescription = "Dismiss inbox reminder" },
+        )
     }
 }
 
@@ -182,6 +201,9 @@ fun PearlShareReceivedToast(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = PearlLayout.screenHorizontalPadding, vertical = 12.dp)
+                .semantics(mergeDescendants = true) {
+                    contentDescription = "Pearl shared with you from $senderName. Tap to open inbox."
+                }
                 .background(TabTheme.PublicFeed.primary.copy(alpha = 0.16f), RoundedCornerShape(14.dp))
                 .clickable(onClick = onOpenInbox)
                 .padding(16.dp),

@@ -27,6 +27,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -295,7 +297,7 @@ private fun PublicPearlImagePreview(
 ) {
     SubcomposeAsyncImage(
         model = url,
-        contentDescription = null,
+        contentDescription = if (onClick != null) "Photo, tap to open fullscreen" else "Photo",
         modifier = modifier
             .fillMaxWidth()
             .height(height)
@@ -325,6 +327,13 @@ private fun VideoPreviewCard(
             .fillMaxWidth()
             .height(height)
             .clip(previewShape)
+            .semantics(mergeDescendants = true) {
+                contentDescription = if (interactive && onOpen != null) {
+                    "Video $filename, tap to play"
+                } else {
+                    "Video $filename"
+                }
+            }
             .background(theme.primary.copy(alpha = 0.18f))
             .then(if (interactive && onOpen != null) Modifier.clickable(onClick = onOpen) else Modifier),
         contentAlignment = Alignment.Center,
@@ -365,6 +374,13 @@ private fun DocumentPreviewCard(
             .fillMaxWidth()
             .height(height)
             .clip(previewShape)
+            .semantics(mergeDescendants = true) {
+                contentDescription = if (interactive && onOpen != null) {
+                    "Document $filename, tap to preview"
+                } else {
+                    "Document $filename"
+                }
+            }
             .background(PearlColors.controlFill(isPearlDarkTheme()))
             .then(if (interactive && onOpen != null) Modifier.clickable(onClick = onOpen) else Modifier),
         contentAlignment = Alignment.Center,
@@ -403,6 +419,9 @@ private fun DocumentAttachmentRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
+            .semantics(mergeDescendants = true) {
+                contentDescription = "Document $filename, tap to open"
+            }
             .background(PearlColors.controlFill(isPearlDarkTheme()))
             .clickable(onClick = onOpen)
             .padding(horizontal = 14.dp, vertical = 12.dp),

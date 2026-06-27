@@ -33,6 +33,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -271,6 +276,15 @@ private fun FolderPickerRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
+            .semantics(mergeDescendants = true) {
+                contentDescription = if (isMember) {
+                    "${folder.folder.name}, added to folder"
+                } else {
+                    folder.folder.name
+                }
+                role = Role.Checkbox
+                this.selected = isMember
+            }
             .background(FolderPalette.gradient(folder.folder.id))
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 12.dp),

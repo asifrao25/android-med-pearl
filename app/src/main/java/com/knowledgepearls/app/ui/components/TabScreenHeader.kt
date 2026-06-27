@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -140,6 +141,7 @@ fun HeaderIconButton(
             .size(PearlLayout.headerActionSize)
             .clip(RoundedCornerShape(12.dp))
             .background(PearlColors.controlFill(darkTheme))
+            .semantics(mergeDescendants = true) {}
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,

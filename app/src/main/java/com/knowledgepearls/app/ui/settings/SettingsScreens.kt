@@ -36,6 +36,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.knowledgepearls.app.data.remote.SupabaseConfig
@@ -524,6 +526,9 @@ private fun SettingsNavRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
+            .semantics(mergeDescendants = true) {
+                contentDescription = if (detail != null) "$label, $detail" else label
+            }
             .clickable(onClick = onClick)
             .padding(vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,

@@ -166,7 +166,7 @@ private fun FullscreenImage(url: String) {
     ) {
         SubcomposeAsyncImage(
             model = url,
-            contentDescription = null,
+            contentDescription = "Photo",
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Fit,
             loading = {
