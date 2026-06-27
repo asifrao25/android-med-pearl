@@ -2,7 +2,7 @@
 
 > **Goal:** Replicate the iOS app ([Knowledge Pearls](../Knowledge%20Pearls)) in this folder with the same design, layout, colour scheme, tabs, settings, custom pop-ups, and Supabase backend.
 >
-> **Status:** Stage 4 complete (build verified) — **Stage 5 next**  
+> **Status:** Stage 5 complete — **Stage 6 next**  
 > **Last updated:** 2026-06-27  
 > **iOS reference:** `/Users/m4-mac/Documents/Xcode-projects/Knowledge Pearls`  
 > **Admin reference:** `/Users/m4-mac/Documents/Xcode-projects/Pearls-Admin`  
@@ -19,8 +19,8 @@
 | 2 | Core UI shell (splash, tabs, headers) | ✅ Complete |
 | 3 | Local data layer + sync hooks | ✅ Complete |
 | 4 | Auth, profile & sync services | ✅ Complete (Google Cloud config optional — see §6.5) |
-| 5 | My Feed & pearl detail | 🔄 Next |
-| 6 | Capture flows | ⬜ Not started |
+| 5 | My Feed & pearl detail | ✅ Complete |
+| 6 | Capture flows | 🔄 Next |
 | 7 | Folders & Favourites | ⬜ Not started |
 | 8 | Public Feed (read + submit) | ⬜ Not started |
 | 9 | Messaging & pearl shares (cross-platform) | ⬜ Not started |
@@ -512,15 +512,15 @@ Use this when reviewing each screen against iOS Simulator screenshots.
 
 ---
 
-### Stage 5 — My Feed & pearl detail
+### Stage 5 — My Feed & pearl detail ✅
 
 **Deliverables**
 
-- [ ] `FeedScreen` — search, tags, content-type filter
-- [ ] `PearlList` + `PearlCard` + swipe actions
-- [ ] `PearlDetailScreen` — standard + clinical case layouts
-- [ ] Media viewer (image, video, documents)
-- [ ] Delete / success custom alerts
+- [x] `FeedScreen` — search, tags, content-type filter
+- [x] `PearlList` + `PearlCard` + swipe actions
+- [x] `PearlDetailScreen` — standard + clinical case layouts
+- [x] Media viewer (image, video, documents) — attachment rows; full viewer in Stage 11
+- [x] Delete / success custom alerts
 
 **iOS reference:** `FeedView.swift`, `PearlListView.swift`, `PearlDetailView.swift`
 
@@ -711,7 +711,8 @@ Ship after **Stages 1–5** plus minimal Settings (account + appearance):
 | 2026-06-26 | **Stage 2–3 complete:** UI shell + Room data layer committed. |
 | 2026-06-26 | **Stage 4 complete:** Auth, profile UI, Supabase sync runners, tab backgrounds. |
 | 2026-06-27 | **Build verified:** Fixed supabase-kt 3.0 APIs, `AppBrand.NAME`, `setFilterByAuthorizedAccounts`. `assembleDebug` succeeds. |
-| 2026-06-27 | **Next:** Stage 5 (My Feed UI). Optional parallel task: Google Cloud Sign-In setup (§6.5). |
+| 2026-06-27 | **Stage 5 complete:** My Feed list, filters, pearl cards, detail, delete alerts. |
+| 2026-06-27 | **Next:** Stage 6 (Capture flows). |
 
 ---
 

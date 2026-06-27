@@ -74,6 +74,11 @@ class KnowledgePearlRepository @Inject constructor(
     suspend fun getPearlsInFolder(folderId: String): List<KnowledgePearlEntity> =
         pearlDao.getPearlsInFolder(folderId)
 
+    suspend fun toggleFavourite(pearlId: String) {
+        val pearl = pearlDao.getById(pearlId) ?: return
+        pearlDao.update(pearl.copy(isFavourite = !pearl.isFavourite, updatedAt = System.currentTimeMillis()))
+    }
+
     suspend fun updatePublicPearlStatus(
         pearlId: String,
         publicPearlId: String?,

@@ -10,11 +10,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.knowledgepearls.app.ui.components.TabScreenHeader
+import com.knowledgepearls.app.ui.feed.FeedScreen
+import com.knowledgepearls.app.ui.feed.FeedViewModel
+import com.knowledgepearls.app.ui.feed.PearlDetailScreen
 import com.knowledgepearls.app.ui.theme.LiquidBackground
 import com.knowledgepearls.app.ui.theme.PearlColors
 import com.knowledgepearls.app.ui.theme.PearlLayout
@@ -22,14 +32,47 @@ import com.knowledgepearls.app.ui.theme.TabTheme
 import com.knowledgepearls.app.ui.theme.isPearlDarkTheme
 
 @Composable
-fun FeedTabScreen(onOpenSettings: () -> Unit) {
-    TabRoot(
-        theme = TabTheme.Feed,
-        title = "My Feed",
-        subtitle = "Your pearls",
-        onOpenSettings = onOpenSettings,
-        placeholder = "Pearl list coming in Stage 5",
-    )
+fun FeedTabScreen(
+    onOpenSettings: () -> Unit,
+    viewModel: FeedViewModel = hiltViewModel(),
+) {
+    val navController = rememberNavController()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        viewModel.resetContentTypeFilter()
+    }
+
+    NavHost(
+        navController = navController,
+        startDestination = "feed",
+    ) {
+        composable("feed") {
+            FeedScreen(
+                uiState = uiState,
+                onOpenSettings = onOpenSettings,
+                onPearlClick = { id -> navController.navigate("pearl/$id") },
+                onSearchQueryChange = viewModel::setSearchQuery,
+                onSearchActiveChange = viewModel::setSearchActive,
+                onTagSelected = viewModel::setSelectedTag,
+                onContentTypeSelected = viewModel::setContentTypeFilter,
+                onDeleteRequest = viewModel::requestDelete,
+                onDeleteConfirm = viewModel::confirmDelete,
+                onDeleteCancel = viewModel::cancelDelete,
+                onEmptyFilterShowAll = viewModel::dismissEmptyFilterAlert,
+                onEmptyFilterDismiss = viewModel::dismissEmptyFilterAlert,
+                onActionSuccessDismiss = viewModel::dismissActionSuccess,
+            )
+        }
+        composable("pearl/{pearlId}") { entry ->
+            val pearlId = entry.arguments?.getString("pearlId").orEmpty()
+            PearlDetailScreen(
+                pearlId = pearlId,
+                viewModel = viewModel,
+                onBack = { navController.popBackStack() },
+            )
+        }
+    }
 }
 
 @Composable
