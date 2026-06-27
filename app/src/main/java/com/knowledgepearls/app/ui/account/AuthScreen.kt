@@ -143,6 +143,7 @@ fun AuthScreen(
                         onCodeChange = { verificationCode = it.filter(Char::isDigit).take(6) },
                         isLoading = uiState.isLoading,
                         errorMessage = uiState.errorMessage,
+                        infoMessage = uiState.verificationCodeSentMessage,
                         onVerify = { onVerifyCode(pendingEmail, verificationCode) },
                         onResend = { onResendCode(pendingEmail) },
                     )
@@ -243,13 +244,14 @@ private fun EmailVerificationSection(
     onCodeChange: (String) -> Unit,
     isLoading: Boolean,
     errorMessage: String?,
+    infoMessage: String?,
     onVerify: () -> Unit,
     onResend: () -> Unit,
 ) {
     val darkTheme = isPearlDarkTheme()
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
-            text = "We sent a 6-digit code to $email",
+            text = "We sent a 6-digit code to $email. In Gmail, check Spam and Promotions, or search for \"Med Pearls verification\".",
             color = PearlColors.heroSecondary(darkTheme),
             style = MaterialTheme.typography.bodyMedium,
         )
@@ -261,6 +263,9 @@ private fun EmailVerificationSection(
         )
         errorMessage?.let {
             Text(it, color = Color(0xFFFF6B6B), style = MaterialTheme.typography.bodySmall)
+        }
+        infoMessage?.let {
+            Text(it, color = Teal, style = MaterialTheme.typography.bodySmall)
         }
         Button(
             onClick = onVerify,

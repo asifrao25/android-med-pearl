@@ -27,7 +27,7 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        supabase.handleDeeplinks(intent)
+        handleAuthDeepLink(intent)
 
         setContent {
             MedPearlsTheme(appearanceMode = AppearanceMode.Dark) {
@@ -39,7 +39,15 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        supabase.handleDeeplinks(intent)
+        handleAuthDeepLink(intent)
+    }
+
+    private fun handleAuthDeepLink(intent: Intent) {
+        supabase.handleDeeplinks(intent) {
+            lifecycleScope.launch {
+                accountViewModel.onOAuthSessionEstablished()
+            }
+        }
     }
 
     override fun onStart() {

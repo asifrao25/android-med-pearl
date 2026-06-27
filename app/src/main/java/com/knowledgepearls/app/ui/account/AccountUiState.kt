@@ -11,6 +11,7 @@ data class AccountUiState(
     val hasFetchedProfile: Boolean = false,
     val profileFetchFailed: Boolean = false,
     val pendingVerificationEmail: String? = null,
+    val verificationCodeSentMessage: String? = null,
     val showSignInSuccess: Boolean = false,
 ) {
     val isSignedIn: Boolean get() = userId != null

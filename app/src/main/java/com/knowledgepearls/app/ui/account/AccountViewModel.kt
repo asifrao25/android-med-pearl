@@ -2,6 +2,8 @@ package com.knowledgepearls.app.ui.account
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.content.Context
+import com.knowledgepearls.app.data.auth.GoogleSignInCancelledException
 import com.knowledgepearls.app.data.auth.GoogleSignInHelper
 import com.knowledgepearls.app.data.repository.AccountAuthException
 import com.knowledgepearls.app.data.repository.AccountRepository
@@ -70,7 +72,14 @@ class AccountViewModel @Inject constructor(
 
     fun signUp(email: String, password: String) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, errorMessage = null, pendingVerificationEmail = null) }
+            _uiState.update {
+                it.copy(
+                    isLoading = true,
+                    errorMessage = null,
+                    pendingVerificationEmail = null,
+                    verificationCodeSentMessage = null,
+                )
+            }
             runCatching {
                 when (accountRepository.signUp(email, password)) {
                     EmailSignUpOutcome.SignedIn -> {
@@ -119,38 +128,61 @@ class AccountViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             runCatching {
                 accountRepository.resendSignupVerificationCode(email)
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = null,
+                        verificationCodeSentMessage = "New code sent — check your inbox and spam folder.",
+                    )
+                }
             }.onFailure { error ->
                 _uiState.update {
-                    it.copy(errorMessage = error.message ?: "Could not resend code.")
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = error.message ?: "Could not resend code.",
+                    )
                 }
             }
-            _uiState.update { it.copy(isLoading = false) }
         }
     }
 
-    fun signInWithGoogle(useOAuthFallback: Boolean = false) {
+    fun signInWithGoogle(activityContext: Context) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             runCatching {
-                if (!useOAuthFallback && googleSignInHelper.isConfigured) {
-                    val idToken = googleSignInHelper.getGoogleIdToken()
-                    if (idToken != null) {
-                        accountRepository.signInWithGoogleIdToken(idToken)
-                    } else {
-                        accountRepository.signInWithGoogleOAuth()
-                    }
+                val idToken = if (googleSignInHelper.isConfigured) {
+                    googleSignInHelper.getGoogleIdToken(activityContext)
+                } else {
+                    null
+                }
+                if (idToken != null) {
+                    accountRepository.signInWithGoogleIdToken(idToken)
                 } else {
                     accountRepository.signInWithGoogleOAuth()
                 }
                 refreshAuthenticatedState(triggerSync = true)
-                _uiState.update { it.copy(showSignInSuccess = true) }
-            }.onFailure { error ->
-                val message = error.message.orEmpty()
-                if (message.contains("cancel", ignoreCase = true)) {
-                    _uiState.update { it.copy(isLoading = false) }
+                if (_uiState.value.isSignedIn) {
+                    _uiState.update { it.copy(showSignInSuccess = true) }
                 } else {
-                    _uiState.update {
-                        it.copy(isLoading = false, errorMessage = message.ifBlank { "Google sign-in failed." })
+                    _uiState.update { it.copy(isLoading = false) }
+                }
+            }.onFailure { error ->
+                when (error) {
+                    is GoogleSignInCancelledException -> {
+                        _uiState.update { it.copy(isLoading = false) }
+                    }
+                    else -> {
+                        val message = error.message.orEmpty()
+                        if (message.contains("cancel", ignoreCase = true)) {
+                            _uiState.update { it.copy(isLoading = false) }
+                        } else {
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    errorMessage = message.ifBlank { "Google sign-in failed." },
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -171,6 +203,19 @@ class AccountViewModel @Inject constructor(
 
     fun clearError() {
         _uiState.update { it.copy(errorMessage = null) }
+    }
+
+    fun onOAuthSessionEstablished() {
+        viewModelScope.launch {
+            refreshAuthenticatedState(triggerSync = true)
+            if (_uiState.value.isSignedIn) {
+                _uiState.update {
+                    it.copy(isLoading = false, showSignInSuccess = true, errorMessage = null)
+                }
+            } else {
+                _uiState.update { it.copy(isLoading = false) }
+            }
+        }
     }
 
     fun createProfile(

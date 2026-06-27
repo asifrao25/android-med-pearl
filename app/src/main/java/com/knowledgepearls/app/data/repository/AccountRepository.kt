@@ -5,6 +5,8 @@ import com.knowledgepearls.app.data.remote.SupabaseConfig
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.OtpType
 import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.exception.AuthErrorCode
+import io.github.jan.supabase.auth.exception.AuthRestException
 import io.github.jan.supabase.auth.providers.Google
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.auth.providers.builtin.IDToken
@@ -24,6 +26,12 @@ sealed class AccountAuthException(message: String) : Exception(message) {
 
     class VerificationIncomplete :
         AccountAuthException("Verification didn't complete. Try again or request a new code.")
+
+    class RateLimited :
+        AccountAuthException("Please wait about a minute before requesting another code.")
+
+    class EmailAlreadyRegistered :
+        AccountAuthException("This email already has an account. Sign in instead.")
 }
 
 enum class EmailSignUpOutcome {
@@ -74,9 +82,19 @@ class AccountRepository @Inject constructor(
 
     suspend fun signUp(email: String, password: String): EmailSignUpOutcome {
         val normalizedEmail = normalizeEmail(email)
-        supabase.auth.signUpWith(Email) {
-            this.email = normalizedEmail
-            this.password = password
+        try {
+            // No redirect URL — Android Auth config defaults to the OAuth deeplink, which makes
+            // GoTrue send a confirmation link instead of the 6-digit OTP the app expects.
+            supabase.auth.signUpWith(Email, redirectUrl = null) {
+                this.email = normalizedEmail
+                this.password = password
+            }
+        } catch (error: AuthRestException) {
+            if (error.errorCode == AuthErrorCode.UserAlreadyExists) {
+                runCatching { supabase.auth.resendEmail(OtpType.Email.SIGNUP, normalizedEmail) }
+                return EmailSignUpOutcome.EmailVerificationRequired
+            }
+            throw mapAuthException(error)
         }
         val user = supabase.auth.currentUserOrNull()
         if (user?.emailConfirmedAt != null && supabase.auth.currentSessionOrNull() != null) {
@@ -102,7 +120,11 @@ class AccountRepository @Inject constructor(
     }
 
     suspend fun resendSignupVerificationCode(email: String) {
-        supabase.auth.resendEmail(OtpType.Email.SIGNUP, normalizeEmail(email))
+        try {
+            supabase.auth.resendEmail(OtpType.Email.SIGNUP, normalizeEmail(email))
+        } catch (error: AuthRestException) {
+            throw mapAuthException(error)
+        }
     }
 
     suspend fun signInWithGoogleIdToken(idToken: String) {
@@ -237,11 +259,23 @@ class AccountRepository @Inject constructor(
         email.trim().lowercase()
 
     private fun isEmailNotConfirmed(error: Exception): Boolean {
+        if (error is AuthRestException && error.errorCode == AuthErrorCode.EmailNotConfirmed) {
+            return true
+        }
         val message = error.message?.lowercase().orEmpty()
         return message.contains("email not confirmed") ||
             message.contains("not verified") ||
             message.contains("confirm your email")
     }
+
+    private fun mapAuthException(error: AuthRestException): Exception =
+        when (error.errorCode) {
+            AuthErrorCode.OverEmailSendRateLimit, AuthErrorCode.OverRequestRateLimit ->
+                AccountAuthException.RateLimited()
+            AuthErrorCode.UserAlreadyExists ->
+                AccountAuthException.EmailAlreadyRegistered()
+            else -> error
+        }
 
     private fun versionAvatarUrl(url: String): String {
         val separator = if (url.contains("?")) "&" else "?"

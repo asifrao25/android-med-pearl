@@ -14,6 +14,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.knowledgepearls.app.ui.account.AccountViewModel
@@ -31,6 +32,7 @@ fun MainScaffold(
     accountViewModel: AccountViewModel = hiltViewModel(),
 ) {
     val accountState by accountViewModel.uiState.collectAsStateWithLifecycle()
+    val activityContext = LocalContext.current
 
     var showSplash by rememberSaveable { mutableStateOf(true) }
     var selectedTab by rememberSaveable { mutableStateOf(MainTab.Feed) }
@@ -114,7 +116,7 @@ fun MainScaffold(
                 onDismiss = { authOpen = false },
                 onSignIn = accountViewModel::signIn,
                 onSignUp = accountViewModel::signUp,
-                onGoogleSignIn = { accountViewModel.signInWithGoogle() },
+                onGoogleSignIn = { accountViewModel.signInWithGoogle(activityContext) },
                 onVerifyCode = accountViewModel::verifySignupCode,
                 onResendCode = accountViewModel::resendVerificationCode,
                 onClearSignInSuccess = accountViewModel::clearSignInSuccess,
