@@ -36,8 +36,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.SubcomposeAsyncImage
 import com.knowledgepearls.app.data.model.PublicPearl
 import com.knowledgepearls.app.data.model.PublicPearlMediaItem
-import com.knowledgepearls.app.data.model.PublicPearlMediaUrls
-import com.knowledgepearls.app.ui.media.PearlDocumentDetailPreview
+import com.knowledgepearls.app.ui.media.DocumentAttachmentActions
 import com.knowledgepearls.app.ui.media.PearlDocumentPreviewCard
 import com.knowledgepearls.app.ui.theme.PearlColors
 import com.knowledgepearls.app.ui.theme.TabTheme
@@ -68,7 +67,6 @@ fun publicPearlMediaSlides(items: List<PublicPearlMediaItem>): List<PublicPearlM
         when {
             item.isVideo -> PublicPearlMediaSlide.Video(url, item.resolvedFilename)
             item.isDocument -> PublicPearlMediaSlide.Document(url, item.resolvedFilename)
-            item.isPhoto || PublicPearlMediaUrls.isImageUrl(url) -> PublicPearlMediaSlide.Image(url)
             else -> PublicPearlMediaSlide.Image(url)
         }
     }
@@ -126,88 +124,60 @@ fun PublicPearlDetailMediaSection(
     onOpenMedia: (PublicPearlMediaViewerRequest) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val slides = publicPearlMediaSlides(pearl.resolvedMediaItems.filter { !it.isDocument })
-    val documents = pearl.resolvedMediaItems.filter { it.isDocument }
+    val slides = publicPearlMediaSlides(pearl.resolvedMediaItems)
     val darkTheme = isPearlDarkTheme()
     val openSlide: (PublicPearlMediaSlide) -> Unit = { slide ->
-        val galleryIndex = slides.indexOfFirst { it.id == slide.id }.coerceAtLeast(0)
-        onOpenMedia(
-            PublicPearlMediaViewerRequest(
-                slides = if (slide is PublicPearlMediaSlide.Document) {
-                    listOf(slide)
-                } else {
-                    slides
-                },
-                initialIndex = if (slide is PublicPearlMediaSlide.Document) 0 else galleryIndex,
-            ),
-        )
+        val index = slides.indexOfFirst { it.id == slide.id }.coerceAtLeast(0)
+        onOpenMedia(PublicPearlMediaViewerRequest(slides, index))
     }
 
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        if (slides.isNotEmpty()) {
-            Text(
-                text = if (slides.size > 1) "Attachments" else "Attachment",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = PearlColors.heroPrimary(darkTheme),
-            )
-            if (slides.size > 1) {
-                PublicPearlMediaCarousel(
-                    slides = slides,
-                    theme = theme,
-                    height = 220.dp,
-                    interactive = true,
-                    onOpenAtIndex = { index ->
-                        onOpenMedia(PublicPearlMediaViewerRequest(slides, index))
-                    },
+        when {
+            slides.isNotEmpty() -> {
+                Text(
+                    text = if (slides.size > 1) "Attachments" else "Attachment",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = PearlColors.heroPrimary(darkTheme),
                 )
-            } else {
-                PublicPearlMediaSlideView(
-                    slide = slides.first(),
-                    theme = theme,
-                    height = 220.dp,
-                    interactive = true,
-                    onOpen = { openSlide(slides.first()) },
-                )
-            }
-        } else if (pearl.resolvedLinkPreviewImageUrl != null) {
-            Text(
-                text = "Preview",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = PearlColors.heroPrimary(darkTheme),
-            )
-            PublicPearlImagePreview(
-                url = pearl.resolvedLinkPreviewImageUrl!!,
-                height = 220.dp,
-                onClick = {
-                    onOpenMedia(
-                        PublicPearlMediaViewerRequest(
-                            slides = listOf(PublicPearlMediaSlide.Image(pearl.resolvedLinkPreviewImageUrl!!)),
-                        ),
-                    )
-                },
-            )
-        }
-
-        if (documents.isNotEmpty()) {
-            Text(
-                text = if (documents.size > 1) "Documents" else "Document",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = PearlColors.heroPrimary(darkTheme),
-            )
-            documents.forEach { item ->
-                item.loadableUrl?.let { url ->
-                    PearlDocumentDetailPreview(
-                        url = url,
-                        filename = item.resolvedFilename,
+                if (slides.size > 1) {
+                    PublicPearlMediaCarousel(
+                        slides = slides,
                         theme = theme,
-                        onOpen = {
-                            openSlide(PublicPearlMediaSlide.Document(url, item.resolvedFilename))
+                        height = 220.dp,
+                        interactive = true,
+                        onOpenAtIndex = { index ->
+                            onOpenMedia(PublicPearlMediaViewerRequest(slides, index))
                         },
                     )
+                } else {
+                    PublicPearlMediaSlideView(
+                        slide = slides.first(),
+                        theme = theme,
+                        height = 220.dp,
+                        interactive = true,
+                        onOpen = { openSlide(slides.first()) },
+                    )
                 }
+            }
+            pearl.resolvedLinkPreviewImageUrl != null -> {
+                Text(
+                    text = "Preview",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = PearlColors.heroPrimary(darkTheme),
+                )
+                PublicPearlImagePreview(
+                    url = pearl.resolvedLinkPreviewImageUrl!!,
+                    height = 220.dp,
+                    onClick = {
+                        onOpenMedia(
+                            PublicPearlMediaViewerRequest(
+                                slides = listOf(PublicPearlMediaSlide.Image(pearl.resolvedLinkPreviewImageUrl!!)),
+                            ),
+                        )
+                    },
+                )
             }
         }
     }
@@ -224,41 +194,58 @@ internal fun PublicPearlMediaCarousel(
 ) {
     val pagerState = rememberPagerState(pageCount = { slides.size })
 
-    Box(modifier = modifier.fillMaxWidth()) {
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(height)
-                .clip(previewShape),
-            userScrollEnabled = interactive,
-        ) { page ->
-            PublicPearlMediaSlideView(
-                slide = slides[page],
-                theme = theme,
-                height = height,
-                interactive = interactive,
-                onOpen = if (interactive && onOpenAtIndex != null) {
-                    { onOpenAtIndex(page) }
-                } else {
-                    null
-                },
-            )
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Box(modifier = Modifier.fillMaxWidth()) {
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(height)
+                    .clip(previewShape),
+                userScrollEnabled = interactive,
+            ) { page ->
+                PublicPearlMediaSlideView(
+                    slide = slides[page],
+                    theme = theme,
+                    height = height,
+                    interactive = interactive,
+                    includeDocumentActions = false,
+                    onOpen = if (interactive && onOpenAtIndex != null) {
+                        { onOpenAtIndex(page) }
+                    } else {
+                        null
+                    },
+                )
+            }
+
+            if (slides.size > 1) {
+                Text(
+                    text = "${pagerState.currentPage + 1}/${slides.size}",
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(10.dp)
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(Color.Black.copy(alpha = 0.55f))
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
         }
 
-        if (slides.size > 1) {
-            Text(
-                text = "${pagerState.currentPage + 1}/${slides.size}",
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(10.dp)
-                    .clip(RoundedCornerShape(999.dp))
-                    .background(Color.Black.copy(alpha = 0.55f))
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                color = Color.White,
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold,
-            )
+        if (interactive) {
+            val currentSlide = slides.getOrNull(pagerState.currentPage)
+            if (currentSlide is PublicPearlMediaSlide.Document) {
+                DocumentAttachmentActions(
+                    url = currentSlide.url,
+                    filename = currentSlide.filename,
+                    theme = theme,
+                )
+            }
         }
     }
 }
@@ -270,6 +257,7 @@ internal fun PublicPearlMediaSlideView(
     height: androidx.compose.ui.unit.Dp,
     interactive: Boolean,
     modifier: Modifier = Modifier,
+    includeDocumentActions: Boolean = true,
     onOpen: (() -> Unit)? = null,
 ) {
     when (slide) {
@@ -287,15 +275,29 @@ internal fun PublicPearlMediaSlideView(
             interactive = interactive,
             onOpen = if (interactive) onOpen else null,
         )
-        is PublicPearlMediaSlide.Document -> PearlDocumentPreviewCard(
-            url = slide.url,
-            filename = slide.filename,
-            theme = theme,
-            height = height,
-            modifier = modifier,
-            interactive = interactive,
-            onOpen = if (interactive) onOpen else null,
-        )
+        is PublicPearlMediaSlide.Document -> {
+            Column(
+                modifier = modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                PearlDocumentPreviewCard(
+                    url = slide.url,
+                    filename = slide.filename,
+                    theme = theme,
+                    height = height,
+                    modifier = Modifier.fillMaxWidth(),
+                    interactive = interactive,
+                    onOpen = if (interactive) onOpen else null,
+                )
+                if (interactive && includeDocumentActions) {
+                    DocumentAttachmentActions(
+                        url = slide.url,
+                        filename = slide.filename,
+                        theme = theme,
+                    )
+                }
+            }
+        }
     }
 }
 

@@ -15,15 +15,18 @@ object DocumentTypes {
         return url.lowercase().contains(".pdf")
     }
 
-    fun isOfficeDocument(filename: String): Boolean =
-        extensionOf(filename) in OFFICE_EXTENSIONS
+    fun isOfficeDocument(filename: String, url: String = ""): Boolean {
+        if (extensionOf(filename) in OFFICE_EXTENSIONS) return true
+        return extensionOf(url.substringBefore('?').substringAfterLast('/')) in OFFICE_EXTENSIONS
+    }
 
-    fun isDocument(filename: String, mediaType: String? = null): Boolean {
+    fun isDocument(filename: String, mediaType: String? = null, url: String = ""): Boolean {
         if (mediaType == MediaType.PDF) return true
-        if (isPdf(filename)) return true
-        if (isOfficeDocument(filename)) return true
+        if (isPdf(filename, url)) return true
+        if (isOfficeDocument(filename, url)) return true
         if (mediaType == MediaType.DOCUMENT) return true
-        return mediaType == "document"
+        if (mediaType == "document") return true
+        return mediaType.equals("application/pdf", ignoreCase = true)
     }
 
     fun documentLabel(filename: String): String = when (extensionOf(filename)) {

@@ -1,8 +1,5 @@
 package com.knowledgepearls.app.ui.publicfeed
 
-import android.graphics.Bitmap
-import android.graphics.pdf.PdfRenderer
-import android.os.ParcelFileDescriptor
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.background
@@ -14,13 +11,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -31,6 +26,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,8 +35,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -53,20 +47,16 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
-import android.content.Intent
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.core.content.FileProvider
-import com.knowledgepearls.app.ui.media.DocumentFileResolver
+import com.knowledgepearls.app.ui.media.DocumentDownloader
 import com.knowledgepearls.app.ui.media.DocumentSupport
+import com.knowledgepearls.app.ui.media.FullscreenOfficeDocumentViewer
+import com.knowledgepearls.app.ui.media.FullscreenPdfDocumentViewer
 import com.knowledgepearls.app.ui.media.ZoomableFullscreenImage
+import com.knowledgepearls.app.ui.media.effectiveMediaFilename
 import com.knowledgepearls.app.ui.theme.TabTheme
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.io.File
+import kotlinx.coroutines.launch
 
 data class PublicPearlMediaViewerRequest(
     val slides: List<PublicPearlMediaSlide>,
@@ -135,14 +125,19 @@ fun PublicPearlMediaViewerOverlay(
                     is PublicPearlMediaSlide.Document -> FullscreenDocument(
                         url = slide.url,
                         filename = slide.filename,
+                        onDismissProgress = { dismissProgress = it },
+                        onDismiss = onDismiss,
+                        onZoomChanged = { isImageZoomed = it },
                     )
                 }
             }
 
+            val currentSlide = request.slides[pagerState.currentPage]
             ViewerChrome(
-                title = viewerTitle(request.slides[pagerState.currentPage], pagerState.currentPage, request.slides.size),
+                title = viewerTitle(currentSlide, pagerState.currentPage, request.slides.size),
                 theme = theme,
                 onDismiss = onDismiss,
+                documentSlide = currentSlide as? PublicPearlMediaSlide.Document,
                 modifier = Modifier.graphicsLayer { alpha = scrimAlpha },
             )
         }
@@ -154,8 +149,13 @@ private fun ViewerChrome(
     title: String,
     theme: TabTheme,
     onDismiss: () -> Unit,
+    documentSlide: PublicPearlMediaSlide.Document? = null,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var isDownloading by remember(documentSlide?.id) { mutableStateOf(false) }
+
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -182,6 +182,31 @@ private fun ViewerChrome(
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,
             )
+        }
+        if (documentSlide != null) {
+            IconButton(
+                onClick = {
+                    if (isDownloading) return@IconButton
+                    scope.launch {
+                        isDownloading = true
+                        DocumentDownloader.download(
+                            context = context,
+                            cacheDir = context.cacheDir,
+                            url = documentSlide.url,
+                            filename = documentSlide.filename,
+                        )
+                        isDownloading = false
+                    }
+                },
+                enabled = !isDownloading,
+                modifier = Modifier.align(Alignment.CenterEnd),
+            ) {
+                Icon(
+                    Icons.Default.Download,
+                    contentDescription = "Download",
+                    tint = Color.White,
+                )
+            }
         }
     }
 }
@@ -243,155 +268,47 @@ private fun FullscreenVideo(url: String, filename: String) {
 }
 
 @Composable
-private fun FullscreenDocument(url: String, filename: String) {
+private fun FullscreenDocument(
+    url: String,
+    filename: String,
+    onDismissProgress: (Float) -> Unit = {},
+    onDismiss: () -> Unit = {},
+    onZoomChanged: (Boolean) -> Unit = {},
+) {
+    val effectiveName = effectiveMediaFilename(filename, url)
     when {
-        DocumentSupport.isPdf(filename, url) -> PdfDocumentViewer(url = url, filename = filename)
-        DocumentSupport.isOfficeDocument(filename) && DocumentSupport.isRemoteUrl(url) ->
+        DocumentSupport.isPdf(effectiveName, url) -> FullscreenPdfDocumentViewer(
+            url = url,
+            filename = effectiveName,
+            onDismissProgress = onDismissProgress,
+            onDismiss = onDismiss,
+            onZoomChanged = onZoomChanged,
+        )
+        DocumentSupport.isOfficeDocument(effectiveName, url) && DocumentSupport.isRemoteUrl(url) ->
             EmbeddedDocumentWebViewer(
                 viewerUrl = DocumentSupport.officeEmbedUrl(url),
-                filename = filename,
+                filename = effectiveName,
             )
-        DocumentSupport.isOfficeDocument(filename) ->
-            LocalOfficeDocumentViewer(url = url, filename = filename)
+        DocumentSupport.isOfficeDocument(effectiveName, url) ->
+            FullscreenOfficeDocumentViewer(
+                url = url,
+                filename = effectiveName,
+                onDismissProgress = onDismissProgress,
+                onDismiss = onDismiss,
+                onZoomChanged = onZoomChanged,
+            )
         DocumentSupport.isRemoteUrl(url) ->
             EmbeddedDocumentWebViewer(
                 viewerUrl = DocumentSupport.googleViewerUrl(url),
-                filename = filename,
+                filename = effectiveName,
             )
-        else -> LocalOfficeDocumentViewer(url = url, filename = filename)
-    }
-}
-
-@Composable
-private fun LocalOfficeDocumentViewer(url: String, filename: String) {
-    val context = LocalContext.current
-    var thumb by remember(url, filename) { mutableStateOf<Bitmap?>(null) }
-
-    LaunchedEffect(url, filename) {
-        thumb = com.knowledgepearls.app.ui.media.MediaThumbnailUtils.loadDocumentThumbnail(
-            cacheDir = context.cacheDir,
+        else -> FullscreenOfficeDocumentViewer(
             url = url,
-            filename = filename,
+            filename = effectiveName,
+            onDismissProgress = onDismissProgress,
+            onDismiss = onDismiss,
+            onZoomChanged = onZoomChanged,
         )
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(top = 56.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.padding(24.dp),
-        ) {
-            thumb?.let { bitmap ->
-                Image(
-                    bitmap = bitmap.asImageBitmap(),
-                    contentDescription = filename,
-                    modifier = Modifier.fillMaxWidth(),
-                    contentScale = ContentScale.FillWidth,
-                )
-            }
-            Text(
-                text = filename,
-                color = Color.White,
-                fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center,
-            )
-            Text(
-                text = "${DocumentSupport.documentLabel(filename)} · Tap below to open the full document",
-                color = Color.White.copy(alpha = 0.75f),
-                textAlign = TextAlign.Center,
-            )
-            Text(
-                text = "Open document",
-                color = Color.White,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(999.dp))
-                    .background(Color.White.copy(alpha = 0.16f))
-                    .clickable {
-                        val file = DocumentFileResolver.resolveFile(context.cacheDir, url, filename)
-                        openLocalDocument(context, file)
-                    }
-                    .padding(horizontal = 18.dp, vertical = 10.dp),
-            )
-        }
-    }
-}
-
-@Composable
-private fun LocalDocumentViewer(url: String, filename: String) {
-    LocalOfficeDocumentViewer(url = url, filename = filename)
-}
-
-@Composable
-private fun PdfDocumentViewer(url: String, filename: String) {
-    val context = LocalContext.current
-    var pages by remember(url) { mutableStateOf<List<Bitmap>?>(null) }
-    var error by remember(url) { mutableStateOf<String?>(null) }
-
-    LaunchedEffect(url) {
-        pages = null
-        error = null
-        withContext(Dispatchers.IO) {
-            runCatching {
-                val file = DocumentFileResolver.resolveFile(context.cacheDir, url, filename)
-                renderPdfPages(file)
-            }.onSuccess { rendered ->
-                pages = rendered
-            }.onFailure { throwable ->
-                error = throwable.message ?: "Unable to open PDF"
-            }
-        }
-    }
-
-    when {
-        pages != null -> {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(top = 56.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                itemsIndexed(pages!!) { index, bitmap ->
-                    androidx.compose.foundation.Image(
-                        bitmap = bitmap.asImageBitmap(),
-                        contentDescription = "Page ${index + 1}",
-                        modifier = Modifier.fillMaxWidth(),
-                        contentScale = ContentScale.FillWidth,
-                    )
-                }
-            }
-        }
-        error != null && DocumentSupport.isRemoteUrl(url) && !DocumentSupport.isPdf(filename, url) -> {
-            EmbeddedDocumentWebViewer(
-                viewerUrl = if (DocumentSupport.isOfficeDocument(filename)) {
-                    DocumentSupport.officeEmbedUrl(url)
-                } else {
-                    DocumentSupport.googleViewerUrl(url)
-                },
-                filename = filename,
-            )
-        }
-        error != null -> {
-            LocalOfficeDocumentViewer(url = url, filename = filename)
-        }
-        else -> {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(top = 56.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    CircularProgressIndicator(color = Color.White)
-                    Text("Loading $filename", color = Color.White.copy(alpha = 0.85f))
-                }
-            }
-        }
     }
 }
 
@@ -420,6 +337,9 @@ private fun EmbeddedDocumentWebViewer(viewerUrl: String, filename: String) {
                     webView.loadUrl(viewerUrl)
                 }
             },
+            onRelease = { webView ->
+                webView.destroy()
+            },
         )
         Text(
             text = filename,
@@ -435,20 +355,6 @@ private fun EmbeddedDocumentWebViewer(viewerUrl: String, filename: String) {
     }
 }
 
-private fun openLocalDocument(context: android.content.Context, file: File) {
-    val uri = FileProvider.getUriForFile(
-        context,
-        "${context.packageName}.fileprovider",
-        file,
-    )
-    val mime = DocumentSupport.mimeType(file.name)
-    val intent = Intent(Intent.ACTION_VIEW).apply {
-        setDataAndType(uri, mime)
-        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-    }
-    context.startActivity(Intent.createChooser(intent, "Open document"))
-}
-
 private fun resolveMediaUri(url: String): String = when {
     url.startsWith("file:") || url.startsWith("content:") -> url
     !DocumentSupport.isRemoteUrl(url) -> File(url).toURI().toString()
@@ -457,19 +363,3 @@ private fun resolveMediaUri(url: String): String = when {
 
 private fun resolveMediaModel(url: String): Any =
     if (!DocumentSupport.isRemoteUrl(url) && !url.startsWith("file:")) File(url) else resolveMediaUri(url)
-
-private fun renderPdfPages(file: File): List<Bitmap> {
-    ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { descriptor ->
-        PdfRenderer(descriptor).use { renderer ->
-            return (0 until renderer.pageCount).map { index ->
-                renderer.openPage(index).use { page ->
-                    val width = page.width * 2
-                    val height = page.height * 2
-                    Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).also { bitmap ->
-                        page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-                    }
-                }
-            }
-        }
-    }
-}

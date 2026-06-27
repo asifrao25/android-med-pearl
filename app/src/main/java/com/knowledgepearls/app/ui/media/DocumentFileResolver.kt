@@ -8,15 +8,19 @@ import java.security.MessageDigest
 object DocumentFileResolver {
     fun isRemoteUrl(url: String): Boolean = DocumentSupport.isRemoteUrl(url)
 
-    fun resolveLocalFile(url: String): File? = when {
-        url.startsWith("file:") -> runCatching { File(URI(url)) }.getOrNull()
-        !isRemoteUrl(url) -> File(url).takeIf { it.exists() }
-        else -> null
+    fun resolveLocalFile(url: String): File? {
+        val direct = when {
+            url.startsWith("file:") -> runCatching { File(URI(url)) }.getOrNull()
+            !isRemoteUrl(url) -> File(url)
+            else -> null
+        }
+        return direct?.takeIf { it.exists() && it.isFile }
     }
 
     fun resolveFile(cacheDir: File, url: String, filename: String): File {
         resolveLocalFile(url)?.let { return it }
-        return cacheRemoteFile(cacheDir, url, filename)
+        val effectiveName = effectiveMediaFilename(filename, url)
+        return cacheRemoteFile(cacheDir, url, effectiveName)
     }
 
     fun cacheRemoteFile(cacheDir: File, url: String, filename: String): File {
@@ -24,7 +28,9 @@ object DocumentFileResolver {
         val digest = MessageDigest.getInstance("SHA-256")
             .digest(url.toByteArray())
             .joinToString("") { "%02x".format(it) }
-        val extension = filename.substringAfterLast('.', "").takeIf { it.isNotBlank() } ?: "bin"
+        val extension = effectiveMediaFilename(filename, url)
+            .substringAfterLast('.', "")
+            .takeIf { it.isNotBlank() } ?: "bin"
         val target = File(cacheRoot, "$digest.$extension")
         if (target.exists() && target.length() > 0L) return target
 

@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
+    <cache-path name="cache" path="." />
     <cache-path name="camera" path="camera/" />
+    <cache-path name="capture_draft" path="capture_draft/" />
+    <cache-path name="media_viewer" path="media_viewer/" />
+    <files-path name="pearl_media" path="pearl_media/" />
+    <files-path name="files" path="." />
 </paths>

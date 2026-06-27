@@ -10,10 +10,11 @@ object DocumentSupport {
 
     fun isPdf(filename: String, url: String = ""): Boolean = DocumentTypes.isPdf(filename, url)
 
-    fun isOfficeDocument(filename: String): Boolean = DocumentTypes.isOfficeDocument(filename)
+    fun isOfficeDocument(filename: String, url: String = ""): Boolean =
+        DocumentTypes.isOfficeDocument(filename, url)
 
-    fun isDocument(filename: String, mediaType: String? = null): Boolean =
-        DocumentTypes.isDocument(filename, mediaType)
+    fun isDocument(filename: String, mediaType: String? = null, url: String = ""): Boolean =
+        DocumentTypes.isDocument(filename, mediaType, url)
 
     fun isRemoteUrl(url: String): Boolean =
         url.startsWith("http://", ignoreCase = true) || url.startsWith("https://", ignoreCase = true)

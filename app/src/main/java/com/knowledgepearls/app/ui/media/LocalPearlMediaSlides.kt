@@ -15,21 +15,20 @@ fun treatsAsVideo(type: String, filename: String): Boolean {
         (lower.endsWith(".mp4") || lower.endsWith(".mov") || lower.endsWith(".m4v"))
 }
 
-fun treatsAsDocument(type: String, filename: String): Boolean {
+fun treatsAsDocument(type: String, filename: String, url: String = ""): Boolean {
     if (treatsAsVideo(type, filename)) return false
-    return DocumentSupport.isDocument(filename, type)
+    val effectiveName = effectiveMediaFilename(filename, url)
+    return DocumentSupport.isDocument(effectiveName, type, url)
 }
-
-fun mediaUriForPath(path: String): String = File(path).toURI().toString()
 
 fun localPearlMediaSlides(items: List<PearlMediaEntity>): List<PublicPearlMediaSlide> =
     items.mapNotNull { item ->
         val path = item.localPath?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
         val uri = mediaUriForPath(path)
-        val filename = item.filename.ifBlank { File(path).name }
+        val filename = effectiveMediaFilename(item.filename, path)
         when {
             treatsAsVideo(item.type, filename) -> PublicPearlMediaSlide.Video(uri, filename)
-            treatsAsDocument(item.type, filename) -> PublicPearlMediaSlide.Document(uri, filename)
+            treatsAsDocument(item.type, filename, uri) -> PublicPearlMediaSlide.Document(uri, filename)
             else -> PublicPearlMediaSlide.Image(uri)
         }
     }
@@ -37,32 +36,32 @@ fun localPearlMediaSlides(items: List<PearlMediaEntity>): List<PublicPearlMediaS
 fun gallerySlides(items: List<PearlMediaEntity>): List<PublicPearlMediaSlide> =
     items.filter { item ->
         val path = item.localPath ?: return@filter false
-        !treatsAsDocument(item.type, item.filename.ifBlank { File(path).name })
+        val filename = effectiveMediaFilename(item.filename, path)
+        val uri = mediaUriForPath(path)
+        !treatsAsDocument(item.type, filename, uri)
     }.let(::localPearlMediaSlides)
 
 fun documentSlides(items: List<PearlMediaEntity>): List<PearlMediaEntity> =
     items.filter { item ->
         val path = item.localPath ?: return@filter false
-        treatsAsDocument(item.type, item.filename.ifBlank { File(path).name })
+        val filename = effectiveMediaFilename(item.filename, path)
+        val uri = mediaUriForPath(path)
+        treatsAsDocument(item.type, filename, uri)
     }
 
 fun pearlMediaViewerRequest(
     pearl: PearlWithMedia,
     slide: PublicPearlMediaSlide? = null,
 ): PublicPearlMediaViewerRequest? {
-    val gallery = gallerySlides(pearl.mediaItems)
+    val slides = localPearlMediaSlides(pearl.mediaItems)
     if (slide != null) {
         return PublicPearlMediaViewerRequest(
-            slides = if (slide is PublicPearlMediaSlide.Document) listOf(slide) else gallery,
-            initialIndex = if (slide is PublicPearlMediaSlide.Document) {
-                0
-            } else {
-                gallery.indexOfFirst { it.id == slide.id }.coerceAtLeast(0)
-            },
+            slides = slides,
+            initialIndex = slides.indexOfFirst { it.id == slide.id }.coerceAtLeast(0),
         )
     }
-    if (gallery.isNotEmpty()) {
-        return PublicPearlMediaViewerRequest(gallery)
+    if (slides.isNotEmpty()) {
+        return PublicPearlMediaViewerRequest(slides)
     }
     pearl.pearl.linkPreviewImagePath?.takeIf { it.isNotBlank() }?.let { path ->
         return PublicPearlMediaViewerRequest(
@@ -75,16 +74,18 @@ fun pearlMediaViewerRequest(
 fun pickedMediaSlides(items: List<PickedMedia>, cacheDir: File): List<PublicPearlMediaSlide> =
     items.mapNotNull { item ->
         val cached = cachePickedMedia(item, cacheDir)
+        val filename = effectiveMediaFilename(item.filename, cached)
         when {
-            treatsAsVideo(item.type, item.filename) -> PublicPearlMediaSlide.Video(cached, item.filename)
-            treatsAsDocument(item.type, item.filename) -> PublicPearlMediaSlide.Document(cached, item.filename)
+            treatsAsVideo(item.type, filename) -> PublicPearlMediaSlide.Video(cached, filename)
+            treatsAsDocument(item.type, filename, cached) -> PublicPearlMediaSlide.Document(cached, filename)
             else -> PublicPearlMediaSlide.Image(cached)
         }
     }
 
 fun cachePickedMedia(item: PickedMedia, cacheDir: File): String {
     val folder = File(cacheDir, "capture_draft").apply { mkdirs() }
-    val extension = item.filename.substringAfterLast('.', "bin")
+    val extension = effectiveMediaFilename(item.filename)
+        .substringAfterLast('.', "bin")
     val target = File(folder, "${item.filename.hashCode()}-${item.bytes.size}.$extension")
     if (!target.exists() || target.length() != item.bytes.size.toLong()) {
         target.writeBytes(item.bytes)

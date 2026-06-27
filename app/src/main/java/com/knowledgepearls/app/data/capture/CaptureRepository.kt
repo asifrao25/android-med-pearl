@@ -7,6 +7,7 @@ import com.knowledgepearls.app.data.local.entity.PearlMediaEntity
 import com.knowledgepearls.app.data.local.model.ClinicalCasePayload
 import com.knowledgepearls.app.data.local.model.withClinicalCasePayload
 import com.knowledgepearls.app.data.media.MediaStorage
+import com.knowledgepearls.app.ui.media.effectiveMediaFilename
 import com.knowledgepearls.app.data.repository.KnowledgePearlRepository
 import java.util.UUID
 import javax.inject.Inject
@@ -156,5 +157,7 @@ class CaptureRepository @Inject constructor(
     }
 
     private fun extensionFor(filename: String): String =
-        filename.substringAfterLast('.', "bin").ifBlank { "bin" }
+        effectiveMediaFilename(filename)
+            .substringAfterLast('.', "bin")
+            .ifBlank { "bin" }
 }

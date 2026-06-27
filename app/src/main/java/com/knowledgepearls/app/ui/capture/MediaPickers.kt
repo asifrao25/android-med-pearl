@@ -4,7 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
-import android.provider.OpenableColumns
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -14,8 +14,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
+import com.knowledgepearls.app.data.capture.PickResult
 import com.knowledgepearls.app.data.capture.PickedMedia
-import com.knowledgepearls.app.data.capture.mediaTypeForFilename
+import com.knowledgepearls.app.data.capture.PickedUriReader
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -24,13 +25,25 @@ import kotlinx.coroutines.withContext
 @Composable
 fun rememberMediaPickers(
     onMediaPicked: (PickedMedia) -> Unit,
+    onPickFailed: ((String) -> Unit)? = null,
 ): MediaPickers {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
+    fun notifyFailure(message: String) {
+        if (onPickFailed != null) {
+            onPickFailed(message)
+        } else {
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+        }
+    }
+
     fun handlePickedUri(uri: Uri) {
         scope.launch {
-            readUri(context, uri)?.let(onMediaPicked)
+            when (val result = withContext(Dispatchers.IO) { PickedUriReader.read(context, uri) }) {
+                is PickResult.Success -> onMediaPicked(result.media)
+                is PickResult.Failure -> notifyFailure(result.message)
+            }
         }
     }
 
@@ -47,6 +60,12 @@ fun rememberMediaPickers(
     }
 
     val documentLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent(),
+    ) { uri ->
+        uri?.let(::handlePickedUri)
+    }
+
+    val openDocumentLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
     ) { uri ->
         uri?.let { picked ->
@@ -95,7 +114,10 @@ fun rememberMediaPickers(
             multiGalleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
         },
         pickDocument = {
-            documentLauncher.launch(arrayOf("*/*"))
+            documentLauncher.launch("*/*")
+        },
+        pickDocumentWithPersistedAccess = {
+            openDocumentLauncher.launch(PickedUriReader.openDocumentMimeTypes())
         },
         takePhoto = {
             if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
@@ -114,35 +136,9 @@ data class MediaPickers(
     val pickGallery: () -> Unit,
     val pickMultipleGallery: () -> Unit,
     val pickDocument: () -> Unit,
+    val pickDocumentWithPersistedAccess: () -> Unit = pickDocument,
     val takePhoto: () -> Unit,
 )
-
-private suspend fun readUri(context: Context, uri: Uri): PickedMedia? {
-    return withContext(Dispatchers.IO) {
-        runCatching {
-            val filename = queryDisplayName(context, uri) ?: "attachment"
-            val bytes = context.contentResolver.openInputStream(uri)?.use { input ->
-                input.readBytes()
-            } ?: return@withContext null
-            if (bytes.isEmpty()) return@withContext null
-            PickedMedia(
-                bytes = bytes,
-                filename = filename,
-                type = mediaTypeForFilename(filename),
-            )
-        }.getOrNull()
-    }
-}
-
-private fun queryDisplayName(context: Context, uri: Uri): String? {
-    context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-        val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-        if (index >= 0 && cursor.moveToFirst()) {
-            return cursor.getString(index)
-        }
-    }
-    return uri.lastPathSegment?.substringAfterLast('/')
-}
 
 private object CaptureMediaUri {
     fun create(context: Context): Uri {

@@ -30,8 +30,14 @@ fun mediaTypeForFilename(filename: String): String {
     return when {
         lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png") ||
             lower.endsWith(".webp") || lower.endsWith(".heic") -> "image"
-        lower.endsWith(".mp4") || lower.endsWith(".mov") || lower.endsWith(".m4v") -> "video"
+        lower.endsWith(".mp4") || lower.endsWith(".mov") || lower.endsWith(".m4v") ||
+            lower.endsWith(".webm") -> "video"
         lower.endsWith(".pdf") -> "pdf"
+        lower.endsWith(".doc") || lower.endsWith(".docx") ||
+            lower.endsWith(".ppt") || lower.endsWith(".pptx") ||
+            lower.endsWith(".xls") || lower.endsWith(".xlsx") ||
+            lower.endsWith(".odt") || lower.endsWith(".odp") || lower.endsWith(".ods") ||
+            lower.endsWith(".rtf") -> "document"
         else -> "document"
     }
 }

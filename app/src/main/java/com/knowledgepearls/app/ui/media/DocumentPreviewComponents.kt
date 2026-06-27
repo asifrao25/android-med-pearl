@@ -26,7 +26,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -42,27 +42,38 @@ import com.knowledgepearls.app.ui.theme.TabTheme
 import com.knowledgepearls.app.ui.theme.isPearlDarkTheme
 
 private val previewShape = RoundedCornerShape(12.dp)
+private val documentPreviewBackground = Color(0xFFF4F4F5)
+private val documentPreviewForeground = Color(0xFF1C1C1E)
 
 @Composable
 fun PearlDocumentPreviewCard(
     url: String,
     filename: String,
     theme: TabTheme,
-    height: Dp,
+    height: Dp? = null,
     modifier: Modifier = Modifier,
     interactive: Boolean = false,
     onOpen: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
-    var thumb by remember(url, filename) { mutableStateOf<android.graphics.Bitmap?>(null) }
-    var isLoading by remember(url, filename) { mutableStateOf(true) }
+    val effectiveName = effectiveMediaFilename(filename, url)
+    val isPdf = DocumentSupport.isPdf(effectiveName, url)
+    val isOffice = DocumentSupport.isOfficeDocument(effectiveName, url)
+    val canRenderPreview = isPdf || isOffice
+    var thumb by remember(url, effectiveName) { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var isLoading by remember(url, effectiveName) { mutableStateOf(canRenderPreview) }
 
-    LaunchedEffect(url, filename) {
+    LaunchedEffect(url, effectiveName) {
+        if (!canRenderPreview) {
+            thumb = null
+            isLoading = false
+            return@LaunchedEffect
+        }
         isLoading = true
         thumb = MediaThumbnailUtils.loadDocumentThumbnail(
             cacheDir = context.cacheDir,
             url = url,
-            filename = filename,
+            filename = effectiveName,
         )
         isLoading = false
     }
@@ -73,33 +84,54 @@ fun PearlDocumentPreviewCard(
         Modifier
     }
 
+    val cardBackground = when {
+        isPdf -> Color.White
+        isOffice -> documentPreviewBackground
+        else -> documentPreviewBackground
+    }
+
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(height)
+            .then(if (height != null) Modifier.height(height) else Modifier.fillMaxSize())
             .clip(previewShape)
+            .background(cardBackground)
             .semantics(mergeDescendants = true) {
                 contentDescription = if (interactive && onOpen != null) {
-                    "Document $filename, tap to preview"
+                    "Document $effectiveName, tap to preview"
                 } else {
-                    "Document $filename"
+                    "Document $effectiveName"
                 }
             }
             .then(clickModifier),
     ) {
-        thumb?.let { bitmap ->
-            Image(
-                bitmap = bitmap.asImageBitmap(),
-                contentDescription = filename,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-            )
-        } ?: DocumentPreviewPlaceholder(
-            filename = filename,
-            theme = theme,
-            isLoading = isLoading,
-            modifier = Modifier.fillMaxSize(),
-        )
+        when {
+            thumb != null -> {
+                Image(
+                    bitmap = thumb!!.asImageBitmap(),
+                    contentDescription = effectiveName,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.White),
+                    contentScale = ContentScale.Fit,
+                )
+            }
+            isLoading -> {
+                DocumentPreviewPlaceholder(
+                    filename = effectiveName,
+                    theme = theme,
+                    isLoading = true,
+                    isOffice = isOffice,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+            else -> {
+                OfficeDocumentPreviewContent(
+                    filename = effectiveName,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+        }
 
         if (interactive && onOpen != null) {
             Box(
@@ -107,12 +139,12 @@ fun PearlDocumentPreviewCard(
                     .align(Alignment.BottomStart)
                     .padding(10.dp)
                     .clip(RoundedCornerShape(999.dp))
-                    .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.55f))
+                    .background(Color.Black.copy(alpha = 0.55f))
                     .padding(horizontal = 8.dp, vertical = 4.dp),
             ) {
                 Text(
-                    text = DocumentSupport.documentLabel(filename),
-                    color = androidx.compose.ui.graphics.Color.White,
+                    text = DocumentSupport.documentLabel(effectiveName),
+                    color = Color.White,
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
                 )
@@ -122,18 +154,48 @@ fun PearlDocumentPreviewCard(
 }
 
 @Composable
+private fun OfficeDocumentPreviewContent(
+    filename: String,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.padding(horizontal = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Icon(
+            Icons.Default.Description,
+            contentDescription = null,
+            tint = documentPreviewForeground.copy(alpha = 0.82f),
+            modifier = Modifier.height(44.dp),
+        )
+        Text(
+            text = DocumentSupport.documentLabel(filename),
+            color = documentPreviewForeground,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+            text = filename,
+            color = documentPreviewForeground.copy(alpha = 0.72f),
+            style = MaterialTheme.typography.bodySmall,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+@Composable
 private fun DocumentPreviewPlaceholder(
     filename: String,
     theme: TabTheme,
     isLoading: Boolean,
+    isOffice: Boolean,
     modifier: Modifier = Modifier,
 ) {
     Box(
-        modifier = modifier.background(
-            brush = Brush.linearGradient(
-                listOf(theme.primary.copy(alpha = 0.42f), theme.secondary.copy(alpha = 0.18f)),
-            ),
-        ),
+        modifier = modifier.background(if (isOffice) documentPreviewBackground else Color.White),
         contentAlignment = Alignment.Center,
     ) {
         Column(
@@ -144,18 +206,18 @@ private fun DocumentPreviewPlaceholder(
             Icon(
                 Icons.Default.Description,
                 contentDescription = null,
-                tint = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.92f),
+                tint = if (isOffice) documentPreviewForeground.copy(alpha = 0.82f) else theme.primary,
                 modifier = Modifier.height(40.dp),
             )
             Text(
                 text = DocumentSupport.documentLabel(filename),
-                color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.92f),
+                color = if (isOffice) documentPreviewForeground else theme.primary,
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold,
             )
             Text(
                 text = filename,
-                color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.82f),
+                color = if (isOffice) documentPreviewForeground.copy(alpha = 0.72f) else PearlColors.heroSecondary(isPearlDarkTheme()),
                 style = MaterialTheme.typography.bodySmall,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
@@ -163,7 +225,7 @@ private fun DocumentPreviewPlaceholder(
             )
             if (isLoading) {
                 CircularProgressIndicator(
-                    color = androidx.compose.ui.graphics.Color.White,
+                    color = if (isOffice) documentPreviewForeground else theme.primary,
                     strokeWidth = 2.dp,
                     modifier = Modifier.height(24.dp),
                 )
@@ -192,13 +254,11 @@ fun PearlDocumentDetailPreview(
             interactive = true,
             onOpen = onOpen,
         )
-        Text(
-            text = filename,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium,
-            color = PearlColors.heroPrimary(isPearlDarkTheme()),
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
+        DocumentAttachmentActions(
+            url = url,
+            filename = filename,
+            theme = theme,
+            showFilename = true,
         )
     }
 }

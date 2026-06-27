@@ -31,6 +31,6 @@ data class PublicPearlMediaItem(
     val isDocument: Boolean
         get() {
             if (isVideo) return false
-            return DocumentTypes.isDocument(resolvedFilename, type)
+            return DocumentTypes.isDocument(resolvedFilename, type, loadableUrl.orEmpty())
         }
 }

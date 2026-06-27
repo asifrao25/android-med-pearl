@@ -34,7 +34,7 @@ fun QuickTextCaptureScreen(
     var shareToPublicFeed by remember { mutableStateOf(false) }
     val attachments = remember { mutableStateListOf<PickedMedia>() }
     val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
-    val pickers = rememberMediaPickers { attachments.add(it) }
+    val pickers = rememberMediaPickers(onMediaPicked = { attachments.add(it) })
     val kind = CaptureKind.QuickText
 
     SharedPearlCaptureHost(
@@ -162,7 +162,7 @@ fun AddMediaCaptureScreen(
     var shareToPublicFeed by remember { mutableStateOf(false) }
     val attachments = remember { mutableStateListOf<PickedMedia>() }
     val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
-    val pickers = rememberMediaPickers { attachments.add(it) }
+    val pickers = rememberMediaPickers(onMediaPicked = { attachments.add(it) })
     val kind = CaptureKind.Media
 
     androidx.compose.runtime.LaunchedEffect(initialRoute) {
@@ -297,9 +297,9 @@ private fun SectionWithMedia(
     media: MutableList<PickedMedia>,
     kind: CaptureKind,
 ) {
-    val pickers = rememberMediaPickers { picked ->
+    val pickers = rememberMediaPickers(onMediaPicked = { picked ->
         media.add(picked.copy(sectionTag = label.lowercase()))
-    }
+    })
     CaptureNotesField(label, text, onTextChange, kind.primary, minLines = 3)
     CaptureAttachmentSection(media, pickers, kind.secondary)
 }

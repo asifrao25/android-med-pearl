@@ -1,9 +1,7 @@
 package com.knowledgepearls.app.ui.media
 
 import android.graphics.Bitmap
-import android.graphics.pdf.PdfRenderer
 import android.media.MediaMetadataRetriever
-import android.os.ParcelFileDescriptor
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -20,27 +18,36 @@ object MediaThumbnailUtils {
 
     suspend fun loadPdfThumbnail(path: String): Bitmap? = withContext(Dispatchers.IO) {
         runCatching {
-            ParcelFileDescriptor.open(File(path), ParcelFileDescriptor.MODE_READ_ONLY).use { descriptor ->
-                PdfRenderer(descriptor).use { renderer ->
-                    if (renderer.pageCount == 0) return@withContext null
-                    renderer.openPage(0).use { page ->
-                        val width = page.width * 2
-                        val height = page.height * 2
-                        Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).also { bitmap ->
-                            page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-                        }
-                    }
-                }
-            }
+            PdfBitmapUtils.renderFirstPage(File(path))
         }.getOrNull()
     }
 
     suspend fun loadDocumentThumbnail(cacheDir: File, url: String, filename: String): Bitmap? =
         withContext(Dispatchers.IO) {
-            if (!DocumentSupport.isPdf(filename, url)) return@withContext null
+            val effectiveName = effectiveMediaFilename(filename, url)
             runCatching {
-                val file = DocumentFileResolver.resolveFile(cacheDir, url, filename)
-                loadPdfThumbnail(file.absolutePath)
+                val file = DocumentFileResolver.resolveFile(cacheDir, url, effectiveName)
+                when {
+                    DocumentSupport.isPdf(effectiveName, url) || isPdfFile(file) ->
+                        PdfBitmapUtils.renderFirstPage(file)
+                    DocumentSupport.isOfficeDocument(effectiveName, url) ->
+                        OfficeDocumentPreviewRenderer.renderThumbnail(file, effectiveName)
+                    else -> null
+                }
             }.getOrNull()
         }
+
+    private fun isPdfFile(file: File): Boolean {
+        if (!file.exists() || file.length() < 5) return false
+        return runCatching {
+            file.inputStream().use { input ->
+                val header = ByteArray(5)
+                if (input.read(header) == 5) {
+                    String(header, Charsets.US_ASCII).startsWith("%PDF-")
+                } else {
+                    false
+                }
+            }
+        }.getOrDefault(false)
+    }
 }
