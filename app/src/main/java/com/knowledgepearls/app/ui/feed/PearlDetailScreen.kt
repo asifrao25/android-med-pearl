@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -17,6 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.Button
@@ -39,7 +41,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.knowledgepearls.app.data.local.model.PearlWithMedia
 import com.knowledgepearls.app.data.local.model.clinicalCasePayload
 import com.knowledgepearls.app.data.local.model.isClinicalCase
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.knowledgepearls.app.ui.components.GlassSurface
+import com.knowledgepearls.app.ui.folders.FolderPickerOverlay
+import com.knowledgepearls.app.ui.folders.FoldersViewModel
 import com.knowledgepearls.app.ui.theme.LiquidBackground
 import com.knowledgepearls.app.ui.theme.PearlColors
 import com.knowledgepearls.app.ui.theme.PearlLayout
@@ -51,10 +56,15 @@ fun PearlDetailScreen(
     pearlId: String,
     viewModel: FeedViewModel,
     onBack: () -> Unit,
+    foldersViewModel: FoldersViewModel = hiltViewModel(),
 ) {
     val pearl by viewModel.observePearl(pearlId).collectAsStateWithLifecycle(initialValue = null)
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val folders by foldersViewModel.foldersWithCounts.collectAsStateWithLifecycle()
+    val memberFolderIds by foldersViewModel.observePearlFolderIds(pearlId)
+        .collectAsStateWithLifecycle(initialValue = emptySet())
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showFolderPicker by remember { mutableStateOf(false) }
     val theme = TabTheme.Feed
     val darkTheme = isPearlDarkTheme()
 
@@ -70,7 +80,8 @@ fun PearlDetailScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .statusBarsPadding(),
+                    .statusBarsPadding()
+                    .imePadding(),
             ) {
                 Row(
                     modifier = Modifier
@@ -88,6 +99,9 @@ fun PearlDetailScreen(
                         color = PearlColors.heroPrimary(darkTheme),
                         modifier = Modifier.weight(1f),
                     )
+                    IconButton(onClick = { showFolderPicker = true }) {
+                        Icon(Icons.Default.Folder, contentDescription = "Folders", tint = theme.primary)
+                    }
                     IconButton(onClick = { viewModel.toggleFavourite(item.pearl.id) }) {
                         Icon(
                             if (item.pearl.isFavourite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
@@ -135,7 +149,12 @@ fun PearlDetailScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .navigationBarsPadding()
-                        .padding(horizontal = PearlLayout.screenHorizontalPadding, vertical = 12.dp),
+                        .padding(
+                            start = PearlLayout.screenHorizontalPadding,
+                            end = PearlLayout.screenHorizontalPadding,
+                            top = 12.dp,
+                            bottom = PearlLayout.tabBarOverlayInset,
+                        ),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Button(
@@ -158,6 +177,21 @@ fun PearlDetailScreen(
                     onBack()
                 },
                 onDismiss = { showDeleteDialog = false },
+            )
+        }
+
+        if (showFolderPicker && pearl != null) {
+            FolderPickerOverlay(
+                pearl = pearl!!,
+                folders = folders,
+                memberFolderIds = memberFolderIds,
+                onDismiss = { showFolderPicker = false },
+                onToggleFolder = { folderId ->
+                    foldersViewModel.togglePearlFolderMembership(pearlId, folderId)
+                },
+                onCreateFolder = { name ->
+                    foldersViewModel.createFolderAndAddPearl(name, pearlId)
+                },
             )
         }
 

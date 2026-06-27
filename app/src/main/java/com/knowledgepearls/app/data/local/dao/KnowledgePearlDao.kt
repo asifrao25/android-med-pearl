@@ -26,6 +26,24 @@ interface KnowledgePearlDao {
     @Query("SELECT * FROM knowledge_pearls WHERE id = :id LIMIT 1")
     fun observeByIdWithMedia(id: String): Flow<PearlWithMedia?>
 
+    @Transaction
+    @Query(
+        """
+        SELECT * FROM knowledge_pearls
+        WHERE id IN (
+            SELECT pearlId FROM pearl_folder_cross_ref WHERE folderId = :folderId
+        )
+        ORDER BY updatedAt DESC
+        """,
+    )
+    fun observePearlsInFolderWithMedia(folderId: String): Flow<List<PearlWithMedia>>
+
+    @Query("SELECT folderId FROM pearl_folder_cross_ref WHERE pearlId = :pearlId")
+    fun observeFolderIdsForPearl(pearlId: String): Flow<List<String>>
+
+    @Query("SELECT COUNT(*) FROM pearl_folder_cross_ref WHERE folderId = :folderId")
+    suspend fun countPearlsInFolder(folderId: String): Int
+
     @Query("SELECT * FROM knowledge_pearls WHERE id = :id LIMIT 1")
     suspend fun getById(id: String): KnowledgePearlEntity?
 

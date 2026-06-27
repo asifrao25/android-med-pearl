@@ -7,12 +7,23 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import com.knowledgepearls.app.data.local.entity.FolderEntity
+import com.knowledgepearls.app.data.local.model.FolderWithCount
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface FolderDao {
     @Query("SELECT * FROM folders ORDER BY name COLLATE NOCASE ASC")
     fun observeAll(): Flow<List<FolderEntity>>
+
+    @Query(
+        """
+        SELECT folders.*,
+            (SELECT COUNT(*) FROM pearl_folder_cross_ref WHERE folderId = folders.id) AS pearlCount
+        FROM folders
+        ORDER BY folders.name COLLATE NOCASE ASC
+        """,
+    )
+    fun observeAllWithCounts(): Flow<List<FolderWithCount>>
 
     @Query("SELECT * FROM folders WHERE id = :id LIMIT 1")
     suspend fun getById(id: String): FolderEntity?

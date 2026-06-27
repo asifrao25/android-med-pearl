@@ -18,6 +18,8 @@ import com.knowledgepearls.app.ui.capture.ClinicalCaseCaptureScreen
 import com.knowledgepearls.app.ui.capture.QuickTextCaptureScreen
 import com.knowledgepearls.app.ui.capture.WebLinkCaptureScreen
 import com.knowledgepearls.app.ui.feed.FeedScreen
+import com.knowledgepearls.app.ui.account.AccountViewModel
+import com.knowledgepearls.app.ui.feed.FeedAuthorContext
 import com.knowledgepearls.app.ui.feed.FeedViewModel
 import com.knowledgepearls.app.ui.feed.PearlDetailScreen
 import com.knowledgepearls.app.ui.components.TabScreenHeader
@@ -42,10 +44,17 @@ fun FeedTabScreen(
     onOpenSettings: () -> Unit,
     feedViewModel: FeedViewModel = hiltViewModel(),
     captureViewModel: CaptureViewModel = hiltViewModel(),
+    accountViewModel: AccountViewModel = hiltViewModel(),
 ) {
     val navController = rememberNavController()
     val uiState by feedViewModel.uiState.collectAsStateWithLifecycle()
+    val accountState by accountViewModel.uiState.collectAsStateWithLifecycle()
     var captureMenuOpen by rememberSaveable { mutableStateOf(false) }
+    val feedAuthorContext = FeedAuthorContext(
+        userId = accountState.userId,
+        userEmail = accountState.userEmail,
+        userProfile = accountState.userProfile,
+    )
 
     LaunchedEffect(Unit) {
         feedViewModel.resetContentTypeFilter()
@@ -58,6 +67,8 @@ fun FeedTabScreen(
         composable("feed") {
             FeedScreen(
                 uiState = uiState,
+                feedAuthorContext = feedAuthorContext,
+                onResolveAvatarUrl = feedViewModel::fetchAvatarUrl,
                 onOpenSettings = onOpenSettings,
                 onPearlClick = { id -> navController.navigate("pearl/$id") },
                 onSearchQueryChange = feedViewModel::setSearchQuery,
@@ -139,14 +150,39 @@ fun FeedTabScreen(
 }
 
 @Composable
-fun FavouritesTabScreen(onOpenSettings: () -> Unit) {
-    TabRoot(
-        theme = TabTheme.Favourites,
-        title = "Favourites",
-        subtitle = "Saved pearls",
-        onOpenSettings = onOpenSettings,
-        placeholder = "Favourites coming in Stage 7",
+fun FavouritesTabScreen(
+    onOpenSettings: () -> Unit,
+    favouritesViewModel: com.knowledgepearls.app.ui.favourites.FavouritesViewModel = hiltViewModel(),
+    feedViewModel: FeedViewModel = hiltViewModel(),
+    accountViewModel: AccountViewModel = hiltViewModel(),
+) {
+    val navController = rememberNavController()
+    val accountState by accountViewModel.uiState.collectAsStateWithLifecycle()
+    val feedAuthorContext = FeedAuthorContext(
+        userId = accountState.userId,
+        userEmail = accountState.userEmail,
+        userProfile = accountState.userProfile,
     )
+
+    NavHost(navController = navController, startDestination = "favourites") {
+        composable("favourites") {
+            com.knowledgepearls.app.ui.favourites.FavouritesScreen(
+                viewModel = favouritesViewModel,
+                feedAuthorContext = feedAuthorContext,
+                onResolveAvatarUrl = feedViewModel::fetchAvatarUrl,
+                onOpenSettings = onOpenSettings,
+                onPearlClick = { id -> navController.navigate("pearl/$id") },
+            )
+        }
+        composable("pearl/{pearlId}") { entry ->
+            val pearlId = entry.arguments?.getString("pearlId").orEmpty()
+            PearlDetailScreen(
+                pearlId = pearlId,
+                viewModel = feedViewModel,
+                onBack = { navController.popBackStack() },
+            )
+        }
+    }
 }
 
 @Composable

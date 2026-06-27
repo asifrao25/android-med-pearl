@@ -2,7 +2,7 @@
 
 > **Goal:** Replicate the iOS app ([Knowledge Pearls](../Knowledge%20Pearls)) in this folder with the same design, layout, colour scheme, tabs, settings, custom pop-ups, and Supabase backend.
 >
-> **Status:** Stage 6 complete — **Stage 7 next**  
+> **Status:** Stage 7 complete — **Stage 8 next**  
 > **Last updated:** 2026-06-26  
 > **iOS reference:** `/Users/m4-mac/Documents/Xcode-projects/Knowledge Pearls`  
 > **Admin reference:** `/Users/m4-mac/Documents/Xcode-projects/Pearls-Admin`  
@@ -21,8 +21,8 @@
 | 4 | Auth, profile & sync services | ✅ Complete (Google Cloud config optional — see §6.5) |
 | 5 | My Feed & pearl detail | ✅ Complete |
 | 6 | Capture flows | ✅ Complete |
-| 7 | Folders & Favourites | 🔄 Next |
-| 8 | Public Feed (read + submit) | ⬜ Not started |
+| 7 | Folders & Favourites | ✅ Complete |
+| 8 | Public Feed (read + submit) | 🔄 Next |
 | 9 | Messaging & pearl shares (cross-platform) | ⬜ Not started |
 | 10 | Settings & sub-screens | ⬜ Not started |
 | 11 | Custom alerts, toasts & overlays | ⬜ Not started |
@@ -544,12 +544,12 @@ Use this when reviewing each screen against iOS Simulator screenshots.
 
 **Deliverables**
 
-- [ ] `FolderFloatingMenu` with create/rename/delete
-- [ ] `FolderContentsScreen`
-- [ ] `FavouritesScreen`
-- [ ] Folder picker sheet on pearl detail
+- [x] `FolderFloatingMenu` with create/rename/delete
+- [x] `FolderContentsScreen`
+- [x] `FavouritesScreen`
+- [x] Folder picker sheet on pearl detail
 
-**iOS reference:** `FolderFloatingMenu.swift`, `FavouritesView.swift`
+**Android:** `ui/folders/*`, `ui/favourites/*`, long-press folder row for rename/delete
 
 ---
 
@@ -713,7 +713,8 @@ Ship after **Stages 1–5** plus minimal Settings (account + appearance):
 | 2026-06-27 | **Build verified:** Fixed supabase-kt 3.0 APIs, `AppBrand.NAME`, `setFilterByAuthorizedAccounts`. `assembleDebug` succeeds. |
 | 2026-06-27 | **Stage 5 complete:** My Feed list, filters, pearl cards, detail, delete alerts. |
 | 2026-06-27 | **Stage 6 complete:** Capture menu, quick/link/media/clinical flows, media pickers, link preview, Room + local file storage. |
-| 2026-06-27 | **Next:** Stage 7 (Folders & Favourites). |
+| 2026-06-27 | **Stage 7 complete:** Folder floating menu, folder contents, favourites tab, folder picker on pearl detail. |
+| 2026-06-27 | **Next:** Stage 8 (Public Feed read + submit). |
 
 ---
 

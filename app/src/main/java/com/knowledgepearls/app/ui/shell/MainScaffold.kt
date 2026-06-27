@@ -22,6 +22,10 @@ import com.knowledgepearls.app.ui.account.AuthScreen
 import com.knowledgepearls.app.ui.account.EditProfileScreen
 import com.knowledgepearls.app.ui.account.ProfileSetupScreen
 import com.knowledgepearls.app.ui.components.LiquidTabBar
+import com.knowledgepearls.app.ui.feed.FeedAuthorContext
+import com.knowledgepearls.app.ui.feed.FeedViewModel
+import com.knowledgepearls.app.ui.folders.FolderContentsScreen
+import com.knowledgepearls.app.ui.folders.FoldersViewModel
 import com.knowledgepearls.app.ui.tabs.FavouritesTabScreen
 import com.knowledgepearls.app.ui.tabs.FeedTabScreen
 import com.knowledgepearls.app.ui.tabs.PublicFeedTabScreen
@@ -30,6 +34,8 @@ import com.knowledgepearls.app.ui.theme.PearlLayout
 @Composable
 fun MainScaffold(
     accountViewModel: AccountViewModel = hiltViewModel(),
+    foldersViewModel: FoldersViewModel = hiltViewModel(),
+    feedViewModel: FeedViewModel = hiltViewModel(),
 ) {
     val accountState by accountViewModel.uiState.collectAsStateWithLifecycle()
     val activityContext = LocalContext.current
@@ -41,6 +47,14 @@ fun MainScaffold(
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
     var authOpen by rememberSaveable { mutableStateOf(false) }
     var editProfileOpen by rememberSaveable { mutableStateOf(false) }
+    var openedFolderId by rememberSaveable { mutableStateOf<String?>(null) }
+    var openedFolderName by rememberSaveable { mutableStateOf<String?>(null) }
+
+    val feedAuthorContext = FeedAuthorContext(
+        userId = accountState.userId,
+        userEmail = accountState.userEmail,
+        userProfile = accountState.userProfile,
+    )
 
     LaunchedEffect(Unit) {
         accountViewModel.restoreSession()
@@ -69,8 +83,30 @@ fun MainScaffold(
 
         FolderMenuOverlay(
             visible = foldersMenuOpen,
+            viewModel = foldersViewModel,
             onDismiss = { foldersMenuOpen = false },
+            onSelectFolder = { folder ->
+                openedFolderId = folder.folder.id
+                openedFolderName = folder.folder.name
+                foldersMenuOpen = false
+            },
         )
+
+        openedFolderId?.let { folderId ->
+            openedFolderName?.let { folderName ->
+                FolderContentsScreen(
+                    folderId = folderId,
+                    folderName = folderName,
+                    viewModel = foldersViewModel,
+                    feedAuthorContext = feedAuthorContext,
+                    onResolveAvatarUrl = feedViewModel::fetchAvatarUrl,
+                    onClose = {
+                        openedFolderId = null
+                        openedFolderName = null
+                    },
+                )
+            }
+        }
 
         LiquidTabBar(
             selected = selectedTab,

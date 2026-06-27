@@ -1,5 +1,8 @@
 package com.knowledgepearls.app.ui.shell
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -7,9 +10,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
@@ -17,17 +20,18 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.knowledgepearls.app.data.local.model.FolderWithCount
 import com.knowledgepearls.app.ui.account.AccountUiState
-import com.knowledgepearls.app.ui.components.GlassSurface
 import com.knowledgepearls.app.ui.components.TabScreenHeader
+import com.knowledgepearls.app.ui.folders.FolderFloatingMenu
+import com.knowledgepearls.app.ui.folders.FoldersViewModel
 import com.knowledgepearls.app.ui.theme.LiquidBackground
 import com.knowledgepearls.app.ui.theme.PearlColors
 import com.knowledgepearls.app.ui.theme.PearlLayout
@@ -114,11 +118,14 @@ fun SettingsSheet(
 @Composable
 fun FolderMenuOverlay(
     visible: Boolean,
+    viewModel: FoldersViewModel,
     onDismiss: () -> Unit,
+    onSelectFolder: (FolderWithCount) -> Unit,
 ) {
     if (!visible) return
 
     val darkTheme = isPearlDarkTheme()
+    val folders by viewModel.foldersWithCounts.collectAsStateWithLifecycle()
 
     Box(Modifier.fillMaxSize()) {
         Box(
@@ -132,29 +139,23 @@ fun FolderMenuOverlay(
                 ),
         )
 
-        GlassSurface(
+        Column(
             modifier = Modifier
-                .padding(
-                    top = 120.dp,
-                    end = PearlLayout.screenHorizontalPadding,
-                )
-                .fillMaxWidth(0.72f)
-                .align(androidx.compose.ui.Alignment.TopEnd)
-                .clip(RoundedCornerShape(18.dp)),
-            cornerRadius = 18.dp,
+                .fillMaxSize()
+                .navigationBarsPadding()
+                .padding(bottom = PearlLayout.tabBarOverlayInset),
+            horizontalAlignment = Alignment.End,
         ) {
-            Column(Modifier.padding(16.dp)) {
-                Text(
-                    text = "Folders",
-                    fontWeight = FontWeight.Bold,
-                    color = PearlColors.heroPrimary(darkTheme),
-                )
-                Text(
-                    text = "Folder menu coming in Stage 7",
-                    modifier = Modifier.padding(top = 8.dp),
-                    color = PearlColors.heroSecondary(darkTheme),
-                )
-            }
+            FolderFloatingMenu(
+                folders = folders,
+                onSelectFolder = onSelectFolder,
+                onDismiss = onDismiss,
+                onCreateFolder = viewModel::createFolder,
+                onRenameFolder = { folder, name -> viewModel.renameFolder(folder.folder.id, name) },
+                onDeleteFolder = viewModel::deleteFolder,
+                modifier = Modifier
+                    .padding(top = 120.dp, end = PearlLayout.screenHorizontalPadding),
+            )
         }
     }
 }

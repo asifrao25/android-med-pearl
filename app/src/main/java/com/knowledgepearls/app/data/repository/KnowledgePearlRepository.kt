@@ -7,8 +7,10 @@ import com.knowledgepearls.app.data.local.entity.FolderEntity
 import com.knowledgepearls.app.data.local.entity.KnowledgePearlEntity
 import com.knowledgepearls.app.data.local.entity.PearlFolderCrossRef
 import com.knowledgepearls.app.data.local.entity.PearlMediaEntity
+import com.knowledgepearls.app.data.local.model.FolderWithCount
 import com.knowledgepearls.app.data.local.model.PearlWithMedia
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -25,6 +27,33 @@ class KnowledgePearlRepository @Inject constructor(
     fun observePearl(id: String): Flow<PearlWithMedia?> = pearlDao.observeByIdWithMedia(id)
 
     fun observeFolders(): Flow<List<FolderEntity>> = folderDao.observeAll()
+
+    fun observeFoldersWithCounts(): Flow<List<FolderWithCount>> = folderDao.observeAllWithCounts()
+
+    fun observePearlsInFolder(folderId: String): Flow<List<PearlWithMedia>> =
+        pearlDao.observePearlsInFolderWithMedia(folderId)
+
+    fun observePearlFolderIds(pearlId: String): Flow<Set<String>> =
+        pearlDao.observeFolderIdsForPearl(pearlId).map { it.toSet() }
+
+    suspend fun createFolder(name: String): FolderEntity {
+        val folder = FolderEntity(name = name.trim())
+        folderDao.insert(folder)
+        return folder
+    }
+
+    suspend fun renameFolder(folderId: String, name: String) {
+        val folder = folderDao.getById(folderId) ?: return
+        folderDao.update(folder.copy(name = name.trim()))
+    }
+
+    suspend fun togglePearlFolderMembership(pearlId: String, folderId: String) {
+        if (getPearlsInFolder(folderId).any { it.id == pearlId }) {
+            removePearlFromFolder(pearlId, folderId)
+        } else {
+            addPearlToFolder(pearlId, folderId)
+        }
+    }
 
     suspend fun getPearlsWithPublicPearlId(): List<KnowledgePearlEntity> =
         pearlDao.getAll().filter { it.publicPearlID != null }
