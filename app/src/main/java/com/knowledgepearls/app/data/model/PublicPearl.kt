@@ -1,0 +1,93 @@
+package com.knowledgepearls.app.data.model
+
+import com.knowledgepearls.app.data.local.model.ClinicalCasePayload
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import java.time.Instant
+
+@Serializable
+data class PublicPearl(
+    val id: String,
+    @SerialName("user_id") val userId: String,
+    val title: String = "",
+    val notes: String = "",
+    val tags: List<String> = emptyList(),
+    @SerialName("content_type") val contentType: String = "text",
+    @SerialName("source_url") val sourceUrl: String? = null,
+    @SerialName("link_preview_title") val linkPreviewTitle: String? = null,
+    @SerialName("link_preview_description") val linkPreviewDescription: String? = null,
+    @SerialName("link_preview_image_url") val linkPreviewImageUrl: String? = null,
+    @SerialName("media_url") val mediaUrl: String? = null,
+    @SerialName("media_path") val mediaPath: String? = null,
+    @SerialName("media_items") val mediaItems: List<PublicPearlMediaItem>? = null,
+    @SerialName("shared_by") val sharedBy: String = "",
+    @SerialName("source_reference") val sourceReference: String = "",
+    val status: String = "",
+    @SerialName("created_at") val createdAt: String = "",
+    @SerialName("like_count") val likeCount: Int = 0,
+    @SerialName("ingestion_source") val ingestionSource: String = "user",
+    @SerialName("case_payload") val casePayload: ClinicalCasePayload? = null,
+) {
+    val titleDisplay: String get() = title.ifBlank { "Untitled" }
+
+    val isClinicalCase: Boolean get() = contentType == "clinical_case"
+
+    val isQuickPearl: Boolean get() = contentType == "text"
+
+    val isLinkPearl: Boolean get() = contentType == "link"
+
+    val resolvedMediaItems: List<PublicPearlMediaItem>
+        get() {
+            if (!mediaItems.isNullOrEmpty()) return mediaItems
+            val raw = mediaUrl?.trim().orEmpty()
+            if (raw.isEmpty()) return emptyList()
+            val legacyType = when (contentType) {
+                "video" -> "video"
+                "document" -> "document"
+                else -> "photo"
+            }
+            return listOf(PublicPearlMediaItem(type = legacyType, url = raw, path = mediaPath))
+        }
+
+    val hasGalleryMedia: Boolean get() = resolvedMediaItems.isNotEmpty()
+
+    val safeDisplayName: String
+        get() {
+            if (sharedBy.isBlank()) return ""
+            if (!sharedBy.contains("@")) return sharedBy
+            val local = sharedBy.substringBefore("@").trim()
+            if (local.isEmpty()) return ""
+            return local
+                .replace('.', ' ')
+                .replace('_', ' ')
+                .replace('-', ' ')
+                .split(' ')
+                .joinToString(" ") { word ->
+                    word.replaceFirstChar { ch -> ch.uppercaseChar() }
+                }
+        }
+
+    val effectiveSourceReference: String
+        get() {
+            val trimmed = sourceReference.trim()
+            if (trimmed.isNotEmpty()) return trimmed
+            return sourceUrl?.trim().orEmpty()
+        }
+
+    val createdAtMillis: Long?
+        get() = runCatching { Instant.parse(createdAt).toEpochMilli() }.getOrNull()
+            ?: runCatching {
+                Instant.parse(createdAt.replace(" ", "T").let { if (it.endsWith("Z")) it else "${it}Z" })
+                    .toEpochMilli()
+            }.getOrNull()
+
+    fun matches(filter: ContentTypeFilter): Boolean = when (filter) {
+        ContentTypeFilter.ALL -> true
+        ContentTypeFilter.QUICK -> isQuickPearl
+        ContentTypeFilter.PHOTOS -> contentType in setOf("photo", "video", "document") || hasGalleryMedia
+        ContentTypeFilter.LINKS -> isLinkPearl
+        ContentTypeFilter.CASES -> isClinicalCase
+    }
+
+    fun replacing(likeCount: Int? = null): PublicPearl = copy(likeCount = likeCount ?: this.likeCount)
+}

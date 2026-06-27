@@ -22,22 +22,9 @@ import com.knowledgepearls.app.ui.account.AccountViewModel
 import com.knowledgepearls.app.ui.feed.FeedAuthorContext
 import com.knowledgepearls.app.ui.feed.FeedViewModel
 import com.knowledgepearls.app.ui.feed.PearlDetailScreen
-import com.knowledgepearls.app.ui.components.TabScreenHeader
-import com.knowledgepearls.app.ui.theme.LiquidBackground
-import com.knowledgepearls.app.ui.theme.PearlColors
-import com.knowledgepearls.app.ui.theme.PearlLayout
-import com.knowledgepearls.app.ui.theme.TabTheme
-import com.knowledgepearls.app.ui.theme.isPearlDarkTheme
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
+import com.knowledgepearls.app.ui.publicfeed.PublicFeedScreen
+import com.knowledgepearls.app.ui.publicfeed.PublicFeedViewModel
+import com.knowledgepearls.app.ui.publicfeed.PublicPearlDetailScreen
 
 @Composable
 fun FeedTabScreen(
@@ -186,50 +173,75 @@ fun FavouritesTabScreen(
 }
 
 @Composable
-fun PublicFeedTabScreen(onOpenSettings: () -> Unit) {
-    TabRoot(
-        theme = TabTheme.PublicFeed,
-        title = "Public Feed",
-        subtitle = "Community pearls",
-        onOpenSettings = onOpenSettings,
-        placeholder = "Public feed coming in Stage 8",
-    )
-}
-
-@Composable
-private fun TabRoot(
-    theme: TabTheme,
-    title: String,
-    subtitle: String,
+fun PublicFeedTabScreen(
     onOpenSettings: () -> Unit,
-    placeholder: String,
+    onSignIn: () -> Unit,
+    viewModel: PublicFeedViewModel = hiltViewModel(),
+    accountViewModel: AccountViewModel = hiltViewModel(),
 ) {
-    val darkTheme = isPearlDarkTheme()
+    val navController = rememberNavController()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val accountState by accountViewModel.uiState.collectAsStateWithLifecycle()
 
-    Box(Modifier.fillMaxSize()) {
-        LiquidBackground(theme = theme)
-
-        Column(Modifier.statusBarsPadding()) {
-            TabScreenHeader(
-                title = title,
-                subtitle = subtitle,
-                theme = theme,
-                onSettingsClick = onOpenSettings,
+    NavHost(
+        navController = navController,
+        startDestination = "public_feed",
+    ) {
+        composable("public_feed") {
+            PublicFeedScreen(
+                uiState = uiState,
+                isSignedIn = accountState.isSignedIn,
+                onOpenSettings = onOpenSettings,
+                onSignIn = onSignIn,
+                onPearlClick = { pearlId ->
+                    navController.navigate("public_pearl/$pearlId")
+                },
+                onLoadInitial = viewModel::loadInitial,
+                onLoadNextPage = viewModel::loadNextPage,
+                onSectionSelected = viewModel::setSection,
+                onContentTypeSelected = viewModel::setContentTypeFilter,
+                onResetContentTypeFilter = viewModel::resetContentTypeFilter,
+                onDismissEmptyFilterAlert = viewModel::dismissEmptyFilterAlert,
+                onDismissActionSuccess = viewModel::dismissActionSuccess,
+                onDismissError = viewModel::dismissError,
             )
+        }
 
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = PearlLayout.screenHorizontalPadding),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = placeholder,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = PearlColors.heroSecondary(darkTheme),
-                    textAlign = TextAlign.Center,
+        composable("public_pearl/{pearlId}") { entry ->
+            val pearlId = entry.arguments?.getString("pearlId").orEmpty()
+            val pearl = uiState.pearls.firstOrNull { it.id == pearlId }
+            if (pearl == null) {
+                PublicFeedScreen(
+                    uiState = uiState,
+                    isSignedIn = accountState.isSignedIn,
+                    onOpenSettings = onOpenSettings,
+                    onSignIn = onSignIn,
+                    onPearlClick = {},
+                    onLoadInitial = viewModel::loadInitial,
+                    onLoadNextPage = viewModel::loadNextPage,
+                    onSectionSelected = viewModel::setSection,
+                    onContentTypeSelected = viewModel::setContentTypeFilter,
+                    onResetContentTypeFilter = viewModel::resetContentTypeFilter,
+                    onDismissEmptyFilterAlert = viewModel::dismissEmptyFilterAlert,
+                    onDismissActionSuccess = viewModel::dismissActionSuccess,
+                    onDismissError = viewModel::dismissError,
                 )
+                return@composable
             }
+
+            LaunchedEffect(pearl.id) {
+                viewModel.markSeen(pearl)
+            }
+
+            PublicPearlDetailScreen(
+                pearl = pearl,
+                onBack = { navController.popBackStack() },
+                onAddToMyFeed = { viewModel.addToMyFeed(pearl) },
+                onHide = {
+                    viewModel.hide(pearl)
+                    navController.popBackStack()
+                },
+            )
         }
     }
 }

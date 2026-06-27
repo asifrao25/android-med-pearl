@@ -2,8 +2,8 @@
 
 > **Goal:** Replicate the iOS app ([Knowledge Pearls](../Knowledge%20Pearls)) in this folder with the same design, layout, colour scheme, tabs, settings, custom pop-ups, and Supabase backend.
 >
-> **Status:** Stage 7 complete — **Stage 8 next**  
-> **Last updated:** 2026-06-26  
+> **Status:** Stage 8 in progress (read path shipped) — **submit + engagement next**  
+> **Last updated:** 2026-06-27  
 > **iOS reference:** `/Users/m4-mac/Documents/Xcode-projects/Knowledge Pearls`  
 > **Admin reference:** `/Users/m4-mac/Documents/Xcode-projects/Pearls-Admin`  
 > **Dev workflow:** This folder syncs to your MacBook where Android Studio runs (not built on this Mac).
@@ -22,7 +22,7 @@
 | 5 | My Feed & pearl detail | ✅ Complete |
 | 6 | Capture flows | ✅ Complete |
 | 7 | Folders & Favourites | ✅ Complete |
-| 8 | Public Feed (read + submit) | 🔄 Next |
+| 8 | Public Feed (read + submit) | 🔄 In progress |
 | 9 | Messaging & pearl shares (cross-platform) | ⬜ Not started |
 | 10 | Settings & sub-screens | ⬜ Not started |
 | 11 | Custom alerts, toasts & overlays | ⬜ Not started |
@@ -413,7 +413,7 @@ Use this when reviewing each screen against iOS Simulator screenshots.
 - [ ] Glass tab bar with centre Public Feed emphasis
 - [ ] Tab header: accent bar, 24pt semibold title, 10pt uppercase subtitle
 - [ ] Settings gear in header (all tabs except Settings sheet)
-- [ ] Launch splash animation (ring + progress + tagline)
+- [x] Launch splash animation (ring + progress + tagline)
 - [ ] Offline + backend health overlays
 - [ ] Light / dark / system appearance
 
@@ -425,7 +425,7 @@ Use this when reviewing each screen against iOS Simulator screenshots.
 - [ ] Folder floating menu (swipe dismiss, scrim)
 - [ ] All custom alerts listed in §1.4
 - [ ] Inbox unread reminder chip
-- [ ] Profile avatar (rounded rect, gradient border)
+- [x] Profile avatar (rounded rect, gradient border) — My Feed cards
 
 ### Spacing tokens (from iOS)
 
@@ -456,7 +456,7 @@ Use this when reviewing each screen against iOS Simulator screenshots.
 - [x] `AnalyticsPlatform.VALUE = "android"` constant for future analytics port
 - [x] Placeholder adaptive icon (replace with iOS AppLogo export on MacBook)
 - [x] `.gitignore`, `README.md`, Gradle wrapper
-- [ ] Asset import: app icon, creator portrait, logo from iOS `Assets.xcassets` *(on MacBook)*
+- [x] Asset import: `AppIcons-2` launcher + splash (`app_logo`, adaptive foreground)
 
 **Design philosophy:** iOS visual language (liquid glass, jewel tabs, rounded type hierarchy) with Android platform affordances (edge-to-edge, predictive back, Material motion only where it doesn't fight the iOS layout).
 
@@ -557,13 +557,15 @@ Use this when reviewing each screen against iOS Simulator screenshots.
 
 **Deliverables**
 
-- [ ] `PublicFeedScreen` + auth gate
-- [ ] New / Seen section tabs + badge on tab bar
-- [ ] `PublicFeedCard`, detail view, engagement bar
+- [x] `PublicFeedScreen` + auth gate *(read path)*
+- [x] New / Seen section tabs + badge on tab bar
+- [x] `PublicFeedCard`, detail view *(basic — engagement bar deferred)*
 - [ ] **`PublicFeedSharingService` port** — Android submit → appears on iOS + Admin moderation queue
 - [ ] Pending submissions screen
 - [ ] Comments + likes
 - [ ] Verify: post from Admin → appears on Android; post from Android → appears on iOS Public Feed
+
+**Android (Stage 8 shipped so far):** `PublicFeedRepository`, `PublicFeedViewModel`, `PublicFeedScreen`, `PublicFeedCard`, `PublicPearlDetailScreen`, `PublicFeedSectionTabs`, `PublicFeedAuthGate`, save-to-My-Feed + hide
 
 **iOS reference:** `Features/PublicFeed/*`, `PublicFeedSharingService.swift`
 
@@ -714,7 +716,8 @@ Ship after **Stages 1–5** plus minimal Settings (account + appearance):
 | 2026-06-27 | **Stage 5 complete:** My Feed list, filters, pearl cards, detail, delete alerts. |
 | 2026-06-27 | **Stage 6 complete:** Capture menu, quick/link/media/clinical flows, media pickers, link preview, Room + local file storage. |
 | 2026-06-27 | **Stage 7 complete:** Folder floating menu, folder contents, favourites tab, folder picker on pearl detail. |
-| 2026-06-27 | **Next:** Stage 8 (Public Feed read + submit). |
+| 2026-06-27 | **AppIcons-2:** Launcher, adaptive icon, system splash, and animated launch screen updated. Feed author avatars + capture save inset fix. |
+| 2026-06-27 | **Stage 8 started:** Public feed read — paginated `public_pearls`, New/Seen tabs, auth gate, cards, detail, save to My Feed, tab badge. Submit/likes/comments next. |
 
 ---
 

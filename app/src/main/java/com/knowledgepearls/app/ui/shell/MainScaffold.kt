@@ -29,6 +29,7 @@ import com.knowledgepearls.app.ui.folders.FoldersViewModel
 import com.knowledgepearls.app.ui.tabs.FavouritesTabScreen
 import com.knowledgepearls.app.ui.tabs.FeedTabScreen
 import com.knowledgepearls.app.ui.tabs.PublicFeedTabScreen
+import com.knowledgepearls.app.ui.publicfeed.PublicFeedViewModel
 import com.knowledgepearls.app.ui.theme.PearlLayout
 
 @Composable
@@ -36,8 +37,10 @@ fun MainScaffold(
     accountViewModel: AccountViewModel = hiltViewModel(),
     foldersViewModel: FoldersViewModel = hiltViewModel(),
     feedViewModel: FeedViewModel = hiltViewModel(),
+    publicFeedViewModel: PublicFeedViewModel = hiltViewModel(),
 ) {
     val accountState by accountViewModel.uiState.collectAsStateWithLifecycle()
+    val publicFeedState by publicFeedViewModel.uiState.collectAsStateWithLifecycle()
     val activityContext = LocalContext.current
 
     var showSplash by rememberSaveable { mutableStateOf(true) }
@@ -76,7 +79,12 @@ fun MainScaffold(
             when (tab) {
                 MainTab.Feed -> FeedTabScreen(onOpenSettings = { settingsOpen = true })
                 MainTab.Favourites -> FavouritesTabScreen(onOpenSettings = { settingsOpen = true })
-                MainTab.PublicFeed -> PublicFeedTabScreen(onOpenSettings = { settingsOpen = true })
+                MainTab.PublicFeed -> PublicFeedTabScreen(
+                    onOpenSettings = { settingsOpen = true },
+                    onSignIn = { authOpen = true },
+                    viewModel = publicFeedViewModel,
+                    accountViewModel = accountViewModel,
+                )
                 MainTab.Folders -> FeedTabScreen(onOpenSettings = { settingsOpen = true })
             }
         }
@@ -110,7 +118,7 @@ fun MainScaffold(
 
         LiquidTabBar(
             selected = selectedTab,
-            publicFeedNewCount = 0,
+            publicFeedNewCount = publicFeedState.newCount,
             foldersMenuOpen = foldersMenuOpen,
             onTabSelected = { tab ->
                 foldersMenuOpen = false
