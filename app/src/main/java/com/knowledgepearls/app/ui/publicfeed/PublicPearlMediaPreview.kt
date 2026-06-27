@@ -1,7 +1,5 @@
 package com.knowledgepearls.app.ui.publicfeed
 
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -29,7 +27,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -122,11 +119,25 @@ fun PublicPearlCardMediaPreview(
 fun PublicPearlDetailMediaSection(
     pearl: PublicPearl,
     theme: TabTheme,
+    onOpenMedia: (PublicPearlMediaViewerRequest) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val slides = publicPearlMediaSlides(pearl.resolvedMediaItems.filter { !it.isDocument })
     val documents = pearl.resolvedMediaItems.filter { it.isDocument }
     val darkTheme = isPearlDarkTheme()
+    val openSlide: (PublicPearlMediaSlide) -> Unit = { slide ->
+        val galleryIndex = slides.indexOfFirst { it.id == slide.id }.coerceAtLeast(0)
+        onOpenMedia(
+            PublicPearlMediaViewerRequest(
+                slides = if (slide is PublicPearlMediaSlide.Document) {
+                    listOf(slide)
+                } else {
+                    slides
+                },
+                initialIndex = if (slide is PublicPearlMediaSlide.Document) 0 else galleryIndex,
+            ),
+        )
+    }
 
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (slides.isNotEmpty()) {
@@ -142,6 +153,9 @@ fun PublicPearlDetailMediaSection(
                     theme = theme,
                     height = 220.dp,
                     interactive = true,
+                    onOpenAtIndex = { index ->
+                        onOpenMedia(PublicPearlMediaViewerRequest(slides, index))
+                    },
                 )
             } else {
                 PublicPearlMediaSlideView(
@@ -149,6 +163,7 @@ fun PublicPearlDetailMediaSection(
                     theme = theme,
                     height = 220.dp,
                     interactive = true,
+                    onOpen = { openSlide(slides.first()) },
                 )
             }
         } else if (pearl.resolvedLinkPreviewImageUrl != null) {
@@ -161,6 +176,13 @@ fun PublicPearlDetailMediaSection(
             PublicPearlImagePreview(
                 url = pearl.resolvedLinkPreviewImageUrl!!,
                 height = 220.dp,
+                onClick = {
+                    onOpenMedia(
+                        PublicPearlMediaViewerRequest(
+                            slides = listOf(PublicPearlMediaSlide.Image(pearl.resolvedLinkPreviewImageUrl!!)),
+                        ),
+                    )
+                },
             )
         }
 
@@ -170,6 +192,9 @@ fun PublicPearlDetailMediaSection(
                     filename = item.resolvedFilename,
                     url = url,
                     theme = theme,
+                    onOpen = {
+                        openSlide(PublicPearlMediaSlide.Document(url, item.resolvedFilename))
+                    },
                 )
             }
         }
@@ -183,6 +208,7 @@ private fun PublicPearlMediaCarousel(
     height: androidx.compose.ui.unit.Dp,
     interactive: Boolean,
     modifier: Modifier = Modifier,
+    onOpenAtIndex: ((Int) -> Unit)? = null,
 ) {
     val pagerState = rememberPagerState(pageCount = { slides.size })
 
@@ -200,6 +226,11 @@ private fun PublicPearlMediaCarousel(
                 theme = theme,
                 height = height,
                 interactive = interactive,
+                onOpen = if (interactive && onOpenAtIndex != null) {
+                    { onOpenAtIndex(page) }
+                } else {
+                    null
+                },
             )
         }
 
@@ -227,36 +258,30 @@ private fun PublicPearlMediaSlideView(
     height: androidx.compose.ui.unit.Dp,
     interactive: Boolean,
     modifier: Modifier = Modifier,
+    onOpen: (() -> Unit)? = null,
 ) {
-    val context = LocalContext.current
     when (slide) {
         is PublicPearlMediaSlide.Image -> PublicPearlImagePreview(
             url = slide.url,
             height = height,
             modifier = modifier,
-            onClick = if (interactive) {
-                { openExternalUrl(context, slide.url) }
-            } else {
-                null
-            },
+            onClick = if (interactive) onOpen else null,
         )
         is PublicPearlMediaSlide.Video -> VideoPreviewCard(
             filename = slide.filename,
-            url = slide.url,
             theme = theme,
             height = height,
             modifier = modifier,
             interactive = interactive,
-            context = context,
+            onOpen = if (interactive) onOpen else null,
         )
         is PublicPearlMediaSlide.Document -> DocumentPreviewCard(
             filename = slide.filename,
-            url = slide.url,
             theme = theme,
             height = height,
             modifier = modifier,
             interactive = interactive,
-            context = context,
+            onOpen = if (interactive) onOpen else null,
         )
     }
 }
@@ -289,21 +314,19 @@ private fun PublicPearlImagePreview(
 @Composable
 private fun VideoPreviewCard(
     filename: String,
-    url: String,
     theme: TabTheme,
     height: androidx.compose.ui.unit.Dp,
     modifier: Modifier = Modifier,
     interactive: Boolean,
-    context: android.content.Context,
+    onOpen: (() -> Unit)? = null,
 ) {
-    val open = { openExternalUrl(context, url) }
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(height)
             .clip(previewShape)
             .background(theme.primary.copy(alpha = 0.18f))
-            .then(if (interactive) Modifier.clickable(onClick = open) else Modifier),
+            .then(if (interactive && onOpen != null) Modifier.clickable(onClick = onOpen) else Modifier),
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -317,9 +340,9 @@ private fun VideoPreviewCard(
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
-            if (interactive) {
+            if (interactive && onOpen != null) {
                 Text(
-                    text = "Tap to open video",
+                    text = "Tap to play",
                     style = MaterialTheme.typography.labelSmall,
                     color = theme.primary,
                 )
@@ -331,21 +354,19 @@ private fun VideoPreviewCard(
 @Composable
 private fun DocumentPreviewCard(
     filename: String,
-    url: String,
     theme: TabTheme,
     height: androidx.compose.ui.unit.Dp,
     modifier: Modifier = Modifier,
     interactive: Boolean,
-    context: android.content.Context,
+    onOpen: (() -> Unit)? = null,
 ) {
-    val open = { openExternalUrl(context, url) }
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(height)
             .clip(previewShape)
             .background(PearlColors.controlFill(isPearlDarkTheme()))
-            .then(if (interactive) Modifier.clickable(onClick = open) else Modifier),
+            .then(if (interactive && onOpen != null) Modifier.clickable(onClick = onOpen) else Modifier),
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -360,9 +381,9 @@ private fun DocumentPreviewCard(
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
-            if (interactive) {
+            if (interactive && onOpen != null) {
                 Text(
-                    text = "Tap to open document",
+                    text = "Tap to preview",
                     style = MaterialTheme.typography.labelSmall,
                     color = theme.primary,
                 )
@@ -376,14 +397,14 @@ private fun DocumentAttachmentRow(
     filename: String,
     url: String,
     theme: TabTheme,
+    onOpen: () -> Unit,
 ) {
-    val context = LocalContext.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(PearlColors.controlFill(isPearlDarkTheme()))
-            .clickable { openExternalUrl(context, url) }
+            .clickable(onClick = onOpen)
             .padding(horizontal = 14.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -406,13 +427,11 @@ private fun LinkPreviewStrip(
     theme: TabTheme,
     modifier: Modifier = Modifier,
 ) {
-    val context = LocalContext.current
     Box(
         modifier = modifier
             .fillMaxWidth()
             .clip(previewShape)
             .background(PearlColors.controlFill(isPearlDarkTheme()))
-            .clickable { openExternalUrl(context, url) }
             .padding(16.dp),
         contentAlignment = Alignment.CenterStart,
     ) {
@@ -455,13 +474,5 @@ private fun MediaPlaceholderBox(
                 Text(subtitle, style = MaterialTheme.typography.labelMedium, color = PearlColors.heroSecondary(isPearlDarkTheme()))
             }
         }
-    }
-}
-
-private fun openExternalUrl(context: android.content.Context, url: String) {
-    runCatching {
-        context.startActivity(
-            Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-        )
     }
 }

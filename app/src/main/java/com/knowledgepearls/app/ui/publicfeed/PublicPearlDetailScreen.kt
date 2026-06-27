@@ -56,7 +56,14 @@ fun PublicPearlDetailScreen(
 ) {
     val theme = TabTheme.PublicFeed
     val darkTheme = isPearlDarkTheme()
+    var mediaViewerRequest by remember(pearl.id) { mutableStateOf<PublicPearlMediaViewerRequest?>(null) }
     var commentsSheetOpen by remember(commentsVisible) { mutableStateOf(commentsVisible) }
+
+    PublicPearlMediaViewerOverlay(
+        request = mediaViewerRequest,
+        theme = theme,
+        onDismiss = { mediaViewerRequest = null },
+    )
 
     if (commentsVisible) {
         commentsSheetOpen = true
@@ -126,6 +133,7 @@ fun PublicPearlDetailScreen(
                 PublicPearlDetailMediaSection(
                     pearl = pearl,
                     theme = theme,
+                    onOpenMedia = { mediaViewerRequest = it },
                 )
 
                 PublicPearlEngagementBar(

@@ -107,6 +107,9 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
 
+    implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.ui)
+
     implementation(libs.kotlinx.serialization.json)
 
     implementation(libs.androidx.credentials)
