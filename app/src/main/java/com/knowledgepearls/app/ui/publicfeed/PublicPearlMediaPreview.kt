@@ -204,7 +204,7 @@ fun PublicPearlDetailMediaSection(
 }
 
 @Composable
-private fun PublicPearlMediaCarousel(
+internal fun PublicPearlMediaCarousel(
     slides: List<PublicPearlMediaSlide>,
     theme: TabTheme,
     height: androidx.compose.ui.unit.Dp,
@@ -254,7 +254,7 @@ private fun PublicPearlMediaCarousel(
 }
 
 @Composable
-private fun PublicPearlMediaSlideView(
+internal fun PublicPearlMediaSlideView(
     slide: PublicPearlMediaSlide,
     theme: TabTheme,
     height: androidx.compose.ui.unit.Dp,

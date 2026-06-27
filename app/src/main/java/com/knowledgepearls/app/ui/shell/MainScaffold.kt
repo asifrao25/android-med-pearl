@@ -22,6 +22,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.knowledgepearls.app.ui.account.AccountViewModel
 import com.knowledgepearls.app.ui.account.AuthScreen
 import com.knowledgepearls.app.ui.account.EditProfileScreen
+import com.knowledgepearls.app.ui.profile.UserProfileScreen
 import com.knowledgepearls.app.ui.account.ProfileSetupScreen
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.rememberCoroutineScope
@@ -87,6 +88,7 @@ fun MainScaffold(
     var inboxOpen by rememberSaveable { mutableStateOf(false) }
     var authOpen by rememberSaveable { mutableStateOf(false) }
     var editProfileOpen by rememberSaveable { mutableStateOf(false) }
+    var profileUserId by rememberSaveable { mutableStateOf<String?>(null) }
     var openedFolderId by rememberSaveable { mutableStateOf<String?>(null) }
     var openedFolderName by rememberSaveable { mutableStateOf<String?>(null) }
     var inboxBadgeCount by rememberSaveable { mutableIntStateOf(0) }
@@ -181,18 +183,28 @@ fun MainScaffold(
         else -> selectedTab
     }
 
+    val openUserProfile: (String) -> Unit = { userId ->
+        profileUserId = userId
+    }
+
     Box(Modifier.fillMaxSize()) {
         Crossfade(targetState = backdropTab, label = "tabBackdrop") { tab ->
             when (tab) {
                 MainTab.Feed -> FeedTabScreen(
                     onOpenSettings = { settingsOpen = true },
+                    onSignInRequired = { authOpen = true },
+                    onOpenUserProfile = openUserProfile,
                     shareImport = shareImport,
                     onShareImportConsumed = {
                         shareImport = null
                         onShareImportConsumed()
                     },
                 )
-                MainTab.Favourites -> FavouritesTabScreen(onOpenSettings = { settingsOpen = true })
+                MainTab.Favourites -> FavouritesTabScreen(
+                    onOpenSettings = { settingsOpen = true },
+                    onSignInRequired = { authOpen = true },
+                    onOpenUserProfile = openUserProfile,
+                )
                 MainTab.PublicFeed -> PublicFeedTabScreen(
                     onOpenSettings = { settingsOpen = true },
                     onOpenInbox = { inboxOpen = true },
@@ -200,10 +212,15 @@ fun MainScaffold(
                     connectivityState = connectivityState,
                     onRetryConnection = connectivityMonitor::retryConnection,
                     onSignIn = { authOpen = true },
+                    onOpenUserProfile = openUserProfile,
                     viewModel = publicFeedViewModel,
                     accountViewModel = accountViewModel,
                 )
-                MainTab.Folders -> FeedTabScreen(onOpenSettings = { settingsOpen = true })
+                MainTab.Folders -> FeedTabScreen(
+                    onOpenSettings = { settingsOpen = true },
+                    onSignInRequired = { authOpen = true },
+                    onOpenUserProfile = openUserProfile,
+                )
             }
         }
 
@@ -226,10 +243,12 @@ fun MainScaffold(
                     viewModel = foldersViewModel,
                     feedAuthorContext = feedAuthorContext,
                     onResolveAvatarUrl = feedViewModel::fetchAvatarUrl,
+                    onOpenUserProfile = openUserProfile,
                     onClose = {
                         openedFolderId = null
                         openedFolderName = null
                     },
+                    onSignInRequired = { authOpen = true },
                 )
             }
         }
@@ -269,10 +288,7 @@ fun MainScaffold(
             onDismiss = { settingsOpen = false },
             onNavigate = { settingsRoute = it },
             onSignIn = { authOpen = true },
-            onEditProfile = {
-                settingsOpen = false
-                editProfileOpen = true
-            },
+            onOpenProfile = { accountState.userId?.let(openUserProfile) },
             onSignOut = { accountViewModel.signOut() },
             onLoadPending = settingsViewModel::loadPendingSubmissions,
             onWithdrawSubmission = settingsViewModel::withdrawSubmission,
@@ -322,12 +338,37 @@ fun MainScaffold(
             )
         }
 
+        profileUserId?.let { userId ->
+            UserProfileScreen(
+                userId = userId,
+                isOwnProfile = userId == accountState.userId,
+                onDismiss = {
+                    profileUserId = null
+                    accountViewModel.refreshProfile()
+                },
+                onEditProfile = {
+                    profileUserId = null
+                    editProfileOpen = true
+                },
+                onDeleteAccount = {
+                    settingsViewModel.deleteAccount {
+                        profileUserId = null
+                        settingsOpen = false
+                        accountViewModel.signOut()
+                    }
+                },
+            )
+        }
+
         if (editProfileOpen && accountState.isSignedIn) {
             EditProfileScreen(
                 uiState = accountState,
                 onUpdateProfile = accountViewModel::updateProfile,
                 onUploadAvatar = accountViewModel::uploadAvatar,
-                onDismiss = { editProfileOpen = false },
+                onDismiss = {
+                    editProfileOpen = false
+                    accountViewModel.refreshProfile()
+                },
             )
         }
 

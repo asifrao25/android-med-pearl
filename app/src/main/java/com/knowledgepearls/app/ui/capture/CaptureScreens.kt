@@ -2,18 +2,17 @@ package com.knowledgepearls.app.ui.capture
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -70,7 +69,7 @@ fun QuickTextCaptureScreen(
         ) {
             CaptureTextField("Title", title, { title = it }, kind.primary, placeholder = "Give your pearl a title")
             CaptureNotesField("Description", notes, { notes = it }, kind.primary)
-            AttachmentSection(attachments, pickers, kind.primary)
+            CaptureAttachmentSection(attachments, pickers, kind.primary)
             CaptureTextField("Source / reference", sourceReference, { sourceReference = it }, kind.secondary)
             CaptureTextField("Tags", tags, { tags = it }, kind.primary, placeholder = "cardiology, fluids")
         }
@@ -167,7 +166,10 @@ fun AddMediaCaptureScreen(
     val kind = CaptureKind.Media
 
     androidx.compose.runtime.LaunchedEffect(initialRoute) {
-        when (initialRoute) {
+        val route = initialRoute ?: return@LaunchedEffect
+        // Wait until the screen is laid out and the activity result launchers are registered.
+        withFrameNanos { }
+        when (route) {
             "camera" -> pickers.takePhoto()
             "gallery" -> pickers.pickGallery()
             "files" -> pickers.pickDocument()
@@ -204,7 +206,7 @@ fun AddMediaCaptureScreen(
             onShareToPublicFeedChange = { shareToPublicFeed = it },
             onSave = requestSave,
         ) {
-            AttachmentSection(attachments, pickers, kind.primary)
+            CaptureAttachmentSection(attachments, pickers, kind.primary)
             CaptureTextField("Title", title, { title = it }, kind.primary, placeholder = "Give your pearl a title")
             CaptureNotesField("Description", notes, { notes = it }, kind.primary)
             CaptureTextField("Source / reference", sourceReference, { sourceReference = it }, kind.secondary)
@@ -299,30 +301,5 @@ private fun SectionWithMedia(
         media.add(picked.copy(sectionTag = label.lowercase()))
     }
     CaptureNotesField(label, text, onTextChange, kind.primary, minLines = 3)
-    AttachmentSection(media, pickers, kind.secondary)
-}
-
-@Composable
-private fun AttachmentSection(
-    attachments: MutableList<PickedMedia>,
-    pickers: MediaPickers,
-    accent: Color,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Attachments", color = accent, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TextButton(onClick = pickers.pickGallery) { Text("Gallery") }
-            TextButton(onClick = pickers.takePhoto) { Text("Camera") }
-            TextButton(onClick = pickers.pickDocument) { Text("Files") }
-        }
-        attachments.forEachIndexed { index, item ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Text(item.filename, style = MaterialTheme.typography.bodySmall)
-                TextButton(onClick = { attachments.removeAt(index) }) { Text("Remove") }
-            }
-        }
-    }
+    CaptureAttachmentSection(media, pickers, kind.secondary)
 }

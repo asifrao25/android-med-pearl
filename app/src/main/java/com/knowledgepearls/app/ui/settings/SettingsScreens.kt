@@ -11,7 +11,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -20,8 +22,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import com.knowledgepearls.app.ui.components.GlassSurface
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -42,7 +50,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.knowledgepearls.app.data.remote.SupabaseConfig
 import com.knowledgepearls.app.ui.account.AccountUiState
-import com.knowledgepearls.app.ui.components.GlassSurface
+import com.knowledgepearls.app.ui.account.profileDisplayName
+import com.knowledgepearls.app.ui.account.profileSubtitle
+import com.knowledgepearls.app.ui.profile.SettingsProfileAvatar
 import com.knowledgepearls.app.ui.components.TabScreenHeader
 import com.knowledgepearls.app.ui.publicfeed.PendingSubmissionsScreen
 import com.knowledgepearls.app.ui.theme.AppearanceMode
@@ -71,7 +81,7 @@ fun SettingsScreen(
     onDismiss: () -> Unit,
     onNavigate: (SettingsRoute) -> Unit,
     onSignIn: () -> Unit,
-    onEditProfile: () -> Unit,
+    onOpenProfile: () -> Unit,
     onSignOut: () -> Unit,
     onLoadPending: () -> Unit,
     onWithdrawSubmission: (com.knowledgepearls.app.data.model.PublicPearl) -> Unit,
@@ -93,7 +103,7 @@ fun SettingsScreen(
             onDismiss = onDismiss,
             onNavigate = onNavigate,
             onSignIn = onSignIn,
-            onEditProfile = onEditProfile,
+            onOpenProfile = onOpenProfile,
             onSignOut = onSignOut,
             onSetAppearance = onSetAppearance,
         )
@@ -141,7 +151,7 @@ private fun SettingsMainScreen(
     onDismiss: () -> Unit,
     onNavigate: (SettingsRoute) -> Unit,
     onSignIn: () -> Unit,
-    onEditProfile: () -> Unit,
+    onOpenProfile: () -> Unit,
     onSignOut: () -> Unit,
     onSetAppearance: (AppearanceMode) -> Unit,
 ) {
@@ -177,26 +187,16 @@ private fun SettingsMainScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 item {
-                    SettingsSection(title = "Account") {
-                        if (accountState.isSignedIn) {
-                            Text(
-                                text = accountState.userProfile?.name?.ifBlank { accountState.userEmail }
-                                    ?: accountState.userEmail.orEmpty(),
-                                color = PearlColors.heroSecondary(darkTheme),
-                            )
-                            SettingsActionButton("Edit profile", onEditProfile)
-                            SettingsActionButton("Sign out", onSignOut, outlined = true)
-                        } else {
-                            Text(
-                                text = "Sign in to sync public pearls and use community features.",
-                                color = PearlColors.heroSecondary(darkTheme),
-                            )
-                            SettingsActionButton("Sign in", onClick = {
-                                onDismiss()
-                                onSignIn()
-                            })
-                        }
-                    }
+                    SettingsAccountSection(
+                        accountState = accountState,
+                        theme = theme,
+                        onOpenProfile = onOpenProfile,
+                        onSignIn = {
+                            onDismiss()
+                            onSignIn()
+                        },
+                        onSignOut = onSignOut,
+                    )
                 }
 
                 item {
@@ -488,6 +488,154 @@ private fun SettingsSubScreenShell(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 content()
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsAccountSection(
+    accountState: AccountUiState,
+    theme: TabTheme,
+    onOpenProfile: () -> Unit,
+    onSignIn: () -> Unit,
+    onSignOut: () -> Unit,
+) {
+    val darkTheme = isPearlDarkTheme()
+    Column {
+        Text(
+            text = "Account",
+            fontWeight = FontWeight.SemiBold,
+            color = PearlColors.heroSecondary(darkTheme),
+            style = MaterialTheme.typography.labelLarge,
+            modifier = Modifier.padding(bottom = 8.dp, start = 4.dp),
+        )
+        GlassSurface(cornerRadius = PearlLayout.cardCornerRadius) {
+            if (accountState.isSignedIn) {
+                Column {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(onClick = onOpenProfile)
+                            .padding(horizontal = 16.dp, vertical = 18.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        SettingsProfileAvatar(
+                            url = accountState.userProfile?.avatarUrl,
+                            displayName = accountState.profileDisplayName(),
+                            theme = theme,
+                        )
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            Text(
+                                text = accountState.profileDisplayName(),
+                                color = PearlColors.heroPrimary(darkTheme),
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleMedium,
+                                maxLines = 2,
+                            )
+                            accountState.profileSubtitle()?.let { subtitle ->
+                                Text(
+                                    text = subtitle,
+                                    color = PearlColors.heroSecondary(darkTheme),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    maxLines = 1,
+                                )
+                            }
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Icon(
+                                    Icons.Default.CheckCircle,
+                                    contentDescription = null,
+                                    tint = theme.primary,
+                                    modifier = Modifier.height(14.dp),
+                                )
+                                Text(
+                                    text = "Signed in as ${accountState.userEmail.orEmpty()}",
+                                    color = PearlColors.heroSecondary(darkTheme),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    maxLines = 1,
+                                )
+                            }
+                        }
+                        Icon(
+                            Icons.Default.ChevronRight,
+                            contentDescription = null,
+                            tint = PearlColors.heroSecondary(darkTheme),
+                        )
+                    }
+                    HorizontalDivider(color = PearlColors.divider(darkTheme))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(onClick = onSignOut)
+                            .padding(horizontal = 16.dp, vertical = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = "Sign Out",
+                            color = Color(0xFFFF7373),
+                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                    }
+                }
+            } else {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(theme.primary.copy(alpha = 0.18f)),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(Icons.Default.Person, contentDescription = null, tint = theme.primary)
+                        }
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = "Not signed in",
+                                color = PearlColors.heroPrimary(darkTheme),
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                            Text(
+                                text = "Sign in to share pearls, message colleagues, and sync your public profile.",
+                                color = PearlColors.heroSecondary(darkTheme),
+                                style = MaterialTheme.typography.labelSmall,
+                            )
+                        }
+                    }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(
+                                brush = Brush.linearGradient(listOf(theme.primary, theme.secondary)),
+                            )
+                            .clickable(onClick = onSignIn)
+                            .padding(vertical = 14.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = "Sign In / Create Account",
+                            color = Color.White,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                }
             }
         }
     }

@@ -1,30 +1,22 @@
 package com.knowledgepearls.app.ui.feed
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -34,17 +26,24 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.knowledgepearls.app.data.local.model.PearlWithMedia
 import com.knowledgepearls.app.data.local.model.clinicalCasePayload
+import com.knowledgepearls.app.data.local.model.effectiveSourceReference
 import com.knowledgepearls.app.data.local.model.isClinicalCase
-import androidx.hilt.navigation.compose.hiltViewModel
-import com.knowledgepearls.app.ui.components.GlassSurface
+import com.knowledgepearls.app.data.local.model.isSharedToPublicFeed
+import com.knowledgepearls.app.ui.components.DetailDockAction
+import com.knowledgepearls.app.ui.components.LiquidDetailDock
+import com.knowledgepearls.app.ui.components.SharedPearlSubmissionSuccessAlert
+import com.knowledgepearls.app.ui.components.SharedPearlSubmitAlert
+import com.knowledgepearls.app.ui.components.SourceReferenceRequiredAlert
 import com.knowledgepearls.app.ui.folders.FolderPickerOverlay
 import com.knowledgepearls.app.ui.folders.FoldersViewModel
+import com.knowledgepearls.app.ui.publicfeed.PublicPearlMediaViewerOverlay
+import com.knowledgepearls.app.ui.publicfeed.PublicPearlMediaViewerRequest
 import com.knowledgepearls.app.ui.theme.LiquidBackground
 import com.knowledgepearls.app.ui.theme.PearlColors
 import com.knowledgepearls.app.ui.theme.PearlLayout
@@ -55,7 +54,12 @@ import com.knowledgepearls.app.ui.theme.isPearlDarkTheme
 fun PearlDetailScreen(
     pearlId: String,
     viewModel: FeedViewModel,
+    feedAuthorContext: FeedAuthorContext,
+    onResolveAvatarUrl: suspend (String) -> String?,
     onBack: () -> Unit,
+    isSignedIn: Boolean,
+    onSignInRequired: () -> Unit,
+    onOpenUserProfile: (String) -> Unit = {},
     foldersViewModel: FoldersViewModel = hiltViewModel(),
 ) {
     val pearl by viewModel.observePearl(pearlId).collectAsStateWithLifecycle(initialValue = null)
@@ -63,8 +67,13 @@ fun PearlDetailScreen(
     val folders by foldersViewModel.foldersWithCounts.collectAsStateWithLifecycle()
     val memberFolderIds by foldersViewModel.observePearlFolderIds(pearlId)
         .collectAsStateWithLifecycle(initialValue = emptySet())
-    var showDeleteDialog by remember { mutableStateOf(false) }
     var showFolderPicker by remember { mutableStateOf(false) }
+    var mediaViewerRequest by remember { mutableStateOf<PublicPearlMediaViewerRequest?>(null) }
+    var showShareMenu by remember { mutableStateOf(false) }
+    var showFriendShare by remember { mutableStateOf(false) }
+    var showShareSubmitAlert by remember { mutableStateOf(false) }
+    var showShareSuccessAlert by remember { mutableStateOf(false) }
+    var showSourceReferenceRequired by remember { mutableStateOf(false) }
     val theme = TabTheme.Feed
     val darkTheme = isPearlDarkTheme()
 
@@ -77,106 +86,93 @@ fun PearlDetailScreen(
             }
         } else {
             val item = pearl!!
+            val entity = item.pearl
+            val isSharedToPublic = entity.isSharedToPublicFeed()
+            val author = FeedPearlAuthorInfo.resolve(item, feedAuthorContext)
+            val profileUserId = author.userId ?: feedAuthorContext.userId
+
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .statusBarsPadding()
                     .imePadding(),
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                    Text(
-                        text = item.pearl.title.ifBlank { "Pearl" },
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = PearlColors.heroPrimary(darkTheme),
-                        modifier = Modifier.weight(1f),
-                    )
-                    IconButton(onClick = { showFolderPicker = true }) {
-                        Icon(Icons.Default.Folder, contentDescription = "Folders", tint = theme.primary)
-                    }
-                    IconButton(onClick = { viewModel.toggleFavourite(item.pearl.id) }) {
-                        Icon(
-                            if (item.pearl.isFavourite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                            contentDescription = "Favourite",
-                            tint = theme.primary,
-                        )
-                    }
-                    IconButton(onClick = { showDeleteDialog = true }) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFFF453A))
-                    }
-                }
+                PearlDetailAuthorBar(
+                    displayName = author.displayName,
+                    avatarUrl = author.avatarUrl,
+                    createdAtMillis = entity.createdAt,
+                    theme = theme,
+                    caption = if (entity.isSharedFromFriend) "Shared by" else null,
+                    userId = author.userId,
+                    onResolveAvatarUrl = onResolveAvatarUrl,
+                    onOpenProfile = profileUserId?.let { userId -> { onOpenUserProfile(userId) } },
+                )
 
                 Column(
                     modifier = Modifier
                         .weight(1f)
                         .verticalScroll(rememberScrollState())
                         .padding(horizontal = PearlLayout.screenHorizontalPadding)
-                        .padding(bottom = 16.dp),
+                        .padding(top = 12.dp, bottom = PearlLayout.detailScrollBottomPadding),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    if (item.pearl.isClinicalCase()) {
-                        ClinicalCaseDetailContent(item)
-                    } else {
-                        StandardPearlDetailContent(item)
-                    }
+                    PearlDetailTitleBar(title = entity.title.ifBlank { "Pearl" })
 
-                    if (item.mediaItems.isNotEmpty()) {
-                        Text(
-                            text = "Attachments",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = PearlColors.heroPrimary(darkTheme),
+                    if (item.pearl.isClinicalCase()) {
+                        ClinicalCaseDetailContent(
+                            pearl = item,
+                            theme = theme,
+                            onOpenMedia = { mediaViewerRequest = it },
                         )
-                        item.mediaItems.forEach { media ->
-                            MediaAttachmentRow(
-                                filename = media.filename.ifBlank { media.type },
-                                type = media.type,
-                                onClick = { /* Stage 5: full viewer in follow-up */ },
+                    } else {
+                        StandardPearlDetailContent(item, theme)
+                        if (item.mediaItems.isNotEmpty() || !item.pearl.linkPreviewImagePath.isNullOrBlank()) {
+                            PearlDetailMediaSection(
+                                pearl = item,
+                                theme = theme,
+                                onOpenMedia = { mediaViewerRequest = it },
                             )
                         }
                     }
                 }
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .navigationBarsPadding()
-                        .padding(
-                            start = PearlLayout.screenHorizontalPadding,
-                            end = PearlLayout.screenHorizontalPadding,
-                            top = 12.dp,
-                            bottom = PearlLayout.tabBarOverlayInset,
-                        ),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Button(
-                        onClick = onBack,
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(containerColor = theme.primary),
-                    ) {
-                        Text("Done")
-                    }
-                }
             }
-        }
 
-        if (showDeleteDialog && pearl != null) {
-            PearlDeleteConfirmationDialog(
-                pearlTitle = pearl!!.pearl.title,
-                onConfirm = {
-                    showDeleteDialog = false
-                    viewModel.confirmDeleteForPearl(pearlId)
-                    onBack()
-                },
-                onDismiss = { showDeleteDialog = false },
+            LiquidDetailDock(
+                theme = theme,
+                onBack = onBack,
+                actions = listOf(
+                    DetailDockAction(
+                        id = "folder",
+                        label = "Folder",
+                        icon = Icons.Default.Folder,
+                        onClick = { showFolderPicker = true },
+                    ),
+                    DetailDockAction(
+                        id = "favourite",
+                        label = if (entity.isFavourite) "Favourited" else "Favourite",
+                        icon = if (entity.isFavourite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                        tint = if (entity.isFavourite) TabTheme.Favourites.primary else null,
+                        isActive = entity.isFavourite,
+                        onClick = { viewModel.toggleFavourite(entity.id) },
+                    ),
+                    DetailDockAction(
+                        id = "share",
+                        label = if (isSharedToPublic) "Shared" else "Share",
+                        icon = Icons.Default.Share,
+                        tint = if (isSharedToPublic) TabTheme.PublicFeed.primary else null,
+                        isActive = isSharedToPublic,
+                        showsProgress = uiState.isSharingPearl,
+                        disabled = uiState.isSharingPearl,
+                        onClick = {
+                            when {
+                                !isSignedIn -> onSignInRequired()
+                                entity.effectiveSourceReference().isBlank() -> showSourceReferenceRequired = true
+                                else -> showShareMenu = true
+                            }
+                        },
+                    ),
+                ),
+                modifier = Modifier.align(Alignment.BottomCenter),
             )
         }
 
@@ -195,6 +191,77 @@ fun PearlDetailScreen(
             )
         }
 
+        PearlShareOptionsOverlay(
+            visible = showShareMenu,
+            isSharedToPublicFeed = pearl?.pearl?.isSharedToPublicFeed() == true,
+            theme = theme,
+            onDismiss = { showShareMenu = false },
+            onSelect = { destination ->
+                when (destination) {
+                    PearlShareDestination.PublicFeed -> {
+                        val current = pearl ?: return@PearlShareOptionsOverlay
+                        if (current.pearl.isSharedToPublicFeed()) {
+                            viewModel.withdrawPearlFromPublicFeed(current)
+                        } else {
+                            showShareSubmitAlert = true
+                        }
+                    }
+                    PearlShareDestination.Friends -> showFriendShare = true
+                }
+            },
+        )
+
+        FriendShareOverlay(
+            visible = showFriendShare,
+            theme = TabTheme.PublicFeed,
+            onDismiss = { showFriendShare = false },
+            onSearch = viewModel::searchShareProfiles,
+            onSend = { recipientIds ->
+                pearl?.let { current ->
+                    viewModel.sendFriendShare(current, recipientIds) {}
+                }
+            },
+        )
+
+        if (showShareSubmitAlert && pearl != null) {
+            SharedPearlSubmitAlert(
+                pearlTitle = pearl!!.pearl.title,
+                theme = TabTheme.PublicFeed,
+                onSubmit = {
+                    showShareSubmitAlert = false
+                    viewModel.sharePearlToPublicFeed(pearl!!) {
+                        showShareSuccessAlert = true
+                    }
+                },
+                onCancel = { showShareSubmitAlert = false },
+            )
+        }
+
+        if (showShareSuccessAlert) {
+            SharedPearlSubmissionSuccessAlert(
+                theme = TabTheme.PublicFeed,
+                onDismiss = { showShareSuccessAlert = false },
+            )
+        }
+
+        if (showSourceReferenceRequired) {
+            SourceReferenceRequiredAlert(
+                theme = theme,
+                onDismiss = { showSourceReferenceRequired = false },
+            )
+        }
+
+        uiState.shareErrorMessage?.let { message ->
+            AlertDialog(
+                onDismissRequest = viewModel::dismissShareError,
+                confirmButton = {
+                    Button(onClick = viewModel::dismissShareError) { Text("OK") }
+                },
+                title = { Text("Couldn't Share") },
+                text = { Text(message) },
+            )
+        }
+
         uiState.actionSuccessMessage?.let { message ->
             PearlActionSuccessBanner(
                 message = message,
@@ -203,78 +270,75 @@ fun PearlDetailScreen(
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
         }
+
+        PublicPearlMediaViewerOverlay(
+            request = mediaViewerRequest,
+            theme = theme,
+            onDismiss = { mediaViewerRequest = null },
+        )
     }
 }
 
 @Composable
-private fun StandardPearlDetailContent(pearl: PearlWithMedia) {
-    val darkTheme = isPearlDarkTheme()
+private fun StandardPearlDetailContent(pearl: PearlWithMedia, theme: TabTheme) {
     val entity = pearl.pearl
-    DetailSection("Notes", entity.notes, darkTheme)
+    PearlDetailSection(title = "Notes", body = entity.notes, theme = theme)
     if (entity.sourceReference.isNotBlank()) {
-        DetailSection("Source", entity.sourceReference, darkTheme)
+        PearlDetailSection(title = "Source", body = entity.sourceReference, theme = theme)
     }
     entity.sourceURL?.takeIf { it.isNotBlank() }?.let { url ->
-        DetailSection("Link", url, darkTheme)
+        PearlDetailSection(title = "Link", body = url, theme = theme)
     }
     if (entity.tags.isNotEmpty()) {
-        DetailSection("Tags", entity.tags.joinToString(", "), darkTheme)
+        PearlDetailSection(title = "Tags", body = entity.tags.joinToString(", "), theme = theme, linkifyBody = false)
     }
 }
 
 @Composable
-private fun ClinicalCaseDetailContent(pearl: PearlWithMedia) {
-    val darkTheme = isPearlDarkTheme()
-    val payload = pearl.pearl.clinicalCasePayload()
-    DetailSection("History", payload.history, darkTheme)
-    DetailSection("Examination", payload.examination, darkTheme)
-    DetailSection("Investigation", payload.investigation, darkTheme)
-    DetailSection("Diagnosis", payload.diagnosis, darkTheme)
-    DetailSection("Discussion", payload.discussion, darkTheme)
-    DetailSection("References", payload.references, darkTheme)
-}
-
-@Composable
-private fun DetailSection(title: String, body: String, darkTheme: Boolean) {
-    if (body.isBlank()) return
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.Bold,
-            color = TabTheme.Feed.primary,
-        )
-        Text(
-            text = body,
-            style = MaterialTheme.typography.bodyLarge,
-            color = PearlColors.heroPrimary(darkTheme),
-        )
-    }
-}
-
-@Composable
-private fun MediaAttachmentRow(
-    filename: String,
-    type: String,
-    onClick: () -> Unit,
+private fun ClinicalCaseDetailContent(
+    pearl: PearlWithMedia,
+    theme: TabTheme,
+    onOpenMedia: (PublicPearlMediaViewerRequest) -> Unit,
 ) {
-    val darkTheme = isPearlDarkTheme()
-    GlassSurface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        cornerRadius = 14.dp,
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column {
-                Text(filename, fontWeight = FontWeight.SemiBold, color = PearlColors.heroPrimary(darkTheme))
-                Text(type.uppercase(), style = MaterialTheme.typography.labelSmall, color = PearlColors.heroSecondary(darkTheme))
+    val payload = pearl.pearl.clinicalCasePayload()
+    PearlDetailSection(title = "History", body = payload.history, theme = theme, linkifyBody = false)
+    DetailSectionWithMedia("Examination", payload.examination, pearl, "examination", theme, onOpenMedia)
+    DetailSectionWithMedia("Investigation", payload.investigation, pearl, "investigation", theme, onOpenMedia)
+    PearlDetailSection(title = "Diagnosis", body = payload.diagnosis, theme = theme, linkifyBody = false)
+    DetailSectionWithMedia("Discussion", payload.discussion, pearl, "discussion", theme, onOpenMedia)
+    PearlDetailSection(title = "References", body = payload.references, theme = theme)
+}
+
+@Composable
+private fun DetailSectionWithMedia(
+    title: String,
+    body: String,
+    pearl: PearlWithMedia,
+    sectionTag: String,
+    theme: TabTheme,
+    onOpenMedia: (PublicPearlMediaViewerRequest) -> Unit,
+) {
+    val hasMedia = pearl.mediaItems.any { it.sectionTag.equals(sectionTag, ignoreCase = true) }
+    if (body.isBlank() && !hasMedia) return
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (body.isNotBlank()) {
+            PearlDetailSection(title = title, body = body, theme = theme, linkifyBody = false)
+        } else {
+            com.knowledgepearls.app.ui.components.GlassSurface(
+                modifier = Modifier.fillMaxWidth(),
+                cornerRadius = 14.dp,
+            ) {
+                Column(Modifier.padding(14.dp)) {
+                    PearlDetailSectionHeaderBar(title = title, theme = theme)
+                }
             }
-            Text("View", color = TabTheme.Feed.primary, fontWeight = FontWeight.Bold)
         }
+        PearlDetailSectionMedia(
+            pearl = pearl,
+            sectionTag = sectionTag,
+            theme = theme,
+            onOpenMedia = onOpenMedia,
+        )
     }
 }

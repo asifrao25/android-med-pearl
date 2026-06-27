@@ -1,5 +1,6 @@
 package com.knowledgepearls.app.ui.theme
 
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
@@ -55,6 +56,23 @@ object PearlColors {
 
     fun controlFill(darkTheme: Boolean): Color =
         if (darkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.05f)
+
+    /** Solid tab bar capsule — avoids glass blur so tabs stay readable over scrolling content. */
+    fun tabBarFill(darkTheme: Boolean): Color =
+        if (darkTheme) Color(0xFF12121A) else Color(0xFFF8F9FC)
+
+    /** Detail action dock — matches tab bar opacity for consistent chrome. */
+    fun detailDockFill(darkTheme: Boolean): Color = tabBarFill(darkTheme)
+
+    fun sectionHeaderGradient(theme: TabTheme, darkTheme: Boolean): Brush =
+        Brush.horizontalGradient(
+            colors = listOf(
+                theme.primary.copy(alpha = if (darkTheme) 0.52f else 0.58f),
+                theme.secondary.copy(alpha = if (darkTheme) 0.34f else 0.40f),
+                theme.secondary.copy(alpha = if (darkTheme) 0.12f else 0.16f),
+            ),
+        )
+
 }
 
 /** Layout tokens from iOS `LiquidTabBarLayout` and `TabScreenHeaderMetrics`. */
@@ -64,6 +82,12 @@ object PearlLayout {
     val tabBarBottomPadding = 10.dp
     /** Space reserved above the floating tab bar for FABs and bottom actions. */
     val tabBarOverlayInset = tabBarHeight + tabBarBottomPadding + 20.dp
+    /** Floating detail dock — matches iOS `LiquidDetailDock` + `LiquidTabBarLayout.actionBarBottomPadding`. */
+    val detailDockHeight = 64.dp
+    val detailDockTopPadding = 6.dp
+    /** Bottom inset so the detail dock sits flush above the floating tab bar. */
+    val detailDockBottomPadding = tabBarHeight + tabBarBottomPadding + 12.dp
+    val detailScrollBottomPadding = detailDockHeight + detailDockTopPadding + detailDockBottomPadding + 8.dp
     val cardCornerRadius = 18.dp
     val headerContentHeight = 52.dp
     val headerActionSize = 36.dp

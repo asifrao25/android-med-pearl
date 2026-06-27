@@ -1,6 +1,7 @@
 package com.knowledgepearls.app.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -54,11 +55,15 @@ fun LiquidTabBar(
 ) {
     val darkTheme = isPearlDarkTheme()
 
-    GlassSurface(
+    val capsuleShape = RoundedCornerShape(999.dp)
+
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = PearlLayout.screenHorizontalPadding),
-        cornerRadius = 999.dp,
+            .padding(horizontal = PearlLayout.screenHorizontalPadding)
+            .clip(capsuleShape)
+            .background(PearlColors.tabBarFill(darkTheme), capsuleShape)
+            .border(width = 1.dp, color = PearlColors.cardBorder(darkTheme), shape = capsuleShape),
     ) {
         Row(
             modifier = Modifier
@@ -105,6 +110,7 @@ fun LiquidTabBar(
         }
     }
 }
+
 
 @Composable
 private fun RowScope.TabChip(

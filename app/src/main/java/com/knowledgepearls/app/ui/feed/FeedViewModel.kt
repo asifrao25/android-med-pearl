@@ -4,11 +4,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.knowledgepearls.app.data.local.model.PearlWithMedia
 import com.knowledgepearls.app.data.local.model.clinicalCasePayload
+import com.knowledgepearls.app.data.local.model.effectiveSourceReference
 import com.knowledgepearls.app.data.local.model.isClinicalCase
 import com.knowledgepearls.app.data.local.model.matches
+import com.knowledgepearls.app.data.local.model.toPickedMedia
 import com.knowledgepearls.app.data.model.ContentTypeFilter
+import com.knowledgepearls.app.data.model.ShareProfileResult
 import com.knowledgepearls.app.data.repository.AccountRepository
 import com.knowledgepearls.app.data.repository.KnowledgePearlRepository
+import com.knowledgepearls.app.data.repository.PearlShareRepository
+import com.knowledgepearls.app.data.repository.PublicFeedSharingRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,12 +35,16 @@ data class FeedUiState(
     val showEmptyFilterAlert: Boolean = false,
     val deleteTarget: PearlWithMedia? = null,
     val actionSuccessMessage: String? = null,
+    val isSharingPearl: Boolean = false,
+    val shareErrorMessage: String? = null,
 )
 
 @HiltViewModel
 class FeedViewModel @Inject constructor(
     private val pearlRepository: KnowledgePearlRepository,
     private val accountRepository: AccountRepository,
+    private val publicFeedSharingRepository: PublicFeedSharingRepository,
+    private val pearlShareRepository: PearlShareRepository,
 ) : ViewModel() {
     private val searchQuery = MutableStateFlow("")
     private val selectedTag = MutableStateFlow<String?>(null)
@@ -43,6 +52,8 @@ class FeedViewModel @Inject constructor(
     private val isSearchActive = MutableStateFlow(false)
     private val deleteTarget = MutableStateFlow<PearlWithMedia?>(null)
     private val actionSuccessMessage = MutableStateFlow<String?>(null)
+    private val isSharingPearl = MutableStateFlow(false)
+    private val shareErrorMessage = MutableStateFlow<String?>(null)
 
     val uiState: StateFlow<FeedUiState> = combine(
         pearlRepository.observeAllPearls(),
@@ -52,6 +63,8 @@ class FeedViewModel @Inject constructor(
         isSearchActive,
         deleteTarget,
         actionSuccessMessage,
+        isSharingPearl,
+        shareErrorMessage,
     ) { values ->
         @Suppress("UNCHECKED_CAST")
         val pearls = values[0] as List<PearlWithMedia>
@@ -61,6 +74,8 @@ class FeedViewModel @Inject constructor(
         val searching = values[4] as Boolean
         val delete = values[5] as PearlWithMedia?
         val success = values[6] as String?
+        val sharing = values[7] as Boolean
+        val shareError = values[8] as String?
 
         val filtered = pearls.filter { pearl ->
             pearl.matches(filter) &&
@@ -81,6 +96,8 @@ class FeedViewModel @Inject constructor(
             showEmptyFilterAlert = emptyFilterAlert,
             deleteTarget = delete,
             actionSuccessMessage = success,
+            isSharingPearl = sharing,
+            shareErrorMessage = shareError,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FeedUiState())
 
@@ -128,6 +145,97 @@ class FeedViewModel @Inject constructor(
 
     fun dismissActionSuccess() {
         actionSuccessMessage.value = null
+    }
+
+    fun dismissShareError() {
+        shareErrorMessage.value = null
+    }
+
+    suspend fun searchShareProfiles(query: String): List<ShareProfileResult> =
+        pearlShareRepository.searchProfiles(query)
+
+    fun sendFriendShare(
+        pearl: PearlWithMedia,
+        recipientIds: List<String>,
+        onSuccess: () -> Unit,
+    ) {
+        viewModelScope.launch {
+            isSharingPearl.value = true
+            runCatching {
+                val payload = pearlShareRepository.buildPayloadFromPearl(
+                    pearl = pearl.pearl,
+                    mediaItems = emptyList(),
+                )
+                val fingerprint = "${pearl.pearl.id}-${pearl.pearl.updatedAt}"
+                pearlShareRepository.sendShare(
+                    recipientIds = recipientIds,
+                    payload = payload,
+                    fingerprint = fingerprint,
+                    contentIdentity = fingerprint,
+                )
+            }.onSuccess { onSuccess() }
+                .onFailure { shareErrorMessage.value = it.message ?: "Share failed" }
+            isSharingPearl.value = false
+        }
+    }
+
+    fun sharePearlToPublicFeed(
+        pearl: PearlWithMedia,
+        onSuccess: () -> Unit,
+    ) {
+        viewModelScope.launch {
+            isSharingPearl.value = true
+            runCatching {
+                val entity = pearl.pearl
+                val publicId = if (entity.isClinicalCase()) {
+                    publicFeedSharingRepository.shareClinicalCase(
+                        title = entity.title,
+                        payload = entity.clinicalCasePayload(),
+                        tags = entity.tags,
+                        sectionMedia = pearl.mediaItems
+                            .filter { it.sectionTag.isNotBlank() }
+                            .groupBy { it.sectionTag }
+                            .mapValues { (_, items) -> items.toPickedMedia() },
+                    )
+                } else {
+                    publicFeedSharingRepository.shareStandardPearl(
+                        title = entity.title,
+                        notes = entity.notes,
+                        tags = entity.tags,
+                        sourceUrl = entity.sourceURL,
+                        linkPreviewDescription = entity.linkPreviewDescription,
+                        sourceReference = entity.effectiveSourceReference(),
+                        mediaItems = pearl.mediaItems.toPickedMedia(),
+                    )
+                }
+                pearlRepository.updatePublicPearlStatus(
+                    pearlId = entity.id,
+                    publicPearlId = publicId,
+                    status = "pending",
+                    isSharedPublicly = true,
+                )
+            }.onSuccess { onSuccess() }
+                .onFailure { shareErrorMessage.value = it.message ?: "Share failed" }
+            isSharingPearl.value = false
+        }
+    }
+
+    fun withdrawPearlFromPublicFeed(pearl: PearlWithMedia) {
+        val publicId = pearl.pearl.publicPearlID ?: return
+        viewModelScope.launch {
+            isSharingPearl.value = true
+            runCatching {
+                publicFeedSharingRepository.withdraw(publicId)
+                pearlRepository.updatePublicPearlStatus(
+                    pearlId = pearl.pearl.id,
+                    publicPearlId = null,
+                    status = "",
+                    isSharedPublicly = false,
+                )
+                actionSuccessMessage.value = "Withdrawn from Public Feed"
+            }.onFailure { shareErrorMessage.value = it.message ?: "Withdraw failed" }
+            isSharingPearl.value = false
+        }
     }
 
     fun showCaptureSavedMessage() {

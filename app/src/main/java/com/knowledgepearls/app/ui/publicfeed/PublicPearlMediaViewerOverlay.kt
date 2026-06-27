@@ -34,7 +34,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -50,10 +50,19 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import coil3.compose.SubcomposeAsyncImage
+import android.content.Intent
+import android.webkit.MimeTypeMap
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.core.content.FileProvider
+import com.knowledgepearls.app.ui.media.ZoomableFullscreenImage
 import com.knowledgepearls.app.ui.theme.TabTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.net.URI
 import java.net.URL
 import java.net.URLEncoder
 import java.security.MessageDigest
@@ -83,10 +92,13 @@ fun PublicPearlMediaViewerOverlay(
             decorFitsSystemWindows = false,
         ),
     ) {
+        var dismissProgress by remember { mutableStateOf(0f) }
+        val scrimAlpha = 1f - dismissProgress * 0.55f
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black)
+                .background(Color.Black.copy(alpha = scrimAlpha))
                 .statusBarsPadding()
                 .navigationBarsPadding(),
         ) {
@@ -95,7 +107,11 @@ fun PublicPearlMediaViewerOverlay(
                 modifier = Modifier.fillMaxSize(),
             ) { page ->
                 when (val slide = request.slides[page]) {
-                    is PublicPearlMediaSlide.Image -> FullscreenImage(url = slide.url)
+                    is PublicPearlMediaSlide.Image -> ZoomableFullscreenImage(
+                        model = resolveMediaModel(slide.url),
+                        onDismissProgress = { dismissProgress = it },
+                        onDismiss = onDismiss,
+                    )
                     is PublicPearlMediaSlide.Video -> FullscreenVideo(url = slide.url, filename = slide.filename)
                     is PublicPearlMediaSlide.Document -> FullscreenDocument(
                         url = slide.url,
@@ -108,6 +124,7 @@ fun PublicPearlMediaViewerOverlay(
                 title = viewerTitle(request.slides[pagerState.currentPage], pagerState.currentPage, request.slides.size),
                 theme = theme,
                 onDismiss = onDismiss,
+                modifier = Modifier.graphicsLayer { alpha = scrimAlpha },
             )
         }
     }
@@ -118,9 +135,10 @@ private fun ViewerChrome(
     title: String,
     theme: TabTheme,
     onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 4.dp),
     ) {
@@ -159,43 +177,19 @@ private fun viewerTitle(slide: PublicPearlMediaSlide, index: Int, total: Int): S
 }
 
 @Composable
-private fun FullscreenImage(url: String) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center,
-    ) {
-        SubcomposeAsyncImage(
-            model = url,
-            contentDescription = "Photo",
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Fit,
-            loading = {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = Color.White)
-                }
-            },
-            error = {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Unable to load image", color = Color.White.copy(alpha = 0.8f))
-                }
-            },
-        )
-    }
-}
-
-@Composable
 private fun FullscreenVideo(url: String, filename: String) {
     val context = LocalContext.current
-    val exoPlayer = remember(url) {
+    val mediaUri = remember(url) { resolveMediaUri(url) }
+    val exoPlayer = remember(mediaUri) {
         ExoPlayer.Builder(context).build().apply {
-            setMediaItem(MediaItem.fromUri(url))
+            setMediaItem(MediaItem.fromUri(mediaUri))
             repeatMode = Player.REPEAT_MODE_OFF
             prepare()
             playWhenReady = true
         }
     }
 
-    DisposableEffect(url) {
+    DisposableEffect(mediaUri) {
         onDispose { exoPlayer.release() }
     }
 
@@ -233,8 +227,46 @@ private fun FullscreenVideo(url: String, filename: String) {
 private fun FullscreenDocument(url: String, filename: String) {
     if (isPdf(filename, url)) {
         PdfDocumentViewer(url = url, filename = filename)
+    } else if (isLocalMedia(url)) {
+        LocalDocumentViewer(url = url, filename = filename)
     } else {
         EmbeddedDocumentWebViewer(url = url, filename = filename)
+    }
+}
+
+@Composable
+private fun LocalDocumentViewer(url: String, filename: String) {
+    val context = LocalContext.current
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(top = 56.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(24.dp),
+        ) {
+            Text(filename, color = Color.White, textAlign = TextAlign.Center)
+            Text(
+                text = "Open this attachment in another app to preview it.",
+                color = Color.White.copy(alpha = 0.75f),
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = "Open attachment",
+                color = Color.White,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier
+                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(999.dp))
+                    .background(Color.White.copy(alpha = 0.16f))
+                    .clickable {
+                        openLocalDocument(context, resolveMediaFile(context.cacheDir, url, filename))
+                    }
+                    .padding(horizontal = 18.dp, vertical = 10.dp),
+            )
+        }
     }
 }
 
@@ -249,7 +281,7 @@ private fun PdfDocumentViewer(url: String, filename: String) {
         error = null
         withContext(Dispatchers.IO) {
             runCatching {
-                val file = cacheRemoteFile(context.cacheDir, url, filename)
+                val file = resolveMediaFile(context.cacheDir, url, filename)
                 renderPdfPages(file)
             }.onSuccess { rendered ->
                 pages = rendered
@@ -277,8 +309,11 @@ private fun PdfDocumentViewer(url: String, filename: String) {
                 }
             }
         }
-        error != null -> {
+        error != null && !isLocalMedia(url) -> {
             EmbeddedDocumentWebViewer(url = url, filename = filename)
+        }
+        error != null -> {
+            LocalDocumentViewer(url = url, filename = filename)
         }
         else -> {
             Box(
@@ -343,6 +378,40 @@ private fun isPdf(filename: String, url: String): Boolean {
     val lowerName = filename.lowercase()
     val lowerUrl = url.lowercase()
     return lowerName.endsWith(".pdf") || lowerUrl.contains(".pdf")
+}
+
+private fun isLocalMedia(url: String): Boolean =
+    !url.startsWith("http://", ignoreCase = true) && !url.startsWith("https://", ignoreCase = true)
+
+private fun resolveMediaUri(url: String): String = when {
+    url.startsWith("file:") || url.startsWith("content:") -> url
+    isLocalMedia(url) -> File(url).toURI().toString()
+    else -> url
+}
+
+private fun resolveMediaModel(url: String): Any =
+    if (isLocalMedia(url) && !url.startsWith("file:")) File(url) else resolveMediaUri(url)
+
+private fun resolveMediaFile(cacheDir: File, url: String, filename: String): File {
+    if (isLocalMedia(url)) {
+        return if (url.startsWith("file:")) File(URI(url)) else File(url)
+    }
+    return cacheRemoteFile(cacheDir, url, filename)
+}
+
+private fun openLocalDocument(context: android.content.Context, file: File) {
+    val uri = FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.fileprovider",
+        file,
+    )
+    val extension = file.extension.lowercase()
+    val mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension) ?: "*/*"
+    val intent = Intent(Intent.ACTION_VIEW).apply {
+        setDataAndType(uri, mime)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    context.startActivity(Intent.createChooser(intent, "Open attachment"))
 }
 
 private fun cacheRemoteFile(cacheDir: File, url: String, filename: String): File {

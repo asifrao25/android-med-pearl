@@ -71,8 +71,12 @@ fun FolderContentsScreen(
     feedAuthorContext: FeedAuthorContext,
     onResolveAvatarUrl: suspend (String) -> String?,
     onClose: () -> Unit,
+    onSignInRequired: () -> Unit = {},
+    onOpenUserProfile: (String) -> Unit = {},
     feedViewModel: FeedViewModel = hiltViewModel(),
+    accountViewModel: com.knowledgepearls.app.ui.account.AccountViewModel = hiltViewModel(),
 ) {
+    val accountState by accountViewModel.uiState.collectAsStateWithLifecycle()
     val navController = rememberNavController()
     val theme = TabTheme.Folders
     val darkTheme = isPearlDarkTheme()
@@ -141,7 +145,12 @@ fun FolderContentsScreen(
                 PearlDetailScreen(
                     pearlId = pearlId,
                     viewModel = feedViewModel,
+                    feedAuthorContext = feedAuthorContext,
+                    onResolveAvatarUrl = onResolveAvatarUrl,
                     onBack = { navController.popBackStack() },
+                    isSignedIn = accountState.isSignedIn,
+                    onSignInRequired = onSignInRequired,
+                    onOpenUserProfile = onOpenUserProfile,
                 )
             }
         }

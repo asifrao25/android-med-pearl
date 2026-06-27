@@ -328,6 +328,14 @@ class AccountViewModel @Inject constructor(
         }
     }
 
+    fun refreshProfile() {
+        viewModelScope.launch {
+            if (_uiState.value.userId != null) {
+                refreshAuthenticatedState(triggerSync = false)
+            }
+        }
+    }
+
     private suspend fun refreshAuthenticatedState(triggerSync: Boolean) {
         val userId = accountRepository.currentUserId()
         var profile: com.knowledgepearls.app.data.model.UserProfile? = null

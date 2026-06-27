@@ -31,6 +31,8 @@ import com.knowledgepearls.app.ui.publicfeed.PublicPearlDetailScreen
 @Composable
 fun FeedTabScreen(
     onOpenSettings: () -> Unit,
+    onSignInRequired: () -> Unit = {},
+    onOpenUserProfile: (String) -> Unit = {},
     shareImport: ShareImportPayload? = null,
     onShareImportConsumed: () -> Unit = {},
     feedViewModel: FeedViewModel = hiltViewModel(),
@@ -101,7 +103,12 @@ fun FeedTabScreen(
             PearlDetailScreen(
                 pearlId = pearlId,
                 viewModel = feedViewModel,
+                feedAuthorContext = feedAuthorContext,
+                onResolveAvatarUrl = feedViewModel::fetchAvatarUrl,
                 onBack = { navController.popBackStack() },
+                isSignedIn = accountState.isSignedIn,
+                onSignInRequired = onSignInRequired,
+                onOpenUserProfile = onOpenUserProfile,
             )
         }
         composable("capture/quick") {
@@ -181,6 +188,8 @@ fun FeedTabScreen(
 @Composable
 fun FavouritesTabScreen(
     onOpenSettings: () -> Unit,
+    onSignInRequired: () -> Unit = {},
+    onOpenUserProfile: (String) -> Unit = {},
     favouritesViewModel: com.knowledgepearls.app.ui.favourites.FavouritesViewModel = hiltViewModel(),
     feedViewModel: FeedViewModel = hiltViewModel(),
     accountViewModel: AccountViewModel = hiltViewModel(),
@@ -208,7 +217,12 @@ fun FavouritesTabScreen(
             PearlDetailScreen(
                 pearlId = pearlId,
                 viewModel = feedViewModel,
+                feedAuthorContext = feedAuthorContext,
+                onResolveAvatarUrl = feedViewModel::fetchAvatarUrl,
                 onBack = { navController.popBackStack() },
+                isSignedIn = accountState.isSignedIn,
+                onSignInRequired = onSignInRequired,
+                onOpenUserProfile = onOpenUserProfile,
             )
         }
     }
@@ -219,10 +233,12 @@ fun PublicFeedTabScreen(
     onOpenSettings: () -> Unit,
     onOpenInbox: () -> Unit,
     onSignIn: () -> Unit,
+    onOpenUserProfile: (String) -> Unit = {},
     inboxBadgeCount: Int = 0,
     connectivityState: ConnectivityState = ConnectivityState(),
     onRetryConnection: () -> Unit = {},
     viewModel: PublicFeedViewModel = hiltViewModel(),
+    feedViewModel: FeedViewModel = hiltViewModel(),
     accountViewModel: AccountViewModel = hiltViewModel(),
     foldersViewModel: com.knowledgepearls.app.ui.folders.FoldersViewModel = hiltViewModel(),
 ) {
@@ -321,7 +337,9 @@ fun PublicFeedTabScreen(
                 isCommentsLoading = uiState.isCommentsLoading,
                 isPostingComment = uiState.isPostingComment,
                 commentsError = uiState.commentsError,
+                onResolveAvatarUrl = feedViewModel::fetchAvatarUrl,
                 onBack = { navController.popBackStack() },
+                onOpenUserProfile = onOpenUserProfile,
                 onAddToMyFeed = { viewModel.addToMyFeed(pearl) },
                 onHide = {
                     viewModel.hide(pearl)

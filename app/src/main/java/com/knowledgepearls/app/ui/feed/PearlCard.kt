@@ -11,18 +11,19 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.LocalHospital
 import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.PlayCircle
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -33,8 +34,10 @@ import com.knowledgepearls.app.data.local.model.PearlWithMedia
 import com.knowledgepearls.app.data.local.model.clinicalCasePayload
 import com.knowledgepearls.app.data.local.model.isClinicalCase
 import com.knowledgepearls.app.data.local.model.isQuickPearl
-import com.knowledgepearls.app.ui.theme.PearlLayout
 import com.knowledgepearls.app.ui.theme.PearlColors
+import com.knowledgepearls.app.ui.theme.PearlLayout
+import com.knowledgepearls.app.ui.theme.TabTheme
+import com.knowledgepearls.app.ui.publicfeed.PublicPearlMediaViewerRequest
 import com.knowledgepearls.app.ui.theme.isPearlDarkTheme
 
 private val cardShape = RoundedCornerShape(PearlLayout.cardCornerRadius)
@@ -42,39 +45,42 @@ private val cardShape = RoundedCornerShape(PearlLayout.cardCornerRadius)
 @Composable
 fun PearlCard(
     pearl: PearlWithMedia,
+    theme: TabTheme = TabTheme.Feed,
     modifier: Modifier = Modifier,
+    onOpenMedia: ((PublicPearlMediaViewerRequest) -> Unit)? = null,
 ) {
     val darkTheme = isPearlDarkTheme()
-    val theme = pearlCardTheme(pearl)
+    val cardTheme = pearlCardTheme(pearl, theme)
     val entity = pearl.pearl
 
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .clip(cardShape)
             .border(
                 width = 1.dp,
                 brush = Brush.linearGradient(
-                    listOf(theme.color.copy(alpha = 0.55f), theme.glowColor.copy(alpha = 0.22f)),
+                    listOf(cardTheme.color.copy(alpha = 0.55f), cardTheme.glowColor.copy(alpha = 0.22f)),
                 ),
                 shape = cardShape,
             )
-            .background(PearlColors.glassOverlay(darkTheme), cardShape),
+            .background(PearlColors.glassOverlay(darkTheme)),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(
                     brush = Brush.horizontalGradient(
-                        listOf(theme.color.copy(alpha = 0.72f), theme.glowColor.copy(alpha = 0.48f)),
+                        listOf(cardTheme.color.copy(alpha = 0.72f), cardTheme.glowColor.copy(alpha = 0.48f)),
                     ),
                 )
                 .padding(horizontal = 16.dp, vertical = 9.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Icon(theme.icon, contentDescription = null, tint = Color.White, modifier = Modifier.height(14.dp))
+            Icon(cardTheme.icon, contentDescription = null, tint = Color.White, modifier = Modifier.height(14.dp))
             Text(
-                text = theme.label.uppercase(),
+                text = cardTheme.label.uppercase(),
                 color = Color.White,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
@@ -110,71 +116,54 @@ fun PearlCard(
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
-                    if (pearl.mediaItems.isNotEmpty()) {
-                        Text(
-                            text = "${pearl.mediaItems.size} attachment(s)",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = PearlColors.heroSecondary(darkTheme),
-                        )
-                    }
                 }
                 entity.notes.isNotBlank() -> {
                     Text(
                         text = entity.notes,
                         style = MaterialTheme.typography.bodyMedium,
                         color = PearlColors.heroSecondary(darkTheme),
-                        maxLines = 2,
+                        maxLines = 3,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
 
-            if (entity.tags.isNotEmpty()) {
+            if (
+                entity.linkPreviewDescription.isNotBlank() &&
+                !entity.sourceURL.isNullOrBlank() &&
+                pearl.mediaItems.isEmpty()
+            ) {
                 Text(
-                    text = entity.tags.joinToString(" · "),
+                    text = entity.linkPreviewDescription,
                     style = MaterialTheme.typography.labelSmall,
-                    color = theme.color,
-                    maxLines = 1,
+                    color = PearlColors.heroSecondary(darkTheme),
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-        }
 
-        pearl.mediaItems.firstOrNull()?.let { media ->
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(120.dp)
-                    .background(
-                        brush = Brush.linearGradient(
-                            listOf(theme.color.copy(alpha = 0.42f), theme.glowColor.copy(alpha = 0.18f)),
-                        ),
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = mediaTypeIcon(media.type),
-                    contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.9f),
-                    modifier = Modifier.height(36.dp),
-                )
-            }
-        } ?: entity.sourceURL?.takeIf { it.isNotBlank() }?.let {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(80.dp)
-                    .background(theme.color.copy(alpha = 0.25f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = it,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White.copy(alpha = 0.85f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(horizontal = 12.dp),
-                )
+            PearlCardMediaPreview(
+                pearl = pearl,
+                theme = theme,
+                modifier = Modifier.fillMaxWidth(),
+                interactive = onOpenMedia != null,
+                onOpenMedia = onOpenMedia,
+            )
+
+            if (entity.tags.isNotEmpty()) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    entity.tags.take(4).forEach { tag ->
+                        Text(
+                            text = tag,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(999.dp))
+                                .background(PearlColors.controlFill(darkTheme))
+                                .padding(horizontal = 10.dp, vertical = 4.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = PearlColors.heroSecondary(darkTheme),
+                        )
+                    }
+                }
             }
         }
     }
@@ -200,36 +189,28 @@ private fun PublicStatusBadge(status: String) {
 }
 
 private data class PearlCardTheme(
+    val label: String,
+    val icon: ImageVector,
     val color: Color,
     val glowColor: Color,
-    val icon: ImageVector,
-    val label: String,
 )
 
-private fun pearlCardTheme(pearl: PearlWithMedia): PearlCardTheme {
+private fun pearlCardTheme(pearl: PearlWithMedia, tabTheme: TabTheme): PearlCardTheme {
+    val primary = tabTheme.primary
+    val secondary = tabTheme.secondary
     val entity = pearl.pearl
-    if (entity.isClinicalCase()) {
-        return PearlCardTheme(Color(0xFFF5A623), Color(0xFFC47D0E), Icons.Default.LocalHospital, "Clinical Case")
-    }
-    if (entity.isQuickPearl()) {
-        return PearlCardTheme(Color(0xFF61F2B8), Color(0xFF2EB88A), Icons.Default.AutoAwesome, "Quick")
-    }
-    pearl.mediaItems.firstOrNull()?.let { media ->
-        return when (media.type) {
-            "video" -> PearlCardTheme(Color(0xFFFF8C61), Color(0xFFF24A6A), Icons.Default.PlayCircle, "Video")
-            "image" -> PearlCardTheme(Color(0xFF38E0F0), Color(0xFF1F8CF2), Icons.Default.Photo, "Photo")
-            else -> PearlCardTheme(Color(0xFF9485FF), Color(0xFF6147E0), Icons.Default.Description, "Document")
-        }
-    }
-    if (!entity.sourceURL.isNullOrBlank()) {
-        return PearlCardTheme(Color(0xFF52B8FF), Color(0xFF2E7AEB), Icons.Default.Link, "Link")
-    }
-    return PearlCardTheme(Color(0xFF61F2B8), Color(0xFF2EB88A), Icons.Default.AutoAwesome, "Pearl")
-}
 
-private fun mediaTypeIcon(type: String): ImageVector = when (type) {
-    "video" -> Icons.Default.PlayCircle
-    "image" -> Icons.Default.Photo
-    "pdf", "document" -> Icons.Default.Description
-    else -> Icons.Default.Description
+    return when {
+        entity.isClinicalCase() -> PearlCardTheme("Clinical case", Icons.Default.LocalHospital, primary, secondary)
+        !entity.sourceURL.isNullOrBlank() && pearl.mediaItems.isEmpty() ->
+            PearlCardTheme("Link", Icons.Default.Link, primary, secondary)
+        pearl.mediaItems.size > 1 -> PearlCardTheme("Gallery", Icons.Default.Photo, primary, secondary)
+        pearl.mediaItems.firstOrNull()?.type == "video" ->
+            PearlCardTheme("Video", Icons.Default.PlayCircle, primary, secondary)
+        pearl.mediaItems.firstOrNull()?.type in listOf("pdf", "document") ->
+            PearlCardTheme("Document", Icons.Default.Description, primary, secondary)
+        pearl.mediaItems.isNotEmpty() -> PearlCardTheme("Photo", Icons.Default.Photo, primary, secondary)
+        entity.isQuickPearl() -> PearlCardTheme("Quick pearl", Icons.Default.AutoAwesome, primary, secondary)
+        else -> PearlCardTheme("Pearl", Icons.Default.AutoAwesome, primary, secondary)
+    }
 }

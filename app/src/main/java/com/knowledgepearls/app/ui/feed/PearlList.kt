@@ -125,6 +125,7 @@ private fun PearlListContent(
                 ) {
                     PearlCard(
                         pearl = pearl,
+                        theme = theme,
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { onPearlClick(pearl) },
