@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.knowledgepearls.app.data.local.model.PearlWithMedia
 import com.knowledgepearls.app.data.local.model.clinicalCasePayload
+import com.knowledgepearls.app.data.local.model.decodedPublicPearl
 import com.knowledgepearls.app.data.local.model.effectiveSourceReference
 import com.knowledgepearls.app.data.local.model.isClinicalCase
 import com.knowledgepearls.app.data.local.model.matches
@@ -164,7 +165,7 @@ class FeedViewModel @Inject constructor(
             runCatching {
                 val payload = pearlShareRepository.buildPayloadFromPearl(
                     pearl = pearl.pearl,
-                    mediaItems = emptyList(),
+                    mediaItems = pearl.pearl.decodedPublicPearl()?.resolvedMediaItems.orEmpty(),
                 )
                 val fingerprint = "${pearl.pearl.id}-${pearl.pearl.updatedAt}"
                 pearlShareRepository.sendShare(

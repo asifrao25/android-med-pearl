@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.knowledgepearls.app.data.model.ContentTypeFilter
 import com.knowledgepearls.app.data.model.PublicPearl
 import com.knowledgepearls.app.data.model.PearlComment
+import com.knowledgepearls.app.data.model.normalizeUserId
 import com.knowledgepearls.app.data.repository.AccountRepository
 import com.knowledgepearls.app.data.repository.PublicFeedEngagementRepository
 import com.knowledgepearls.app.data.repository.PublicFeedRepository
@@ -70,6 +71,10 @@ class PublicFeedViewModel @Inject constructor(
     private var currentOffset = 0
     private var seenIds = repository.getSeenIds()
     private var hiddenIds = repository.getHiddenIds()
+    private var blockedUserIds = repository.getBlockedUserIds()
+
+    private fun isVisible(pearl: PublicPearl): Boolean =
+        pearl.id !in hiddenIds && normalizeUserId(pearl.userId) !in blockedUserIds
 
     private val _uiState = MutableStateFlow(PublicFeedUiState(seenIds = seenIds))
     val uiState: StateFlow<PublicFeedUiState> = _uiState.asStateFlow()
@@ -79,6 +84,7 @@ class PublicFeedViewModel @Inject constructor(
             currentOffset = 0
             seenIds = repository.getSeenIds()
             hiddenIds = repository.getHiddenIds()
+            blockedUserIds = repository.getBlockedUserIds()
             _uiState.update {
                 it.copy(
                     pearls = emptyList(),
@@ -108,7 +114,7 @@ class PublicFeedViewModel @Inject constructor(
                 _uiState.update { it.copy(hasMore = false) }
             }
             currentOffset += page.size
-            val visible = page.filter { it.id !in hiddenIds }
+            val visible = page.filter(::isVisible)
             _uiState.update { current ->
                 current.copy(
                     pearls = if (reset) visible else current.pearls + visible,
@@ -164,6 +170,17 @@ class PublicFeedViewModel @Inject constructor(
         repository.markUnseen(pearl.id)
         seenIds = repository.getSeenIds()
         _uiState.update { it.copy(seenIds = seenIds) }
+    }
+
+    fun blockUser(userId: String) {
+        repository.blockUser(userId)
+        blockedUserIds = repository.getBlockedUserIds()
+        _uiState.update { current ->
+            current.copy(
+                pearls = current.pearls.filter { normalizeUserId(it.userId) !in blockedUserIds },
+                actionOutcome = com.knowledgepearls.app.ui.components.PearlActionOutcome.RemovedFromFeed,
+            )
+        }
     }
 
     fun hide(pearl: PublicPearl) {

@@ -4,9 +4,9 @@ import android.graphics.Bitmap
 import android.graphics.pdf.PdfRenderer
 import android.media.MediaMetadataRetriever
 import android.os.ParcelFileDescriptor
+import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.File
 
 object MediaThumbnailUtils {
     suspend fun loadVideoThumbnail(path: String): Bitmap? = withContext(Dispatchers.IO) {
@@ -34,4 +34,13 @@ object MediaThumbnailUtils {
             }
         }.getOrNull()
     }
+
+    suspend fun loadDocumentThumbnail(cacheDir: File, url: String, filename: String): Bitmap? =
+        withContext(Dispatchers.IO) {
+            if (!DocumentSupport.isPdf(filename, url)) return@withContext null
+            runCatching {
+                val file = DocumentFileResolver.resolveFile(cacheDir, url, filename)
+                loadPdfThumbnail(file.absolutePath)
+            }.getOrNull()
+        }
 }

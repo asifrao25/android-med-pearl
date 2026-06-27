@@ -34,6 +34,7 @@ import com.knowledgepearls.app.data.local.model.PearlWithMedia
 import com.knowledgepearls.app.data.local.model.clinicalCasePayload
 import com.knowledgepearls.app.data.local.model.effectiveSourceReference
 import com.knowledgepearls.app.data.local.model.isClinicalCase
+import com.knowledgepearls.app.data.local.model.decodedPublicPearl
 import com.knowledgepearls.app.data.local.model.isSharedToPublicFeed
 import com.knowledgepearls.app.ui.components.DetailDockAction
 import com.knowledgepearls.app.ui.components.LiquidDetailDock
@@ -87,8 +88,9 @@ fun PearlDetailScreen(
         } else {
             val item = pearl!!
             val entity = item.pearl
+            val publicPearl = entity.decodedPublicPearl()
             val isSharedToPublic = entity.isSharedToPublicFeed()
-            val author = FeedPearlAuthorInfo.resolve(item, feedAuthorContext)
+            val author = FeedPearlAuthorInfo.resolve(item, feedAuthorContext, publicPearl)
             val profileUserId = author.userId ?: feedAuthorContext.userId
 
             Column(
@@ -118,7 +120,13 @@ fun PearlDetailScreen(
                 ) {
                     PearlDetailTitleBar(title = entity.title.ifBlank { "Pearl" })
 
-                    if (item.pearl.isClinicalCase()) {
+                    if (publicPearl != null) {
+                        SavedPublicPearlDetailContent(
+                            publicPearl = publicPearl,
+                            theme = theme,
+                            onOpenMedia = { mediaViewerRequest = it },
+                        )
+                    } else if (item.pearl.isClinicalCase()) {
                         ClinicalCaseDetailContent(
                             pearl = item,
                             theme = theme,

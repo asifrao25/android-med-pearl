@@ -5,6 +5,7 @@ import com.knowledgepearls.app.data.local.entity.KnowledgePearlContentKind
 import com.knowledgepearls.app.data.local.entity.KnowledgePearlEntity
 import com.knowledgepearls.app.data.local.model.withClinicalCasePayload
 import com.knowledgepearls.app.data.model.PublicPearl
+import com.knowledgepearls.app.data.model.normalizeUserId
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.from
@@ -37,6 +38,17 @@ class PublicFeedRepository @Inject constructor(
     fun getSeenIds(): Set<String> = prefs.getStringSet(KEY_SEEN, emptySet()).orEmpty()
 
     fun getHiddenIds(): Set<String> = prefs.getStringSet(KEY_HIDDEN, emptySet()).orEmpty()
+
+    fun getBlockedUserIds(): Set<String> = prefs.getStringSet(KEY_BLOCKED_USERS, emptySet()).orEmpty()
+
+    fun isUserBlocked(userId: String): Boolean =
+        normalizeUserId(userId) in getBlockedUserIds()
+
+    fun blockUser(userId: String) {
+        val ids = getBlockedUserIds().toMutableSet()
+        ids.add(normalizeUserId(userId))
+        prefs.edit().putStringSet(KEY_BLOCKED_USERS, ids).apply()
+    }
 
     fun markSeen(id: String) {
         val ids = getSeenIds().toMutableSet()
@@ -72,7 +84,7 @@ class PublicFeedRepository @Inject constructor(
             tags = pearl.tags,
             publicPearlID = pearl.id,
             publicPearlStatus = pearl.status,
-            isSharedPublicly = true,
+            isSharedPublicly = false,
             publicFeedSnapshot = runCatching { json.encodeToString(pearl) }.getOrDefault(""),
         )
 
@@ -98,5 +110,6 @@ class PublicFeedRepository @Inject constructor(
         private const val PREFS_NAME = "public_feed_prefs"
         private const val KEY_SEEN = "publicFeedSeenIDs"
         private const val KEY_HIDDEN = "publicFeedHiddenIDs"
+        private const val KEY_BLOCKED_USERS = "publicFeedBlockedUserIDs"
     }
 }

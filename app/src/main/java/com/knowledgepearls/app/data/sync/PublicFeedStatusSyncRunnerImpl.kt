@@ -47,6 +47,9 @@ class PublicFeedStatusSyncRunnerImpl @Inject constructor(
 
         val remoteStatus = statusById[publicId]
         if (remoteStatus == null) {
+            if (pearl.publicFeedSnapshot.isNotBlank()) {
+                return pearl
+            }
             return pearl.copy(
                 isSharedPublicly = false,
                 publicPearlID = null,

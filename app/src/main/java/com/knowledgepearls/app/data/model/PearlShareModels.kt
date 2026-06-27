@@ -24,6 +24,7 @@ data class PearlSharePayload(
     @SerialName("source_reference") val sourceReference: String = "",
     @SerialName("case_payload") val casePayload: ClinicalCasePayload = ClinicalCasePayload(),
     @SerialName("media_items") val mediaItems: List<PublicPearlMediaItem> = emptyList(),
+    @SerialName("public_feed_snapshot") val publicFeedSnapshot: String? = null,
 )
 
 @Serializable

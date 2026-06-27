@@ -37,6 +37,8 @@ import coil3.compose.SubcomposeAsyncImage
 import com.knowledgepearls.app.data.model.PublicPearl
 import com.knowledgepearls.app.data.model.PublicPearlMediaItem
 import com.knowledgepearls.app.data.model.PublicPearlMediaUrls
+import com.knowledgepearls.app.ui.media.PearlDocumentDetailPreview
+import com.knowledgepearls.app.ui.media.PearlDocumentPreviewCard
 import com.knowledgepearls.app.ui.theme.PearlColors
 import com.knowledgepearls.app.ui.theme.TabTheme
 import com.knowledgepearls.app.ui.theme.isPearlDarkTheme
@@ -188,16 +190,24 @@ fun PublicPearlDetailMediaSection(
             )
         }
 
-        documents.forEach { item ->
-            item.loadableUrl?.let { url ->
-                DocumentAttachmentRow(
-                    filename = item.resolvedFilename,
-                    url = url,
-                    theme = theme,
-                    onOpen = {
-                        openSlide(PublicPearlMediaSlide.Document(url, item.resolvedFilename))
-                    },
-                )
+        if (documents.isNotEmpty()) {
+            Text(
+                text = if (documents.size > 1) "Documents" else "Document",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = PearlColors.heroPrimary(darkTheme),
+            )
+            documents.forEach { item ->
+                item.loadableUrl?.let { url ->
+                    PearlDocumentDetailPreview(
+                        url = url,
+                        filename = item.resolvedFilename,
+                        theme = theme,
+                        onOpen = {
+                            openSlide(PublicPearlMediaSlide.Document(url, item.resolvedFilename))
+                        },
+                    )
+                }
             }
         }
     }
@@ -277,7 +287,8 @@ internal fun PublicPearlMediaSlideView(
             interactive = interactive,
             onOpen = if (interactive) onOpen else null,
         )
-        is PublicPearlMediaSlide.Document -> DocumentPreviewCard(
+        is PublicPearlMediaSlide.Document -> PearlDocumentPreviewCard(
+            url = slide.url,
             filename = slide.filename,
             theme = theme,
             height = height,
@@ -357,86 +368,6 @@ private fun VideoPreviewCard(
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun DocumentPreviewCard(
-    filename: String,
-    theme: TabTheme,
-    height: androidx.compose.ui.unit.Dp,
-    modifier: Modifier = Modifier,
-    interactive: Boolean,
-    onOpen: (() -> Unit)? = null,
-) {
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(height)
-            .clip(previewShape)
-            .semantics(mergeDescendants = true) {
-                contentDescription = if (interactive && onOpen != null) {
-                    "Document $filename, tap to preview"
-                } else {
-                    "Document $filename"
-                }
-            }
-            .background(PearlColors.controlFill(isPearlDarkTheme()))
-            .then(if (interactive && onOpen != null) Modifier.clickable(onClick = onOpen) else Modifier),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Icon(Icons.Default.Description, contentDescription = null, tint = theme.primary, modifier = Modifier.height(40.dp))
-            Text(
-                text = filename,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = PearlColors.heroPrimary(isPearlDarkTheme()),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 16.dp),
-            )
-            if (interactive && onOpen != null) {
-                Text(
-                    text = "Tap to preview",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = theme.primary,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun DocumentAttachmentRow(
-    filename: String,
-    url: String,
-    theme: TabTheme,
-    onOpen: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .semantics(mergeDescendants = true) {
-                contentDescription = "Document $filename, tap to open"
-            }
-            .background(PearlColors.controlFill(isPearlDarkTheme()))
-            .clickable(onClick = onOpen)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(Icons.Default.Description, contentDescription = null, tint = theme.primary)
-        Text(
-            text = filename,
-            style = MaterialTheme.typography.bodyMedium,
-            color = PearlColors.heroPrimary(isPearlDarkTheme()),
-            modifier = Modifier.weight(1f),
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
     }
 }
 

@@ -200,6 +200,46 @@ class InboxViewModel @Inject constructor(
         }
     }
 
+    fun openConversationWithUser(
+        otherUserId: String,
+        otherDisplayName: String,
+        otherAvatarUrl: String?,
+    ) {
+        viewModelScope.launch {
+            val userId = accountRepository.currentUserId() ?: return@launch
+            _inboxState.update { it.copy(selectedTab = InboxTab.Messages, errorMessage = null) }
+            _threadState.value = MessageThreadUiState(
+                otherDisplayName = otherDisplayName,
+                otherAvatarUrl = otherAvatarUrl,
+                isLoading = true,
+            )
+            runCatching {
+                val conversationId = messagingRepository.getOrCreateConversation(otherUserId)
+                val messages = messagingRepository.fetchMessages(conversationId)
+                messagingRepository.markConversationRead(conversationId)
+                val conversations = messagingRepository.buildConversationRows(userId)
+                _inboxState.update {
+                    it.copy(conversations = conversations, isLoading = false)
+                }
+                _threadState.update {
+                    it.copy(
+                        conversationId = conversationId,
+                        messages = messages,
+                        isLoading = false,
+                    )
+                }
+            }.onFailure { error ->
+                _threadState.value = MessageThreadUiState()
+                _inboxState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = error.message ?: "Couldn't open conversation.",
+                    )
+                }
+            }
+        }
+    }
+
     fun openPearlShareById(shareId: String) {
         viewModelScope.launch {
             _inboxState.update { it.copy(isLoading = true, selectedTab = InboxTab.Shared) }

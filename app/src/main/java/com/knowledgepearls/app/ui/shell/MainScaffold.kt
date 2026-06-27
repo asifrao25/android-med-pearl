@@ -22,6 +22,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.knowledgepearls.app.ui.account.AccountViewModel
 import com.knowledgepearls.app.ui.account.AuthScreen
 import com.knowledgepearls.app.ui.account.EditProfileScreen
+import com.knowledgepearls.app.data.model.normalizeUserId
 import com.knowledgepearls.app.ui.profile.UserProfileScreen
 import com.knowledgepearls.app.ui.account.ProfileSetupScreen
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -341,7 +342,8 @@ fun MainScaffold(
         profileUserId?.let { userId ->
             UserProfileScreen(
                 userId = userId,
-                isOwnProfile = userId == accountState.userId,
+                isOwnProfile = normalizeUserId(userId) == accountState.userId?.let(::normalizeUserId),
+                isSignedIn = accountState.isSignedIn,
                 onDismiss = {
                     profileUserId = null
                     accountViewModel.refreshProfile()
@@ -356,6 +358,19 @@ fun MainScaffold(
                         settingsOpen = false
                         accountViewModel.signOut()
                     }
+                },
+                onSignInRequired = { authOpen = true },
+                onOpenMessage = { target ->
+                    profileUserId = null
+                    inboxOpen = true
+                    inboxViewModel.openConversationWithUser(
+                        otherUserId = target.otherUserId,
+                        otherDisplayName = target.otherDisplayName,
+                        otherAvatarUrl = target.otherAvatarUrl,
+                    )
+                },
+                onBlockUser = { blockedUserId ->
+                    publicFeedViewModel.blockUser(blockedUserId)
                 },
             )
         }

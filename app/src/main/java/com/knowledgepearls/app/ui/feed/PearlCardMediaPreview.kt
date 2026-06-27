@@ -44,6 +44,7 @@ import com.knowledgepearls.app.data.local.model.PearlWithMedia
 import com.knowledgepearls.app.ui.media.MediaThumbnailUtils
 import com.knowledgepearls.app.ui.media.gallerySlides
 import com.knowledgepearls.app.ui.media.localPearlMediaSlides
+import com.knowledgepearls.app.ui.media.PearlDocumentPreviewCard
 import com.knowledgepearls.app.ui.media.mediaUriForPath
 import com.knowledgepearls.app.ui.media.pearlMediaViewerRequest
 import com.knowledgepearls.app.ui.media.treatsAsDocument
@@ -215,11 +216,14 @@ private fun PearlMediaPreviewItem(
             theme = theme,
             modifier = modifier.height(previewHeight).then(clickModifier),
         )
-        treatsAsDocument(item.type, filename) -> DocumentPreviewCard(
-            path = path,
+        treatsAsDocument(item.type, filename) -> PearlDocumentPreviewCard(
+            url = mediaUriForPath(path),
             filename = filename,
             theme = theme,
-            modifier = modifier.height(previewHeight).then(clickModifier),
+            height = previewHeight,
+            modifier = modifier.then(clickModifier),
+            interactive = interactive,
+            onOpen = openRequest?.let { request -> { onOpenMedia?.invoke(request) } },
         )
         path.isNotBlank() -> PearlLocalImagePreview(
             path = path,
@@ -306,53 +310,6 @@ private fun VideoPreviewCard(
                 .background(Color.Black.copy(alpha = 0.55f))
                 .padding(horizontal = 8.dp, vertical = 4.dp),
         )
-    }
-}
-
-@Composable
-private fun DocumentPreviewCard(
-    path: String,
-    filename: String,
-    theme: TabTheme,
-    modifier: Modifier = Modifier,
-) {
-    var thumb by remember(path) { mutableStateOf<android.graphics.Bitmap?>(null) }
-    LaunchedEffect(path) {
-        if (path.isNotBlank() && filename.lowercase().endsWith(".pdf")) {
-            thumb = MediaThumbnailUtils.loadPdfThumbnail(path)
-        }
-    }
-
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(previewShape)
-            .background(PearlColors.controlFill(isPearlDarkTheme())),
-        contentAlignment = Alignment.Center,
-    ) {
-        thumb?.let { bitmap ->
-            Image(
-                bitmap = bitmap.asImageBitmap(),
-                contentDescription = filename,
-                modifier = Modifier.fillMaxWidth().height(previewHeight),
-                contentScale = ContentScale.Crop,
-            )
-        } ?: Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Icon(Icons.Default.Description, contentDescription = null, tint = theme.primary, modifier = Modifier.height(40.dp))
-            Text(
-                text = filename,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = PearlColors.heroPrimary(isPearlDarkTheme()),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 16.dp),
-            )
-        }
     }
 }
 

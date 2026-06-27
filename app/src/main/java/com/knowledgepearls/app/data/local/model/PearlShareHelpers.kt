@@ -12,7 +12,7 @@ fun KnowledgePearlEntity.effectiveSourceReference(): String {
 }
 
 fun KnowledgePearlEntity.isSharedToPublicFeed(): Boolean =
-    isSharedPublicly || publicPearlStatus == "pending" || publicPearlStatus == "approved"
+    isSharedPublicly && publicPearlStatus in setOf("pending", "approved")
 
 fun PearlMediaEntity.toPickedMedia(): PickedMedia? {
     val path = localPath?.takeIf { it.isNotBlank() } ?: return null

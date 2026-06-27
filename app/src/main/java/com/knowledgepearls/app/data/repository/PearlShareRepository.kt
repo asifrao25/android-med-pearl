@@ -2,19 +2,26 @@ package com.knowledgepearls.app.data.repository
 
 import com.knowledgepearls.app.data.local.entity.KnowledgePearlContentKind
 import com.knowledgepearls.app.data.local.entity.KnowledgePearlEntity
+import com.knowledgepearls.app.data.local.entity.MediaType
+import com.knowledgepearls.app.data.local.entity.PearlMediaEntity
+import com.knowledgepearls.app.data.local.model.decodedPublicPearl
 import com.knowledgepearls.app.data.local.model.withClinicalCasePayload
+import com.knowledgepearls.app.data.media.MediaStorage
 import com.knowledgepearls.app.data.model.PearlShareInboxRow
 import com.knowledgepearls.app.data.model.PearlSharePayload
 import com.knowledgepearls.app.data.model.PearlShareRecord
+import com.knowledgepearls.app.data.model.PublicPearlMediaItem
 import com.knowledgepearls.app.data.model.ShareProfileResult
 import io.github.jan.supabase.SupabaseClient
-import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Order
 import io.github.jan.supabase.postgrest.rpc
+import java.net.URL
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -22,6 +29,7 @@ import kotlinx.serialization.Serializable
 class PearlShareRepository @Inject constructor(
     private val supabase: SupabaseClient,
     private val pearlRepository: KnowledgePearlRepository,
+    private val mediaStorage: MediaStorage,
 ) {
     suspend fun searchProfiles(query: String): List<ShareProfileResult> {
         if (query.trim().length < 2) return emptyList()
@@ -98,6 +106,7 @@ class PearlShareRepository @Inject constructor(
 
     suspend fun importAcceptedShare(share: PearlShareRecord): KnowledgePearlEntity {
         val payload = share.pearlPayload
+        val sender = fetchSenderName(share.senderId)
         val now = System.currentTimeMillis()
         var pearl = KnowledgePearlEntity(
             title = payload.title.ifBlank { "Shared pearl" },
@@ -110,7 +119,10 @@ class PearlShareRepository @Inject constructor(
             tags = payload.tags,
             isSharedFromFriend = true,
             sharedByUserID = share.senderId,
+            sharedByName = sender.first,
+            sharedByAvatarURL = sender.second,
             friendShareID = share.id,
+            publicFeedSnapshot = payload.publicFeedSnapshot.orEmpty(),
             contentKind = payload.contentKind.ifBlank { KnowledgePearlContentKind.STANDARD },
         )
         if (payload.contentType == "clinical_case" || payload.contentKind == KnowledgePearlContentKind.CLINICAL_CASE) {
@@ -118,10 +130,18 @@ class PearlShareRepository @Inject constructor(
                 ?: pearl.copy(contentKind = KnowledgePearlContentKind.CLINICAL_CASE)
         }
         pearlRepository.upsertPearl(pearl)
+        importMediaItems(pearl.id, payload.mediaItems)
         return pearl
     }
 
-    fun buildPayloadFromPearl(pearl: KnowledgePearlEntity, mediaItems: List<com.knowledgepearls.app.data.model.PublicPearlMediaItem>): PearlSharePayload {
+    fun buildPayloadFromPearl(
+        pearl: KnowledgePearlEntity,
+        mediaItems: List<PublicPearlMediaItem>,
+    ): PearlSharePayload {
+        val snapshot = pearl.publicFeedSnapshot.takeIf { it.isNotBlank() }
+        val resolvedMedia = mediaItems.ifEmpty {
+            pearl.decodedPublicPearl()?.resolvedMediaItems.orEmpty()
+        }
         return PearlSharePayload(
             title = pearl.title,
             notes = pearl.notes,
@@ -135,8 +155,35 @@ class PearlShareRepository @Inject constructor(
             sourceUrl = pearl.sourceURL,
             linkPreviewDescription = pearl.linkPreviewDescription,
             sourceReference = pearl.sourceReference,
-            mediaItems = mediaItems,
+            mediaItems = resolvedMedia,
+            publicFeedSnapshot = snapshot,
         )
+    }
+
+    private suspend fun importMediaItems(pearlId: String, items: List<PublicPearlMediaItem>) {
+        items.forEach { item ->
+            val remoteUrl = item.loadableUrl ?: return@forEach
+            runCatching {
+                val bytes = withContext(Dispatchers.IO) { URL(remoteUrl).readBytes() }
+                val filename = item.resolvedFilename
+                val extension = filename.substringAfterLast('.', "jpg")
+                val localPath = mediaStorage.saveBytes(bytes, extension)
+                val type = when {
+                    item.isVideo -> MediaType.VIDEO
+                    item.isDocument -> MediaType.DOCUMENT
+                    else -> MediaType.IMAGE
+                }
+                pearlRepository.upsertMedia(
+                    PearlMediaEntity(
+                        pearlId = pearlId,
+                        type = type,
+                        localPath = localPath,
+                        filename = filename,
+                        sectionTag = item.section.orEmpty(),
+                    ),
+                )
+            }
+        }
     }
 
     private suspend fun fetchSenderName(senderId: String): Pair<String, String?> {

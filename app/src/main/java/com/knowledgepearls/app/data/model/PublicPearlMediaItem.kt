@@ -1,5 +1,6 @@
 package com.knowledgepearls.app.data.model
 
+import com.knowledgepearls.app.data.media.DocumentTypes
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -27,5 +28,9 @@ data class PublicPearlMediaItem(
 
     val isPhoto: Boolean get() = type == "photo"
 
-    val isDocument: Boolean get() = type == "document" && !isVideo
+    val isDocument: Boolean
+        get() {
+            if (isVideo) return false
+            return DocumentTypes.isDocument(resolvedFilename, type)
+        }
 }

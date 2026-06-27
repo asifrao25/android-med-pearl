@@ -16,8 +16,8 @@ fun treatsAsVideo(type: String, filename: String): Boolean {
 }
 
 fun treatsAsDocument(type: String, filename: String): Boolean {
-    if (type == MediaType.PDF || type == MediaType.DOCUMENT) return !treatsAsVideo(type, filename)
-    return false
+    if (treatsAsVideo(type, filename)) return false
+    return DocumentSupport.isDocument(filename, type)
 }
 
 fun mediaUriForPath(path: String): String = File(path).toURI().toString()

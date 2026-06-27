@@ -1,6 +1,7 @@
 package com.knowledgepearls.app.data.repository
 
 import com.knowledgepearls.app.data.model.UserProfile
+import com.knowledgepearls.app.data.model.normalizeUserId
 import com.knowledgepearls.app.data.remote.SupabaseConfig
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.OtpType
@@ -185,9 +186,12 @@ class AccountRepository @Inject constructor(
 
     suspend fun fetchProfile(userId: String): UserProfile? {
         val profiles = supabase.from("profiles").select {
-            filter { eq("id", userId) }
+            filter { eq("id", normalizeUserId(userId)) }
         }.decodeList<UserProfile>()
         return profiles.firstOrNull()
+            ?: supabase.from("profiles").select {
+                filter { eq("id", userId.trim()) }
+            }.decodeList<UserProfile>().firstOrNull()
     }
 
     suspend fun createProfile(

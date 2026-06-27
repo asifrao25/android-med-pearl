@@ -23,8 +23,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.knowledgepearls.app.data.local.model.PearlWithMedia
+import com.knowledgepearls.app.data.local.model.decodedPublicPearl
 import com.knowledgepearls.app.ui.components.PearlSwipeAction
 import com.knowledgepearls.app.ui.components.PearlSwipeRow
+import com.knowledgepearls.app.ui.publicfeed.PublicFeedCard
 import com.knowledgepearls.app.ui.theme.PearlColors
 import com.knowledgepearls.app.ui.theme.PearlLayout
 import com.knowledgepearls.app.ui.theme.TabTheme
@@ -97,7 +99,8 @@ private fun PearlListContent(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         items(pearls, key = { it.pearl.id }) { pearl ->
-            val author = FeedPearlAuthorInfo.resolve(pearl, feedAuthorContext)
+            val publicPearl = pearl.pearl.decodedPublicPearl()
+            val author = FeedPearlAuthorInfo.resolve(pearl, feedAuthorContext, publicPearl)
             val showHint = enableSwipeHintOnFirst && pearl == pearls.first()
 
             PearlFeedAuthorLayout(
@@ -123,13 +126,22 @@ private fun PearlListContent(
                     enableSwipeHint = showHint,
                     onSwipeHintDismiss = onSwipeHintDismiss,
                 ) {
-                    PearlCard(
-                        pearl = pearl,
-                        theme = theme,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onPearlClick(pearl) },
-                    )
+                    if (publicPearl != null) {
+                        PublicFeedCard(
+                            pearl = publicPearl,
+                            theme = theme,
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { onPearlClick(pearl) },
+                        )
+                    } else {
+                        PearlCard(
+                            pearl = pearl,
+                            theme = theme,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onPearlClick(pearl) },
+                        )
+                    }
                 }
             }
         }

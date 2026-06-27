@@ -1,6 +1,8 @@
 package com.knowledgepearls.app.ui.feed
 
 import com.knowledgepearls.app.data.local.model.PearlWithMedia
+import com.knowledgepearls.app.data.local.model.decodedPublicPearl
+import com.knowledgepearls.app.data.model.PublicPearl
 import com.knowledgepearls.app.data.model.UserProfile
 
 data class FeedAuthorContext(
@@ -18,8 +20,17 @@ data class FeedPearlAuthorInfo(
         fun resolve(
             pearl: PearlWithMedia,
             account: FeedAuthorContext,
+            publicPearl: PublicPearl? = pearl.pearl.decodedPublicPearl(),
         ): FeedPearlAuthorInfo {
             val entity = pearl.pearl
+
+            publicPearl?.safeDisplayName?.takeIf { it.isNotBlank() }?.let { name ->
+                return FeedPearlAuthorInfo(
+                    displayName = name,
+                    avatarUrl = null,
+                    userId = publicPearl.userId,
+                )
+            }
 
             if (entity.isSharedFromFriend && entity.sharedByName.isNotBlank()) {
                 return FeedPearlAuthorInfo(
