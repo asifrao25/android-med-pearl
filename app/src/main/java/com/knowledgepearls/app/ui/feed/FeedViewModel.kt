@@ -163,16 +163,9 @@ class FeedViewModel @Inject constructor(
         viewModelScope.launch {
             isSharingPearl.value = true
             runCatching {
-                val payload = pearlShareRepository.buildPayloadFromPearl(
-                    pearl = pearl.pearl,
-                    mediaItems = pearl.pearl.decodedPublicPearl()?.resolvedMediaItems.orEmpty(),
-                )
-                val fingerprint = "${pearl.pearl.id}-${pearl.pearl.updatedAt}"
-                pearlShareRepository.sendShare(
+                pearlShareRepository.sharePearlWithFriends(
+                    pearl = pearl,
                     recipientIds = recipientIds,
-                    payload = payload,
-                    fingerprint = fingerprint,
-                    contentIdentity = fingerprint,
                 )
             }.onSuccess { onSuccess() }
                 .onFailure { shareErrorMessage.value = it.message ?: "Share failed" }

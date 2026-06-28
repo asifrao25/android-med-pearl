@@ -1,10 +1,15 @@
 package com.knowledgepearls.app.data.repository
 
+import com.knowledgepearls.app.data.capture.PickedMedia
 import com.knowledgepearls.app.data.local.entity.KnowledgePearlContentKind
 import com.knowledgepearls.app.data.local.entity.KnowledgePearlEntity
 import com.knowledgepearls.app.data.local.entity.MediaType
 import com.knowledgepearls.app.data.local.entity.PearlMediaEntity
-import com.knowledgepearls.app.data.local.model.decodedPublicPearl
+import com.knowledgepearls.app.data.local.model.PearlWithMedia
+import com.knowledgepearls.app.data.local.model.clinicalCasePayload
+import com.knowledgepearls.app.data.local.model.effectiveSourceReference
+import com.knowledgepearls.app.data.local.model.isClinicalCase
+import com.knowledgepearls.app.data.local.model.toPickedMedia
 import com.knowledgepearls.app.data.local.model.withClinicalCasePayload
 import com.knowledgepearls.app.data.media.MediaStorage
 import com.knowledgepearls.app.data.model.PearlShareInboxRow
@@ -12,12 +17,16 @@ import com.knowledgepearls.app.data.model.PearlSharePayload
 import com.knowledgepearls.app.data.model.PearlShareRecord
 import com.knowledgepearls.app.data.model.PublicPearlMediaItem
 import com.knowledgepearls.app.data.model.ShareProfileResult
+import com.knowledgepearls.app.data.remote.SupabaseConfig
 import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Order
 import io.github.jan.supabase.postgrest.rpc
+import io.github.jan.supabase.storage.storage
 import java.net.URL
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
@@ -39,6 +48,26 @@ class PearlShareRepository @Inject constructor(
         ).decodeList()
     }
 
+    suspend fun sharePearlWithFriends(
+        pearl: PearlWithMedia,
+        recipientIds: List<String>,
+    ): List<String> {
+        val entity = pearl.pearl
+        val userId = requireUserId()
+        val batchShareId = UUID.randomUUID().toString().lowercase()
+        val pickedMedia = pearl.mediaItems.toPickedMedia()
+        val uploaded = uploadShareMedia(
+            userId = userId,
+            batchShareId = batchShareId,
+            items = pickedMedia,
+            includeSection = entity.isClinicalCase(),
+        )
+        val payload = buildSharePayload(entity, uploaded)
+        val fingerprint = buildFingerprint(entity)
+        val contentIdentity = buildContentIdentity(entity, pickedMedia)
+        return sendShare(recipientIds, payload, fingerprint, contentIdentity)
+    }
+
     suspend fun sendShare(
         recipientIds: List<String>,
         payload: PearlSharePayload,
@@ -54,7 +83,7 @@ class PearlShareRepository @Inject constructor(
                     pearlFingerprint = fingerprint,
                     contentIdentity = contentIdentity,
                 ),
-            )
+            ).decodeList<String>()
         }.getOrElse {
             supabase.postgrest.rpc(
                 "send_pearl_shares",
@@ -63,9 +92,10 @@ class PearlShareRepository @Inject constructor(
                     pearlPayload = payload,
                     pearlFingerprint = fingerprint,
                 ),
-            )
+            ).decodeList<String>()
+        }.let { shareIds ->
+            return shareIds.ifEmpty { recipientIds }
         }
-        return recipientIds
     }
 
     suspend fun fetchShareById(shareId: String): PearlShareRecord? =
@@ -100,7 +130,10 @@ class PearlShareRepository @Inject constructor(
     suspend fun respondToShare(shareId: String, accept: Boolean) {
         supabase.postgrest.rpc(
             "respond_pearl_share",
-            RespondPearlShareParams(shareId = shareId.lowercase(), accept = accept),
+            RespondPearlShareParams(
+                shareId = shareId.lowercase(),
+                action = if (accept) "accept" else "decline",
+            ),
         )
     }
 
@@ -134,30 +167,121 @@ class PearlShareRepository @Inject constructor(
         return pearl
     }
 
-    fun buildPayloadFromPearl(
+    private fun buildSharePayload(
         pearl: KnowledgePearlEntity,
-        mediaItems: List<PublicPearlMediaItem>,
+        uploadedMedia: List<PublicPearlMediaItem>,
     ): PearlSharePayload {
-        val snapshot = pearl.publicFeedSnapshot.takeIf { it.isNotBlank() }
-        val resolvedMedia = mediaItems.ifEmpty {
-            pearl.decodedPublicPearl()?.resolvedMediaItems.orEmpty()
+        if (pearl.isClinicalCase()) {
+            val payload = pearl.clinicalCasePayload()
+            return PearlSharePayload(
+                title = pearl.title,
+                notes = payload.history,
+                tags = pearl.tags,
+                contentType = "clinical_case",
+                contentKind = KnowledgePearlContentKind.CLINICAL_CASE,
+                sourceReference = pearl.effectiveSourceReference(),
+                casePayload = payload,
+                mediaItems = uploadedMedia,
+            )
         }
+
         return PearlSharePayload(
             title = pearl.title,
             notes = pearl.notes,
             tags = pearl.tags,
-            contentType = when (pearl.contentKind) {
-                KnowledgePearlContentKind.CLINICAL_CASE -> "clinical_case"
-                KnowledgePearlContentKind.QUICK -> "text"
-                else -> "text"
-            },
+            contentType = resolveShareContentType(pearl, uploadedMedia),
             contentKind = pearl.contentKind,
             sourceUrl = pearl.sourceURL,
             linkPreviewDescription = pearl.linkPreviewDescription,
-            sourceReference = pearl.sourceReference,
-            mediaItems = resolvedMedia,
-            publicFeedSnapshot = snapshot,
+            sourceReference = pearl.effectiveSourceReference(),
+            mediaItems = uploadedMedia,
         )
+    }
+
+    private fun buildFingerprint(pearl: KnowledgePearlEntity): String {
+        val basis = listOf(
+            pearl.id,
+            pearl.title,
+            pearl.notes,
+            pearl.contentKind,
+            pearl.updatedAt.toString(),
+        ).joinToString("|")
+        return android.util.Base64.encodeToString(
+            basis.toByteArray(Charsets.UTF_8),
+            android.util.Base64.NO_WRAP,
+        )
+    }
+
+    private fun buildContentIdentity(
+        pearl: KnowledgePearlEntity,
+        pickedMedia: List<PickedMedia>,
+    ): String {
+        val mediaSignature = pickedMedia.joinToString("|") { item ->
+            "${item.type}:${item.filename}:${item.sectionTag}:${item.bytes.size}"
+        }
+        val basis = buildList {
+            add(pearl.title)
+            add(if (pearl.isClinicalCase()) "" else pearl.notes)
+            add(pearl.tags.joinToString(","))
+            add(pearl.contentKind)
+            add(pearl.sourceURL.orEmpty())
+            add(pearl.effectiveSourceReference())
+            if (pearl.isClinicalCase()) {
+                add(pearl.clinicalCasePayload().history)
+                add(pearl.clinicalCasePayload().diagnosis)
+            }
+            add(mediaSignature)
+        }.joinToString("|")
+        return android.util.Base64.encodeToString(
+            basis.toByteArray(Charsets.UTF_8),
+            android.util.Base64.NO_WRAP,
+        )
+    }
+
+    private suspend fun uploadShareMedia(
+        userId: String,
+        batchShareId: String,
+        items: List<PickedMedia>,
+        includeSection: Boolean,
+    ): List<PublicPearlMediaItem> {
+        if (items.isEmpty()) return emptyList()
+        val bucket = supabase.storage.from(SupabaseConfig.PUBLIC_PEARL_MEDIA_BUCKET)
+        return items.mapIndexed { index, item ->
+            val ext = item.filename.substringAfterLast('.', "jpg").lowercase()
+            val path = "pearls/${userId.lowercase()}/shares/${batchShareId.lowercase()}/$index.$ext"
+            bucket.upload(path, item.bytes) { upsert = true }
+            val publicUrl = bucket.publicUrl(path)
+            PublicPearlMediaItem(
+                type = publicShareContentType(item.type, item.filename),
+                url = publicUrl,
+                path = path,
+                filename = item.filename.ifBlank { "attachment.$ext" },
+                section = item.sectionTag.takeIf { includeSection && it.isNotBlank() },
+            )
+        }
+    }
+
+    private fun resolveShareContentType(
+        pearl: KnowledgePearlEntity,
+        uploadedMedia: List<PublicPearlMediaItem>,
+    ): String {
+        val types = uploadedMedia.map { it.type }.toSet()
+        if ("video" in types && "photo" !in types) return "video"
+        if ("photo" in types) return "photo"
+        if ("document" in types) return "document"
+        if ("video" in types) return "video"
+        if (!pearl.sourceURL.isNullOrBlank()) return "link"
+        return "text"
+    }
+
+    private fun publicShareContentType(type: String, filename: String): String = when (type) {
+        MediaType.VIDEO -> "video"
+        MediaType.IMAGE -> "photo"
+        MediaType.PDF, MediaType.DOCUMENT -> {
+            val ext = filename.substringAfterLast('.', "").lowercase()
+            if (ext in setOf("mp4", "mov", "m4v", "webm")) "video" else "document"
+        }
+        else -> "photo"
     }
 
     private suspend fun importMediaItems(pearlId: String, items: List<PublicPearlMediaItem>) {
@@ -195,6 +319,10 @@ class PearlShareRepository @Inject constructor(
         }.getOrDefault("Unknown" to null)
     }
 
+    private fun requireUserId(): String =
+        supabase.auth.currentUserOrNull()?.id?.lowercase()
+            ?: throw IllegalStateException("Sign in to share pearls with friends.")
+
     @Serializable
     private data class ShareSearchParams(@SerialName("p_query") val query: String)
 
@@ -216,7 +344,7 @@ class PearlShareRepository @Inject constructor(
     @Serializable
     private data class RespondPearlShareParams(
         @SerialName("p_share_id") val shareId: String,
-        @SerialName("p_accept") val accept: Boolean,
+        @SerialName("p_action") val action: String,
     )
 
     @Serializable

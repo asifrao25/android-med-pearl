@@ -26,6 +26,8 @@ data class PublicPearl(
     @SerialName("created_at") val createdAt: String = "",
     @SerialName("like_count") val likeCount: Int = 0,
     @SerialName("ingestion_source") val ingestionSource: String = "user",
+    @SerialName("external_id") val externalId: String? = null,
+    @SerialName("moderated_at") val moderatedAt: String? = null,
     @SerialName("case_payload") val casePayload: ClinicalCasePayload? = null,
 ) {
     val titleDisplay: String get() = title.ifBlank { "Untitled" }
