@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.content.ContextCompat
+import android.util.Log
 import com.google.firebase.messaging.FirebaseMessaging
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -40,13 +41,22 @@ class PushNotificationManager @Inject constructor(
         }
 
         registeredUserId = userId
-        if (!isFirebaseConfigured) return
-        if (!hasNotificationPermission()) return
+        if (!isFirebaseConfigured) {
+            Log.w(TAG, "Firebase not configured — skip FCM token upload")
+            return
+        }
+        if (!hasNotificationPermission()) {
+            Log.d(TAG, "Notification permission not granted yet")
+            return
+        }
 
         runCatching {
             val token = fetchFcmToken()
             currentToken = token
             repository.uploadToken(userId, token)
+            Log.d(TAG, "FCM token uploaded for user")
+        }.onFailure { error ->
+            Log.e(TAG, "FCM token upload failed", error)
         }
     }
 
@@ -72,5 +82,9 @@ class PushNotificationManager @Inject constructor(
             .addOnFailureListener { error ->
                 if (continuation.isActive) continuation.resumeWithException(error)
             }
+    }
+
+    companion object {
+        private const val TAG = "PushNotificationManager"
     }
 }

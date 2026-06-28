@@ -27,7 +27,7 @@
 
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="medpearls_messages" />
+            android:value="medpearls_default" />
 
         <service
             android:name=".push.MedPearlsFirebaseMessagingService"
@@ -104,6 +104,26 @@
                 <data
                     android:scheme="com.knowledgepearls.app"
                     android:host="inbox" />
+            </intent-filter>
+
+            <!-- Public feed deep links -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="com.knowledgepearls.app"
+                    android:host="public-feed" />
+            </intent-filter>
+
+            <!-- Settings deep links -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="com.knowledgepearls.app"
+                    android:host="settings" />
             </intent-filter>
         </activity>
     </application>

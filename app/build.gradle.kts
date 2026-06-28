@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.google.services)
 }
 
 import java.util.Properties
@@ -113,6 +114,7 @@ dependencies {
 
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)
+    // firebase-analytics omitted: BOM 34.x analytics requires Kotlin 2.2+ (project is 2.0.21). Not needed for FCM push.
 
     implementation(libs.kotlinx.serialization.json)
 
@@ -125,8 +127,4 @@ dependencies {
     ksp(libs.room.compiler)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
-}
-
-if (file("google-services.json").exists()) {
-    apply(plugin = "com.google.android.gms.google-services")
 }

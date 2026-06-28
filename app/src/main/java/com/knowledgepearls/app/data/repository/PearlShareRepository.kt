@@ -22,6 +22,7 @@ import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
 import io.github.jan.supabase.postgrest.rpc
 import io.github.jan.supabase.storage.storage
@@ -125,7 +126,14 @@ class PearlShareRepository @Inject constructor(
     }
 
     suspend fun pendingShareCount(recipientId: String): Int =
-        fetchPendingShares(recipientId).size
+        runCatching {
+            supabase.from("pearl_shares").select(columns = Columns.list("id")) {
+                filter {
+                    eq("recipient_id", recipientId.lowercase())
+                    eq("status", "pending")
+                }
+            }.decodeList<ShareIdRow>().size
+        }.getOrDefault(0)
 
     suspend fun respondToShare(shareId: String, accept: Boolean) {
         supabase.postgrest.rpc(
@@ -322,6 +330,9 @@ class PearlShareRepository @Inject constructor(
     private fun requireUserId(): String =
         supabase.auth.currentUserOrNull()?.id?.lowercase()
             ?: throw IllegalStateException("Sign in to share pearls with friends.")
+
+    @Serializable
+    private data class ShareIdRow(val id: String)
 
     @Serializable
     private data class ShareSearchParams(@SerialName("p_query") val query: String)

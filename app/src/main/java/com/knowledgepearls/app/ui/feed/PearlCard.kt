@@ -210,7 +210,7 @@ private fun pearlCardTheme(pearl: PearlWithMedia, tabTheme: TabTheme): PearlCard
         pearl.mediaItems.firstOrNull()?.type in listOf("pdf", "document") ->
             PearlCardTheme("Document", Icons.Default.Description, primary, secondary)
         pearl.mediaItems.isNotEmpty() -> PearlCardTheme("Photo", Icons.Default.Photo, primary, secondary)
-        entity.isQuickPearl() -> PearlCardTheme("Quick pearl", Icons.Default.AutoAwesome, primary, secondary)
+        pearl.isQuickPearl() -> PearlCardTheme("Quick pearl", Icons.Default.AutoAwesome, primary, secondary)
         else -> PearlCardTheme("Pearl", Icons.Default.AutoAwesome, primary, secondary)
     }
 }

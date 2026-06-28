@@ -49,7 +49,6 @@ import com.knowledgepearls.app.ui.components.PearlActionSuccessAlert
 import com.knowledgepearls.app.ui.components.PublicFeedOfflineState
 import com.knowledgepearls.app.ui.feed.FeedEmptyFilterAlert
 import com.knowledgepearls.app.ui.components.HeaderIconButton
-import com.knowledgepearls.app.ui.components.InboxHeaderButton
 import com.knowledgepearls.app.ui.components.TabScreenHeader
 import com.knowledgepearls.app.ui.feed.ContentTypePicker
 import com.knowledgepearls.app.ui.theme.LiquidBackground
@@ -57,6 +56,10 @@ import com.knowledgepearls.app.ui.theme.PearlColors
 import com.knowledgepearls.app.ui.theme.PearlLayout
 import com.knowledgepearls.app.ui.theme.TabTheme
 import com.knowledgepearls.app.ui.theme.isPearlDarkTheme
+import com.knowledgepearls.app.ui.capture.CaptureOptionsOverlay
+import com.knowledgepearls.app.ui.capture.GlowingAddButton
+import com.knowledgepearls.app.data.capture.CaptureSheet
+import com.knowledgepearls.app.ui.components.SharedPearlIntroAlert
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -86,9 +89,22 @@ fun PublicFeedScreen(
     isNetworkAvailable: Boolean = true,
     isOfflineMode: Boolean = false,
     onRetryConnection: () -> Unit = {},
+    captureMenuOpen: Boolean = false,
+    onCaptureMenuOpenChange: (Boolean) -> Unit = {},
+    onCaptureSheetSelected: (CaptureSheet) -> Unit = {},
+    showSharedPearlIntro: Boolean = false,
+    onRequestSharedPearlIntro: () -> Unit = {},
+    onSharedPearlIntroContinue: () -> Unit = {},
+    onSharedPearlIntroCancel: () -> Unit = {},
+    showsSectionTabs: Boolean = false,
 ) {
     val theme = TabTheme.PublicFeed
     val darkTheme = isPearlDarkTheme()
+    val floatingAddButtonBottomPadding = if (showsSectionTabs) {
+        PearlLayout.publicFeedAddButtonBottomPadding
+    } else {
+        PearlLayout.addButtonBottomPadding
+    }
     val listState = rememberLazyListState()
     var saveTarget by remember { mutableStateOf<PublicPearl?>(null) }
     var removeTarget by remember { mutableStateOf<PublicPearl?>(null) }
@@ -131,15 +147,7 @@ fun PublicFeedScreen(
                 subtitle = "Community pearls",
                 theme = theme,
                 onSettingsClick = onOpenSettings,
-                trailing = {
-                    if (isSignedIn) {
-                        InboxHeaderButton(
-                            theme = theme,
-                            inboxBadgeCount = inboxBadgeCount,
-                            onClick = onOpenInbox,
-                        )
-                    }
-                },
+                trailing = { },
             )
 
             ContentTypePicker(
@@ -194,7 +202,8 @@ fun PublicFeedScreen(
                                 start = PearlLayout.screenHorizontalPadding,
                                 end = PearlLayout.screenHorizontalPadding,
                                 top = 8.dp,
-                                bottom = PearlLayout.tabBarOverlayInset + 52.dp,
+                                bottom = PearlLayout.publicFeedAddButtonBottomPadding +
+                                    PearlLayout.addButtonSize + 24.dp,
                             ),
                             verticalArrangement = Arrangement.spacedBy(14.dp),
                         ) {
@@ -319,7 +328,7 @@ fun PublicFeedScreen(
             }
         }
 
-        if (isSignedIn && uiState.pearls.isNotEmpty()) {
+        if (isSignedIn && isNetworkAvailable) {
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -327,7 +336,7 @@ fun PublicFeedScreen(
                     .padding(
                         start = PearlLayout.screenHorizontalPadding,
                         end = PearlLayout.screenHorizontalPadding,
-                        bottom = PearlLayout.tabBarOverlayInset - 8.dp,
+                        bottom = PearlLayout.publicFeedSectionTabsBottomPadding,
                     ),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
@@ -345,6 +354,37 @@ fun PublicFeedScreen(
                     onSelected = onSectionSelected,
                 )
             }
+        }
+
+        if (isSignedIn && isNetworkAvailable) {
+            CaptureOptionsOverlay(
+                visible = captureMenuOpen,
+                onDismiss = { onCaptureMenuOpenChange(false) },
+                onSelect = onCaptureSheetSelected,
+                isSharedCapture = true,
+                fabBottomPadding = floatingAddButtonBottomPadding,
+            )
+
+            GlowingAddButton(
+                isMenuOpen = captureMenuOpen,
+                onClick = { onCaptureMenuOpenChange(!captureMenuOpen) },
+                onBeforeOpen = {
+                    onRequestSharedPearlIntro()
+                    false
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .navigationBarsPadding()
+                    .padding(end = 20.dp, bottom = floatingAddButtonBottomPadding),
+            )
+        }
+
+        if (showSharedPearlIntro) {
+            SharedPearlIntroAlert(
+                theme = theme,
+                onContinue = onSharedPearlIntroContinue,
+                onCancel = onSharedPearlIntroCancel,
+            )
         }
 
         if (!isSignedIn) {

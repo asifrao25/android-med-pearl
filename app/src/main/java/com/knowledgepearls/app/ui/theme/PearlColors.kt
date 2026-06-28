@@ -85,6 +85,46 @@ object PearlLayout {
     val tabBarBottomPadding = 10.dp
     /** Space reserved above the floating tab bar for FABs and bottom actions. */
     val tabBarOverlayInset = tabBarHeight + tabBarBottomPadding + 20.dp
+    val addButtonSize = 58.dp
+    val floatingActionStackSpacing = 10.dp
+    /** Matches [addButtonSize] — inbox FAB is the same diameter as the add button. */
+    val inboxButtonSize = addButtonSize
+    /** Section tabs row height including inner padding (matches `PublicFeedSectionTabs`). */
+    val publicFeedSectionTabsHeight = 52.dp
+    val fabAboveSectionTabsSpacing = 12.dp
+    val publicFeedSectionTabsSpacing = 2.dp
+
+    /** Bottom inset for the feed add button — flush above the tab bar. */
+    val addButtonBottomPadding: androidx.compose.ui.unit.Dp
+        get() = tabBarBottomPadding + tabBarHeight
+
+    /** Bottom inset for the public-feed add button — sits above New/Seen pills. */
+    val publicFeedAddButtonBottomPadding: androidx.compose.ui.unit.Dp
+        get() = addButtonBottomPadding +
+            publicFeedSectionTabsHeight +
+            fabAboveSectionTabsSpacing
+
+    /** Bottom inset for public-feed section tabs above the tab bar. */
+    val publicFeedSectionTabsBottomPadding: androidx.compose.ui.unit.Dp
+        get() = addButtonBottomPadding
+
+    fun captureMenuBottomPadding(fabBottomPadding: androidx.compose.ui.unit.Dp): androidx.compose.ui.unit.Dp =
+        fabBottomPadding + addButtonSize + 10.dp
+
+    /** Positions the floating inbox button just above the add button. */
+    fun inboxButtonBottomPadding(addFabBottomPadding: androidx.compose.ui.unit.Dp): androidx.compose.ui.unit.Dp =
+        addFabBottomPadding + addButtonSize + floatingActionStackSpacing
+
+    /** Positions the inbox reminder bubble just above the floating inbox button. */
+    fun inboxReminderBottomPadding(inboxButtonBottom: androidx.compose.ui.unit.Dp): androidx.compose.ui.unit.Dp =
+        inboxButtonBottom + addButtonSize + 8.dp
+
+    val inboxSheetHorizontalInset = 14.dp
+    /** Gap between the floating inbox card and the tab bar. */
+    val inboxSheetBottomInset = 78.dp
+    const val inboxSheetHeightFraction = 0.68f
+    val inboxSheetMaxHeight = 560.dp
+    val inboxSheetMinHeight = 360.dp
     /** Floating detail dock — matches iOS `LiquidDetailDock` + `LiquidTabBarLayout.actionBarBottomPadding`. */
     val detailDockHeight = 64.dp
     val detailDockTopPadding = 6.dp

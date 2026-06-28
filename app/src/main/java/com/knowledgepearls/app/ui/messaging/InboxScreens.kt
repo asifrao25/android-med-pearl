@@ -1,6 +1,7 @@
 package com.knowledgepearls.app.ui.messaging
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -50,6 +51,8 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -61,10 +64,8 @@ import com.knowledgepearls.app.data.model.DirectMessage
 import com.knowledgepearls.app.data.model.isFrom
 import com.knowledgepearls.app.data.model.PearlShareInboxRow
 import com.knowledgepearls.app.ui.components.AvatarView
+import com.knowledgepearls.app.ui.components.FloatingInboxSheet
 import com.knowledgepearls.app.ui.components.GlassSurface
-import com.knowledgepearls.app.ui.components.PullToDismissSheet
-import com.knowledgepearls.app.ui.components.TabScreenHeader
-import com.knowledgepearls.app.ui.theme.LiquidBackground
 import com.knowledgepearls.app.ui.theme.PearlColors
 import com.knowledgepearls.app.ui.theme.PearlLayout
 import com.knowledgepearls.app.ui.theme.TabTheme
@@ -96,117 +97,174 @@ fun InboxScreen(
     onDeclineShare: (String) -> Unit,
 ) {
     val theme = TabTheme.PublicFeed
-    val darkTheme = isPearlDarkTheme()
+    val inboxListState = rememberLazyListState()
+    val inThread = threadState.conversationId.isNotBlank()
 
     LaunchedEffect(Unit) { onLoad() }
 
-    if (threadState.conversationId.isNotBlank()) {
-        MessageThreadScreen(
-            state = threadState,
-            theme = theme,
-            onBack = onCloseThread,
-            onSendMessage = onSendMessage,
-        )
-        return
+    FloatingInboxSheet(
+        onDismiss = onDismiss,
+        listState = if (inThread) null else inboxListState,
+    ) {
+        if (inThread) {
+            MessageThreadScreen(
+                state = threadState,
+                theme = theme,
+                onBack = onCloseThread,
+                onSendMessage = onSendMessage,
+            )
+        } else {
+            InboxListContent(
+                inboxState = inboxState,
+                theme = theme,
+                listState = inboxListState,
+                onDismiss = onDismiss,
+                onTabSelected = onTabSelected,
+                onConversationClick = onConversationClick,
+                onAcceptShare = onAcceptShare,
+                onDeclineShare = onDeclineShare,
+            )
+        }
     }
+}
 
-    val listState = rememberLazyListState()
+@Composable
+private fun InboxListContent(
+    inboxState: InboxUiState,
+    theme: TabTheme,
+    listState: androidx.compose.foundation.lazy.LazyListState,
+    onDismiss: () -> Unit,
+    onTabSelected: (InboxTab) -> Unit,
+    onConversationClick: (ConversationRow) -> Unit,
+    onAcceptShare: (String) -> Unit,
+    onDeclineShare: (String) -> Unit,
+) {
+    val darkTheme = isPearlDarkTheme()
 
-    Box(Modifier.fillMaxSize()) {
-        LiquidBackground(theme = theme, intensity = 0.6f)
+    LazyColumn(
+        state = listState,
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        item {
+            InboxSheetHeader(
+                theme = theme,
+                onDismiss = onDismiss,
+            )
+        }
 
-        PullToDismissSheet(
-            onDismiss = onDismiss,
-            listState = listState,
-        ) {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .statusBarsPadding()
-                    .navigationBarsPadding(),
-                contentPadding = PaddingValues(bottom = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
+        item {
+            InboxTabRow(
+                selected = inboxState.selectedTab,
+                theme = theme,
+                onSelected = onTabSelected,
+            )
+        }
+
+        when {
+            inboxState.isLoading && inboxState.conversations.isEmpty() && inboxState.pendingShares.isEmpty() -> {
                 item {
-                    TabScreenHeader(
-                        title = "Inbox",
-                        subtitle = "Messages & shares",
-                        theme = theme,
-                        showsSettingsButton = false,
-                        trailing = {
-                            IconButton(onClick = onDismiss) {
-                                Icon(Icons.Default.Close, contentDescription = "Close", tint = theme.primary)
-                            }
-                        },
-                    )
-                }
-
-                item {
-                    InboxTabRow(
-                        selected = inboxState.selectedTab,
-                        theme = theme,
-                        onSelected = onTabSelected,
-                    )
-                }
-
-                when {
-                    inboxState.isLoading && inboxState.conversations.isEmpty() && inboxState.pendingShares.isEmpty() -> {
-                        item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 48.dp),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                CircularProgressIndicator(color = theme.primary)
-                            }
-                        }
-                    }
-                    inboxState.selectedTab == InboxTab.Messages -> {
-                        if (inboxState.conversations.isEmpty()) {
-                            item {
-                                EmptyInboxMessage("No conversations yet.", darkTheme)
-                            }
-                        } else {
-                            items(inboxState.conversations, key = { it.id }) { row ->
-                                ConversationRowItem(
-                                    row = row,
-                                    theme = theme,
-                                    onClick = { onConversationClick(row) },
-                                    modifier = Modifier.padding(horizontal = PearlLayout.screenHorizontalPadding),
-                                )
-                            }
-                        }
-                    }
-                    inboxState.pendingShares.isEmpty() -> {
-                        item {
-                            EmptyInboxMessage("No pending pearl shares.", darkTheme)
-                        }
-                    }
-                    else -> {
-                        items(inboxState.pendingShares, key = { it.share.id }) { row ->
-                            PearlShareRowItem(
-                                row = row,
-                                theme = theme,
-                                isResponding = inboxState.respondingShareId == row.share.id,
-                                onAccept = { onAcceptShare(row.share.id) },
-                                onDecline = { onDeclineShare(row.share.id) },
-                                modifier = Modifier.padding(horizontal = PearlLayout.screenHorizontalPadding),
-                            )
-                        }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 48.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(color = theme.primary)
                     }
                 }
-
-                inboxState.errorMessage?.let { message ->
+            }
+            inboxState.selectedTab == InboxTab.Messages -> {
+                if (inboxState.conversations.isEmpty()) {
                     item {
-                        Text(
-                            text = message,
-                            color = MaterialTheme.colorScheme.error,
+                        EmptyInboxMessage("No conversations yet.", darkTheme)
+                    }
+                } else {
+                    items(inboxState.conversations, key = { it.id }) { row ->
+                        ConversationRowItem(
+                            row = row,
+                            theme = theme,
+                            onClick = { onConversationClick(row) },
                             modifier = Modifier.padding(horizontal = PearlLayout.screenHorizontalPadding),
                         )
                     }
                 }
+            }
+            inboxState.pendingShares.isEmpty() -> {
+                item {
+                    EmptyInboxMessage("No pending pearl shares.", darkTheme)
+                }
+            }
+            else -> {
+                items(inboxState.pendingShares, key = { it.share.id }) { row ->
+                    PearlShareRowItem(
+                        row = row,
+                        theme = theme,
+                        isResponding = inboxState.respondingShareId == row.share.id,
+                        onAccept = { onAcceptShare(row.share.id) },
+                        onDecline = { onDeclineShare(row.share.id) },
+                        modifier = Modifier.padding(horizontal = PearlLayout.screenHorizontalPadding),
+                    )
+                }
+            }
+        }
+
+        inboxState.errorMessage?.let { message ->
+            item {
+                Text(
+                    text = message,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(horizontal = PearlLayout.screenHorizontalPadding),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun InboxSheetHeader(
+    theme: TabTheme,
+    onDismiss: () -> Unit,
+) {
+    val darkTheme = isPearlDarkTheme()
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = PearlLayout.screenHorizontalPadding)
+            .padding(top = 4.dp, bottom = 8.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Inbox",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = PearlColors.heroPrimary(darkTheme),
+                )
+                Text(
+                    text = "Messages & shared pearls",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = PearlColors.heroSecondary(darkTheme),
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(theme.primary.copy(alpha = 0.14f))
+                    .clickable(onClick = onDismiss)
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+            ) {
+                Text(
+                    text = "Done",
+                    color = theme.primary,
+                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.labelLarge,
+                )
             }
         }
     }
@@ -229,88 +287,84 @@ fun MessageThreadScreen(
         }
     }
 
-    Box(Modifier.fillMaxSize()) {
-        LiquidBackground(theme = theme, intensity = 0.55f)
-
-        PullToDismissSheet(
-            onDismiss = onBack,
-            listState = listState,
+    Column(
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = PearlLayout.screenHorizontalPadding, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .statusBarsPadding(),
-            ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = PearlColors.heroPrimary(darkTheme))
-                }
-                AvatarView(
-                    url = state.otherAvatarUrl,
-                    displayName = state.otherDisplayName,
-                    size = 36.dp,
-                )
-                Text(
-                    text = state.otherDisplayName,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = PearlColors.heroPrimary(darkTheme),
-                    modifier = Modifier.padding(start = 10.dp),
-                )
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = PearlColors.heroPrimary(darkTheme))
             }
+            AvatarView(
+                url = state.otherAvatarUrl,
+                displayName = state.otherDisplayName,
+                size = 36.dp,
+            )
+            Text(
+                text = state.otherDisplayName,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = PearlColors.heroPrimary(darkTheme),
+                modifier = Modifier.padding(start = 10.dp),
+            )
+        }
 
-            if (state.isLoading) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = theme.primary)
-                }
-            } else {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(
-                        horizontal = 12.dp,
-                        vertical = 12.dp,
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(ChatBubbleMetrics.rowSpacing),
-                ) {
-                    itemsIndexed(
-                        items = state.messages,
-                        key = { _, message -> "${message.id}-${message.senderId}" },
-                    ) { index, message ->
-                        val previous = state.messages.getOrNull(index - 1)
-                        val isOutgoing = message.isFrom(state.currentUserId)
-                        val previousOutgoing = previous?.isFrom(state.currentUserId)
-                        val topPadding = if (previous != null && isOutgoing != previousOutgoing) {
-                            ChatBubbleMetrics.sectionSpacing
-                        } else {
-                            0.dp
-                        }
-
-                        ChatMessageRow(
-                            message = message,
-                            isOutgoing = isOutgoing,
-                            topPadding = topPadding,
-                            outgoingAvatarUrl = state.currentUserAvatarUrl,
-                            outgoingDisplayName = state.currentUserDisplayName,
-                            incomingAvatarUrl = state.otherAvatarUrl,
-                            incomingDisplayName = state.otherDisplayName,
-                        )
+        if (state.isLoading) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = theme.primary)
+            }
+        } else {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(
+                    horizontal = 12.dp,
+                    vertical = 12.dp,
+                ),
+                verticalArrangement = Arrangement.spacedBy(ChatBubbleMetrics.rowSpacing),
+            ) {
+                itemsIndexed(
+                    items = state.messages,
+                    key = { _, message -> "${message.id}-${message.senderId}" },
+                ) { index, message ->
+                    val previous = state.messages.getOrNull(index - 1)
+                    val isOutgoing = message.isFrom(state.currentUserId)
+                    val previousOutgoing = previous?.isFrom(state.currentUserId)
+                    val topPadding = if (previous != null && isOutgoing != previousOutgoing) {
+                        ChatBubbleMetrics.sectionSpacing
+                    } else {
+                        0.dp
                     }
+
+                    ChatMessageRow(
+                        message = message,
+                        isOutgoing = isOutgoing,
+                        topPadding = topPadding,
+                        outgoingAvatarUrl = state.currentUserAvatarUrl,
+                        outgoingDisplayName = state.currentUserDisplayName,
+                        incomingAvatarUrl = state.otherAvatarUrl,
+                        incomingDisplayName = state.otherDisplayName,
+                    )
                 }
             }
+        }
 
+        GlassSurface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = PearlLayout.screenHorizontalPadding)
+                .padding(top = 8.dp, bottom = 12.dp),
+            cornerRadius = 20.dp,
+        ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .imePadding()
-                    .navigationBarsPadding()
-                    .padding(horizontal = PearlLayout.screenHorizontalPadding)
-                    .padding(top = 10.dp, bottom = 12.dp),
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -320,6 +374,7 @@ fun MessageThreadScreen(
                     modifier = Modifier.weight(1f),
                     placeholder = { Text("Message…") },
                     maxLines = 3,
+                    shape = RoundedCornerShape(16.dp),
                 )
                 Button(
                     onClick = {
@@ -330,10 +385,10 @@ fun MessageThreadScreen(
                         }
                     },
                     enabled = draft.trim().isNotEmpty() && !state.isSending,
+                    shape = RoundedCornerShape(14.dp),
                 ) {
                     Text("Send")
                 }
-            }
             }
         }
     }
@@ -349,13 +404,15 @@ private fun InboxTabRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = PearlLayout.screenHorizontalPadding, vertical = 8.dp),
+            .padding(horizontal = PearlLayout.screenHorizontalPadding, vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         InboxTab.entries.forEach { tab ->
             val isSelected = tab == selected
             Box(
                 modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 42.dp)
                     .clip(RoundedCornerShape(999.dp))
                     .semantics(mergeDescendants = true) {
                         contentDescription = if (tab == InboxTab.Messages) "Messages" else "Shared pearls"
@@ -363,19 +420,34 @@ private fun InboxTabRow(
                         this.selected = isSelected
                     }
                     .background(
-                        if (isSelected) theme.primary.copy(alpha = 0.25f) else PearlColors.controlFill(darkTheme),
+                        if (isSelected) {
+                            Brush.horizontalGradient(
+                                listOf(theme.primary.copy(alpha = 0.28f), theme.secondary.copy(alpha = 0.22f)),
+                            )
+                        } else {
+                            Brush.linearGradient(
+                                listOf(PearlColors.controlFill(darkTheme), PearlColors.controlFill(darkTheme)),
+                            )
+                        },
+                    )
+                    .border(
+                        width = 1.dp,
+                        color = if (isSelected) theme.primary.copy(alpha = 0.45f) else PearlColors.cardBorder(darkTheme),
+                        shape = RoundedCornerShape(999.dp),
                     )
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
                         onClick = { onSelected(tab) },
                     )
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                contentAlignment = Alignment.Center,
             ) {
                 Text(
                     text = if (tab == InboxTab.Messages) "Messages" else "Shared",
                     color = if (isSelected) theme.primary else PearlColors.heroSecondary(darkTheme),
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                    textAlign = TextAlign.Center,
                 )
             }
         }

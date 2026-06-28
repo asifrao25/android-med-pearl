@@ -175,10 +175,11 @@ data class PublicPearl(
 
     fun matches(filter: ContentTypeFilter): Boolean = when (filter) {
         ContentTypeFilter.ALL -> true
-        ContentTypeFilter.QUICK -> isQuickPearl
-        ContentTypeFilter.PHOTOS -> contentType in setOf("photo", "video", "document") || hasGalleryMedia
-        ContentTypeFilter.LINKS -> isLinkPearl
         ContentTypeFilter.CASES -> isClinicalCase
+        ContentTypeFilter.QUICK -> isQuickPearl
+        ContentTypeFilter.PHOTOS ->
+            !isClinicalCase && !isQuickPearl && !isLinkPearl && hasGalleryMedia
+        ContentTypeFilter.LINKS -> !isClinicalCase && isLinkPearl
     }
 
     fun replacing(likeCount: Int? = null): PublicPearl = copy(likeCount = likeCount ?: this.likeCount)

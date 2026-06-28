@@ -1,4 +1,10 @@
 <resources>
     <string name="app_name">Med Pearls</string>
     <string name="splash_tagline">Capture clinical learning</string>
+    <string name="inbox_launcher_badge_channel">Inbox badge</string>
+    <string name="inbox_launcher_badge_channel_desc">Shows unread inbox count on the app icon.</string>
+    <plurals name="inbox_launcher_badge_body">
+        <item quantity="one">1 unread message or pearl share</item>
+        <item quantity="other">%d unread messages and pearl shares</item>
+    </plurals>
 </resources>

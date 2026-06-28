@@ -32,7 +32,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.knowledgepearls.app.ui.folders.FolderPickerOverlay
 import com.knowledgepearls.app.ui.folders.FoldersViewModel
 import com.knowledgepearls.app.ui.components.HeaderIconButton
-import com.knowledgepearls.app.ui.components.InboxHeaderButton
 import com.knowledgepearls.app.ui.components.TabScreenHeader
 import com.knowledgepearls.app.ui.theme.LiquidBackground
 import com.knowledgepearls.app.ui.theme.PearlLayout
@@ -94,13 +93,6 @@ fun FeedScreen(
                 theme = theme,
                 onSettingsClick = onOpenSettings,
                 trailing = {
-                    if (isSignedIn) {
-                        InboxHeaderButton(
-                            theme = theme,
-                            inboxBadgeCount = inboxBadgeCount,
-                            onClick = onOpenInbox,
-                        )
-                    }
                     if (!uiState.isSearchActive) {
                         HeaderIconButton(theme = theme, onClick = { onSearchActiveChange(true) }) {
                             Icon(Icons.Default.Search, contentDescription = "Search", tint = theme.primary)
@@ -199,6 +191,7 @@ fun FeedScreen(
             visible = captureMenuOpen,
             onDismiss = { onCaptureMenuOpenChange(false) },
             onSelect = onCaptureSheetSelected,
+            fabBottomPadding = PearlLayout.addButtonBottomPadding,
         )
 
         GlowingAddButton(
@@ -207,7 +200,7 @@ fun FeedScreen(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .navigationBarsPadding()
-                .padding(end = 20.dp, bottom = PearlLayout.tabBarOverlayInset),
+                .padding(end = 20.dp, bottom = PearlLayout.addButtonBottomPadding),
         )
     }
 }

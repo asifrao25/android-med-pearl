@@ -27,8 +27,10 @@ captures/
 *.keystore
 keystore.properties
 
-# Firebase (add when created on MacBook)
-# google-services.json is project-specific — commit only if using public anon config
+# Firebase (never commit — download from Firebase Console per machine)
+google-services.json
+**/google-services.json
+Keys/
 
 # Local tooling / sync artifacts — never commit or mirror into builds
 .tmp-deps/

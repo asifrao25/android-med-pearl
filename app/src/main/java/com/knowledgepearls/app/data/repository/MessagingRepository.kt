@@ -3,10 +3,11 @@ package com.knowledgepearls.app.data.repository
 import com.knowledgepearls.app.data.model.Conversation
 import com.knowledgepearls.app.data.model.ConversationRow
 import com.knowledgepearls.app.data.model.DirectMessage
-import com.knowledgepearls.app.data.model.UserProfile
+import com.knowledgepearls.app.data.model.isFrom
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
 import io.github.jan.supabase.postgrest.rpc
 import javax.inject.Inject
@@ -65,11 +66,18 @@ class MessagingRepository @Inject constructor(
     }
 
     suspend fun unreadMessageCount(userId: String): Int {
-        val conversations = fetchConversations(userId)
+        val normalizedUserId = userId.lowercase()
+        val conversations = fetchConversations(normalizedUserId)
         var total = 0
         for (conversation in conversations) {
-            val messages = fetchMessages(conversation.id)
-            total += messages.count { it.senderId != userId && it.readAt.isNullOrBlank() }
+            val unread = supabase.from("messages").select(columns = Columns.list("id")) {
+                filter {
+                    eq("conversation_id", conversation.id.lowercase())
+                    neq("sender_id", normalizedUserId)
+                    exact("read_at", null)
+                }
+            }.decodeList<IdRow>()
+            total += unread.size
         }
         return total
     }
@@ -81,7 +89,7 @@ class MessagingRepository @Inject constructor(
             val profile = fetchProfileSummary(otherId)
             val messages = fetchMessages(conversation.id)
             val last = messages.lastOrNull()
-            val unread = messages.count { it.senderId != userId && it.readAt.isNullOrBlank() }
+            val unread = messages.count { !it.isFrom(userId) && it.readAt.isNullOrBlank() }
             ConversationRow(
                 id = conversation.id,
                 otherUserId = otherId,
@@ -115,7 +123,7 @@ class MessagingRepository @Inject constructor(
     )
 
     @Serializable
-    private data class MessageIdRow(val id: String)
+    private data class IdRow(val id: String)
 
     @Serializable
     private data class ProfileSummary(

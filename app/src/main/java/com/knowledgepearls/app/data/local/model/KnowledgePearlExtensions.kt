@@ -24,9 +24,10 @@ fun KnowledgePearlEntity.withClinicalCasePayload(payload: ClinicalCasePayload): 
 fun KnowledgePearlEntity.isClinicalCase(): Boolean =
     contentKind == KnowledgePearlContentKind.CLINICAL_CASE
 
-fun KnowledgePearlEntity.isQuickPearl(): Boolean {
+fun KnowledgePearlEntity.isQuickPearl(hasMedia: Boolean = false): Boolean {
     if (contentKind == KnowledgePearlContentKind.QUICK) return true
     return contentKind == KnowledgePearlContentKind.STANDARD &&
         !isClinicalCase() &&
-        sourceURL.isNullOrBlank()
+        sourceURL.isNullOrBlank() &&
+        !hasMedia
 }

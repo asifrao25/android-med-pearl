@@ -17,6 +17,7 @@ import com.knowledgepearls.app.navigation.ShareImportPayload
 import com.knowledgepearls.app.ui.capture.AddMediaCaptureScreen
 import com.knowledgepearls.app.ui.capture.CaptureViewModel
 import com.knowledgepearls.app.ui.capture.ClinicalCaseCaptureScreen
+import com.knowledgepearls.app.ui.capture.PearlCaptureDestination
 import com.knowledgepearls.app.ui.capture.QuickTextCaptureScreen
 import com.knowledgepearls.app.ui.capture.WebLinkCaptureScreen
 import com.knowledgepearls.app.ui.feed.FeedScreen
@@ -248,15 +249,31 @@ fun PublicFeedTabScreen(
     inboxBadgeCount: Int = 0,
     connectivityState: ConnectivityState = ConnectivityState(),
     onRetryConnection: () -> Unit = {},
+    initialPearlId: String? = null,
+    onInitialPearlConsumed: () -> Unit = {},
     viewModel: PublicFeedViewModel = hiltViewModel(),
     feedViewModel: FeedViewModel = hiltViewModel(),
     accountViewModel: AccountViewModel = hiltViewModel(),
+    captureViewModel: CaptureViewModel = hiltViewModel(),
     foldersViewModel: com.knowledgepearls.app.ui.folders.FoldersViewModel = hiltViewModel(),
 ) {
     val navController = rememberNavController()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val accountState by accountViewModel.uiState.collectAsStateWithLifecycle()
     val folders by foldersViewModel.foldersWithCounts.collectAsStateWithLifecycle()
+    var captureMenuOpen by rememberSaveable { mutableStateOf(false) }
+    var showSharedPearlIntro by rememberSaveable { mutableStateOf(false) }
+
+    val showsSectionTabs = accountState.isSignedIn &&
+        connectivityState.isConnected &&
+        !connectivityState.isOfflineMode
+
+    val publicFeedDestination = PearlCaptureDestination.MyFeedAndPublic
+    val onPublicCaptureSaved: () -> Unit = {
+        feedViewModel.showCaptureSavedMessage()
+        viewModel.refreshFeed()
+        navController.popBackStack("public_feed", false)
+    }
 
     DisposableEffect(navController, accountState.isSignedIn) {
         val listener = androidx.navigation.NavController.OnDestinationChangedListener { _, destination, _ ->
@@ -266,6 +283,16 @@ fun PublicFeedTabScreen(
         }
         navController.addOnDestinationChangedListener(listener)
         onDispose { navController.removeOnDestinationChangedListener(listener) }
+    }
+
+    LaunchedEffect(initialPearlId, accountState.isSignedIn, uiState.pearls.isNotEmpty()) {
+        val pearlId = initialPearlId ?: return@LaunchedEffect
+        if (!accountState.isSignedIn) return@LaunchedEffect
+        if (uiState.pearls.isEmpty() && !uiState.isLoading) {
+            viewModel.loadInitial()
+        }
+        navController.navigate("public_pearl/$pearlId")
+        onInitialPearlConsumed()
     }
 
     NavHost(
@@ -305,6 +332,66 @@ fun PublicFeedTabScreen(
                 isNetworkAvailable = connectivityState.isConnected,
                 isOfflineMode = connectivityState.isOfflineMode,
                 onRetryConnection = onRetryConnection,
+                captureMenuOpen = captureMenuOpen,
+                onCaptureMenuOpenChange = { captureMenuOpen = it },
+                onCaptureSheetSelected = { sheet ->
+                    captureMenuOpen = false
+                    when (sheet) {
+                        CaptureSheet.QuickText -> navController.navigate("capture/quick")
+                        CaptureSheet.WebLink -> navController.navigate("capture/link")
+                        CaptureSheet.ClinicalCase -> navController.navigate("capture/clinical")
+                        CaptureSheet.Camera -> navController.navigate("capture/media/camera")
+                        CaptureSheet.PhotoLibrary -> navController.navigate("capture/media/gallery")
+                        CaptureSheet.Files -> navController.navigate("capture/media/files")
+                    }
+                },
+                showSharedPearlIntro = showSharedPearlIntro,
+                onRequestSharedPearlIntro = { showSharedPearlIntro = true },
+                onSharedPearlIntroContinue = {
+                    showSharedPearlIntro = false
+                    captureMenuOpen = true
+                },
+                onSharedPearlIntroCancel = { showSharedPearlIntro = false },
+                showsSectionTabs = showsSectionTabs,
+            )
+        }
+
+        composable("capture/quick") {
+            QuickTextCaptureScreen(
+                viewModel = captureViewModel,
+                isSignedIn = accountState.isSignedIn,
+                captureDestination = publicFeedDestination,
+                onBack = { navController.popBackStack() },
+                onSaved = onPublicCaptureSaved,
+            )
+        }
+        composable("capture/link") {
+            WebLinkCaptureScreen(
+                viewModel = captureViewModel,
+                isSignedIn = accountState.isSignedIn,
+                captureDestination = publicFeedDestination,
+                onBack = { navController.popBackStack() },
+                onSaved = onPublicCaptureSaved,
+            )
+        }
+        composable("capture/clinical") {
+            ClinicalCaseCaptureScreen(
+                viewModel = captureViewModel,
+                isSignedIn = accountState.isSignedIn,
+                captureDestination = publicFeedDestination,
+                onBack = { navController.popBackStack() },
+                onSaved = onPublicCaptureSaved,
+            )
+        }
+        composable("capture/media/{route}") { entry ->
+            val route = entry.arguments?.getString("route")
+            AddMediaCaptureScreen(
+                viewModel = captureViewModel,
+                isSignedIn = accountState.isSignedIn,
+                initialRoute = route,
+                captureDestination = publicFeedDestination,
+                onBack = { navController.popBackStack() },
+                onSaved = onPublicCaptureSaved,
             )
         }
 

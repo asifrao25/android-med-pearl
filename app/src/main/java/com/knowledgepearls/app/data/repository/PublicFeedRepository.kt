@@ -112,9 +112,13 @@ class PublicFeedRepository @Inject constructor(
             publicFeedSnapshot = runCatching { json.encodeToString(pearl) }.getOrDefault(""),
         )
 
-        if (pearl.isClinicalCase) {
-            entity = pearl.casePayload?.let { entity.withClinicalCasePayload(it) }
-                ?: entity.copy(contentKind = KnowledgePearlContentKind.CLINICAL_CASE)
+        entity = when {
+            pearl.isClinicalCase -> {
+                pearl.casePayload?.let { entity.withClinicalCasePayload(it) }
+                    ?: entity.copy(contentKind = KnowledgePearlContentKind.CLINICAL_CASE)
+            }
+            pearl.isQuickPearl -> entity.copy(contentKind = KnowledgePearlContentKind.QUICK)
+            else -> entity.copy(contentKind = KnowledgePearlContentKind.STANDARD)
         }
 
         pearlRepository.upsertPearl(entity)

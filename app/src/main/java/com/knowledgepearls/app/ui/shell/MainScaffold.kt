@@ -31,11 +31,13 @@ import com.knowledgepearls.app.ui.account.ProfileSetupScreen
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.unit.dp
+import com.knowledgepearls.app.data.badges.InboxBadgeEntryPoint
 import com.knowledgepearls.app.data.connectivity.BackendHealthMonitor
 import com.knowledgepearls.app.data.connectivity.ConnectivityMonitor
 import com.knowledgepearls.app.ui.components.ConnectivityOverlays
 import com.knowledgepearls.app.ui.components.interactiveKeyboardDismiss
-import com.knowledgepearls.app.ui.components.InboxUnreadReminderChip
+import com.knowledgepearls.app.ui.components.FloatingInboxButton
+import com.knowledgepearls.app.ui.components.FloatingInboxReminderCallout
 import com.knowledgepearls.app.ui.components.CacheClearedSuccessAlert
 import com.knowledgepearls.app.ui.components.LiquidTabBar
 import com.knowledgepearls.app.navigation.AppNavigationBus
@@ -57,6 +59,7 @@ import com.knowledgepearls.app.ui.tabs.PublicFeedTabScreen
 import com.knowledgepearls.app.ui.publicfeed.PublicFeedViewModel
 import com.knowledgepearls.app.ui.theme.PearlLayout
 import com.knowledgepearls.app.ui.theme.TabTheme
+import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.DisposableEffect
@@ -74,6 +77,7 @@ fun MainScaffold(
     navigationBus: AppNavigationBus,
     initialShareImport: ShareImportPayload? = null,
     onShareImportConsumed: () -> Unit = {},
+    onRequestPushNotifications: () -> Unit = {},
 ) {
     val accountState by accountViewModel.uiState.collectAsStateWithLifecycle()
     val publicFeedState by publicFeedViewModel.uiState.collectAsStateWithLifecycle()
@@ -85,6 +89,12 @@ fun MainScaffold(
     val backendHealthState by backendHealthMonitor.state.collectAsStateWithLifecycle()
     val activityContext = LocalContext.current
     val scope = rememberCoroutineScope()
+    val inboxLauncherBadgeManager = remember {
+        EntryPointAccessors.fromApplication(
+            activityContext.applicationContext,
+            InboxBadgeEntryPoint::class.java,
+        ).inboxLauncherBadgeManager()
+    }
 
     var showSplash by rememberSaveable { mutableStateOf(true) }
     var selectedTab by rememberSaveable { mutableStateOf(MainTab.Feed) }
@@ -102,6 +112,7 @@ fun MainScaffold(
     var inboxReminderDismissed by rememberSaveable { mutableStateOf(false) }
     var shareImport by remember { mutableStateOf(initialShareImport) }
     var pearlShareToast by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var pendingPublicPearlId by rememberSaveable { mutableStateOf<String?>(null) }
 
     LaunchedEffect(initialShareImport) {
         if (initialShareImport != null) {
@@ -133,12 +144,27 @@ fun MainScaffold(
                     inboxOpen = true
                     inboxViewModel.openConversationById(event.conversationId)
                 }
+                is AppNavigationEvent.OpenPublicFeed -> {
+                    selectedTab = MainTab.PublicFeed
+                }
+                is AppNavigationEvent.OpenPublicPearl -> {
+                    selectedTab = MainTab.PublicFeed
+                    pendingPublicPearlId = event.pearlId
+                }
+                is AppNavigationEvent.OpenPendingSubmissions -> {
+                    settingsOpen = true
+                    settingsRoute = SettingsRoute.PendingSubmissions
+                    settingsViewModel.loadPendingSubmissions()
+                }
                 is AppNavigationEvent.ImportShare -> {
                     selectedTab = MainTab.Feed
                     shareImport = ShareImportPayload(event.text, event.url)
                 }
                 is AppNavigationEvent.PearlShareReceivedToast -> {
                     pearlShareToast = event.senderName to event.pearlTitle
+                    inboxViewModel.refreshBadge()
+                }
+                AppNavigationEvent.RefreshInboxBadge -> {
                     inboxViewModel.refreshBadge()
                 }
             }
@@ -205,11 +231,18 @@ fun MainScaffold(
 
     LaunchedEffect(accountState.isSignedIn, showSplash) {
         if (!showSplash && accountState.isSignedIn) {
+            onRequestPushNotifications()
             inboxViewModel.refreshBadge()
-            inboxBadgeCount = inboxState.unreadBadge
-            publicFeedViewModel.refreshFeed()
         } else if (!accountState.isSignedIn) {
             inboxBadgeCount = 0
+        }
+    }
+
+    LaunchedEffect(accountState.isSignedIn, showSplash) {
+        if (showSplash || !accountState.isSignedIn) return@LaunchedEffect
+        while (true) {
+            delay(INBOX_BADGE_REFRESH_MS)
+            inboxViewModel.refreshBadge()
         }
     }
 
@@ -217,6 +250,14 @@ fun MainScaffold(
         inboxBadgeCount = inboxState.unreadBadge
         if (inboxState.unreadBadge > 0) {
             inboxReminderDismissed = false
+        }
+    }
+
+    LaunchedEffect(inboxBadgeCount, accountState.isSignedIn, showSplash) {
+        if (showSplash || !accountState.isSignedIn) {
+            inboxLauncherBadgeManager.clear()
+        } else {
+            inboxLauncherBadgeManager.sync(inboxBadgeCount)
         }
     }
 
@@ -278,6 +319,8 @@ fun MainScaffold(
                     onOpenUserProfile = openUserProfile,
                     viewModel = publicFeedViewModel,
                     accountViewModel = accountViewModel,
+                    initialPearlId = pendingPublicPearlId,
+                    onInitialPearlConsumed = { pendingPublicPearlId = null },
                 )
                 MainTab.Folders -> FeedTabScreen(
                     onOpenSettings = { settingsOpen = true },
@@ -387,7 +430,6 @@ fun MainScaffold(
                 onDeclineShare = { shareId -> inboxViewModel.respondToShare(shareId, accept = false) },
             )
         }
-
         if (authOpen) {
             AuthScreen(
                 uiState = accountState,
@@ -462,26 +504,77 @@ fun MainScaffold(
             LaunchSplashScreen(onFinished = { showSplash = false })
         }
 
-        val showInboxReminder = !showSplash &&
+        val showFloatingInboxChrome = !showSplash &&
             accountState.isSignedIn &&
             !inboxOpen &&
+            (selectedTab == MainTab.Feed ||
+                selectedTab == MainTab.PublicFeed ||
+                selectedTab == MainTab.Favourites)
+
+        val addFabBottomPadding = when (selectedTab) {
+            MainTab.PublicFeed -> {
+                if (connectivityState.isConnected && !connectivityState.isOfflineMode) {
+                    PearlLayout.publicFeedAddButtonBottomPadding
+                } else {
+                    PearlLayout.addButtonBottomPadding
+                }
+            }
+            else -> PearlLayout.addButtonBottomPadding
+        }
+
+        val hasFloatingAddButton = when (selectedTab) {
+            MainTab.Feed -> true
+            MainTab.PublicFeed -> connectivityState.isConnected && !connectivityState.isOfflineMode
+            else -> false
+        }
+
+        val inboxButtonBottomPadding = if (hasFloatingAddButton) {
+            PearlLayout.inboxButtonBottomPadding(addFabBottomPadding)
+        } else {
+            addFabBottomPadding
+        }
+
+        val floatingChromeTheme = when (selectedTab) {
+            MainTab.PublicFeed -> TabTheme.PublicFeed
+            MainTab.Favourites -> TabTheme.Favourites
+            else -> TabTheme.Feed
+        }
+
+        if (showFloatingInboxChrome) {
+            FloatingInboxButton(
+                badgeCount = inboxBadgeCount,
+                theme = floatingChromeTheme,
+                onClick = {
+                    inboxReminderDismissed = true
+                    inboxOpen = true
+                    inboxViewModel.loadInbox()
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .navigationBarsPadding()
+                    .padding(end = 20.dp, bottom = inboxButtonBottomPadding),
+            )
+        }
+
+        val showInboxReminder = showFloatingInboxChrome &&
             !inboxReminderDismissed &&
-            inboxBadgeCount > 0 &&
-            (selectedTab == MainTab.Feed || selectedTab == MainTab.PublicFeed)
+            inboxBadgeCount > 0
 
         if (showInboxReminder) {
-            InboxUnreadReminderChip(
+            FloatingInboxReminderCallout(
+                visible = showInboxReminder,
                 unreadCount = inboxBadgeCount,
-                theme = if (selectedTab == MainTab.PublicFeed) TabTheme.PublicFeed else TabTheme.Feed,
+                theme = floatingChromeTheme,
                 onOpenInbox = {
                     inboxReminderDismissed = true
                     inboxOpen = true
+                    inboxViewModel.loadInbox()
                 },
                 onDismiss = { inboxReminderDismissed = true },
                 modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .statusBarsPadding()
-                    .padding(top = 72.dp),
+                    .align(Alignment.BottomEnd)
+                    .navigationBarsPadding()
+                    .padding(bottom = PearlLayout.inboxReminderBottomPadding(inboxButtonBottomPadding)),
             )
         }
 
@@ -522,3 +615,4 @@ fun MainScaffold(
 }
 
 private const val PUBLIC_FEED_AUTO_REFRESH_MS = 45_000L
+private const val INBOX_BADGE_REFRESH_MS = 30_000L

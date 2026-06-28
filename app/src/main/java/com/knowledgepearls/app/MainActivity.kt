@@ -12,8 +12,10 @@ import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.knowledgepearls.app.data.connectivity.BackendHealthMonitor
 import com.knowledgepearls.app.data.connectivity.ConnectivityMonitor
 import com.knowledgepearls.app.data.push.PushNotificationManager
@@ -28,6 +30,8 @@ import dagger.hilt.android.AndroidEntryPoint
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.handleDeeplinks
 import javax.inject.Inject
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
@@ -58,6 +62,17 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         handleIncomingIntent(intent)
 
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                accountViewModel.uiState
+                    .map { it.isSignedIn && !it.isLoading }
+                    .distinctUntilChanged()
+                    .collect { ready ->
+                        if (ready) ensurePushNotificationsReady()
+                    }
+            }
+        }
+
         setContent {
             val settingsViewModel: SettingsViewModel = hiltViewModel()
             val appearanceMode by settingsViewModel.appearanceMode.collectAsStateWithLifecycle()
@@ -71,9 +86,14 @@ class MainActivity : ComponentActivity() {
                     navigationBus = navigationBus,
                     initialShareImport = pendingShareImport,
                     onShareImportConsumed = { pendingShareImport = null },
+                    onRequestPushNotifications = ::ensurePushNotificationsReady,
                 )
             }
         }
+    }
+
+    fun ensurePushNotificationsReady() {
+        requestPushPermissionIfNeeded()
     }
 
     override fun onNewIntent(intent: Intent) {

@@ -257,10 +257,11 @@ fun GlowingAddButton(
     isMenuOpen: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onBeforeOpen: (() -> Boolean)? = null,
 ) {
     Box(
         modifier = modifier
-            .size(58.dp)
+            .size(PearlLayout.addButtonSize)
             .clip(CircleShape)
             .background(
                 brush = Brush.linearGradient(
@@ -268,7 +269,14 @@ fun GlowingAddButton(
                 ),
             )
             .border(2.5.dp, Color.White.copy(alpha = 0.35f), CircleShape)
-            .clickable(onClick = onClick),
+            .clickable {
+                if (isMenuOpen) {
+                    onClick()
+                } else {
+                    val shouldOpen = onBeforeOpen?.invoke() ?: true
+                    if (shouldOpen) onClick()
+                }
+            },
         contentAlignment = Alignment.Center,
     ) {
         Text(

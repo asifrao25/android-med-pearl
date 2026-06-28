@@ -49,10 +49,13 @@ fun CaptureOptionsOverlay(
     onDismiss: () -> Unit,
     onSelect: (CaptureSheet) -> Unit,
     modifier: Modifier = Modifier,
+    isSharedCapture: Boolean = false,
+    fabBottomPadding: androidx.compose.ui.unit.Dp = PearlLayout.addButtonBottomPadding,
 ) {
     if (!visible) return
     val darkTheme = isPearlDarkTheme()
     val panelShape = RoundedCornerShape(22.dp)
+    val menuBottomPadding = PearlLayout.captureMenuBottomPadding(fabBottomPadding)
 
     Box(
         modifier = modifier.fillMaxSize(),
@@ -67,7 +70,7 @@ fun CaptureOptionsOverlay(
         Column(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 20.dp, bottom = 120.dp)
+                .padding(end = 20.dp, bottom = menuBottomPadding)
                 .fillMaxWidth(0.82f)
                 .clip(panelShape)
                 .background(PearlColors.tabBarFill(darkTheme))
@@ -82,9 +85,17 @@ fun CaptureOptionsOverlay(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text("New Pearl", fontWeight = FontWeight.Bold, color = PearlColors.heroPrimary(darkTheme))
                     Text(
-                        "Choose how to capture",
+                        if (isSharedCapture) "New Shared Pearl" else "New Pearl",
+                        fontWeight = FontWeight.Bold,
+                        color = PearlColors.heroPrimary(darkTheme),
+                    )
+                    Text(
+                        if (isSharedCapture) {
+                            "Choose how to share with the community"
+                        } else {
+                            "Choose how to capture"
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = PearlColors.heroSecondary(darkTheme),
                     )
