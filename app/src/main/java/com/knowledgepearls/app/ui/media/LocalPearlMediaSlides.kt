@@ -1,5 +1,6 @@
 package com.knowledgepearls.app.ui.media
 
+import com.knowledgepearls.app.data.model.PublicPearlMediaUrls
 import com.knowledgepearls.app.data.capture.PickedMedia
 import com.knowledgepearls.app.data.local.entity.MediaType
 import com.knowledgepearls.app.data.local.entity.PearlMediaEntity
@@ -10,6 +11,7 @@ import java.io.File
 
 fun treatsAsVideo(type: String, filename: String): Boolean {
     if (type == MediaType.VIDEO) return true
+    if (PublicPearlMediaUrls.isVideoFilename(filename)) return true
     val lower = filename.lowercase()
     return type == MediaType.DOCUMENT &&
         (lower.endsWith(".mp4") || lower.endsWith(".mov") || lower.endsWith(".m4v"))

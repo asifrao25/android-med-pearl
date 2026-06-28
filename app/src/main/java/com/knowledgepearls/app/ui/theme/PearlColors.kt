@@ -16,6 +16,9 @@ object PearlColors {
 
     fun liquidBlobOpacity(darkTheme: Boolean): Float = if (darkTheme) 0.5f else 0.38f
 
+    /** Solid surface for modal sheets and alert cards — fully opaque over scrims. */
+    fun popupSurface(darkTheme: Boolean): Color = tabBarFill(darkTheme)
+
     fun glassOverlay(darkTheme: Boolean): Color =
         if (darkTheme) Color.White.copy(alpha = 0.05f) else Color.White.copy(alpha = 0.52f)
 

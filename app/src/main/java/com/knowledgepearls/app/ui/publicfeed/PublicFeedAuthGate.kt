@@ -53,7 +53,7 @@ fun PublicFeedAuthGate(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp))
-                .background(PearlColors.glassOverlay(darkTheme))
+                .background(PearlColors.popupSurface(darkTheme))
                 .navigationBarsPadding(),
         ) {
             Box(Modifier.fillMaxWidth()) {

@@ -15,7 +15,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.AlertDialog
+import com.knowledgepearls.app.ui.components.PearlMaterialAlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -258,7 +258,7 @@ fun PearlDetailScreen(
         }
 
         uiState.shareErrorMessage?.let { message ->
-            AlertDialog(
+            PearlMaterialAlertDialog(
                 onDismissRequest = viewModel::dismissShareError,
                 confirmButton = {
                     Button(onClick = viewModel::dismissShareError) { Text("OK") }

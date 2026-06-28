@@ -47,7 +47,6 @@ import androidx.compose.ui.unit.dp
 import com.knowledgepearls.app.ui.components.PearlActionOutcome
 import com.knowledgepearls.app.ui.components.PearlActionSuccessAlert
 import com.knowledgepearls.app.ui.components.PublicFeedOfflineState
-import com.knowledgepearls.app.ui.components.SeenToastView
 import com.knowledgepearls.app.ui.feed.FeedEmptyFilterAlert
 import com.knowledgepearls.app.ui.components.HeaderIconButton
 import com.knowledgepearls.app.ui.components.InboxHeaderButton
@@ -201,17 +200,81 @@ fun PublicFeedScreen(
                         ) {
                         if (uiState.filteredPearls.isEmpty()) {
                             item {
-                                Text(
-                                    text = if (uiState.section == PublicFeedSection.NEW) {
-                                        "You're all caught up."
-                                    } else {
-                                        "No seen pearls yet."
-                                    },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    textAlign = TextAlign.Center,
-                                    color = PearlColors.heroSecondary(darkTheme),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                )
+                                when {
+                                    uiState.section == PublicFeedSection.NEW &&
+                                        uiState.unseenPearls.isEmpty() &&
+                                        uiState.seenPearls.isNotEmpty() &&
+                                        !uiState.isLoading -> {
+                                        PublicFeedAllCaughtUpCard(
+                                            theme = theme,
+                                            onSwitchToSeen = { onSectionSelected(PublicFeedSection.SEEN) },
+                                        )
+                                    }
+                                    uiState.section == PublicFeedSection.NEW &&
+                                        uiState.unseenPearls.isEmpty() &&
+                                        uiState.seenPearls.isEmpty() -> {
+                                        PublicFeedSectionEmptyState(
+                                            title = "No New Pearls",
+                                            message = "You're all caught up. Approved pearls will appear here first.",
+                                            theme = theme,
+                                        )
+                                    }
+                                    uiState.section == PublicFeedSection.NEW &&
+                                        uiState.unseenPearls.isNotEmpty() &&
+                                        uiState.contentTypeFilter != com.knowledgepearls.app.data.model.ContentTypeFilter.ALL -> {
+                                        PublicFeedSectionEmptyState(
+                                            title = "No ${uiState.contentTypeFilter.label} Pearls",
+                                            message = "No new pearls match this filter. Try another filter or show all.",
+                                            theme = theme,
+                                            actionLabel = "Show all",
+                                            onAction = onResetContentTypeFilter,
+                                        )
+                                    }
+                                    uiState.section == PublicFeedSection.SEEN &&
+                                        uiState.seenPearls.isEmpty() -> {
+                                        PublicFeedSectionEmptyState(
+                                            title = "No Seen Pearls Yet",
+                                            message = "Pearls you've opened will collect here for easy revisiting.",
+                                            theme = theme,
+                                        )
+                                    }
+                                    uiState.section == PublicFeedSection.SEEN &&
+                                        uiState.seenPearls.isNotEmpty() &&
+                                        uiState.contentTypeFilter != com.knowledgepearls.app.data.model.ContentTypeFilter.ALL -> {
+                                        PublicFeedSectionEmptyState(
+                                            title = "No ${uiState.contentTypeFilter.label} Pearls",
+                                            message = "No seen pearls match this filter. Try another filter or show all.",
+                                            theme = theme,
+                                            actionLabel = "Show all",
+                                            onAction = onResetContentTypeFilter,
+                                        )
+                                    }
+                                    else -> {
+                                        PublicFeedSectionEmptyState(
+                                            title = if (uiState.section == PublicFeedSection.NEW) {
+                                                "All Caught Up"
+                                            } else {
+                                                "No Seen Pearls Yet"
+                                            },
+                                            message = if (uiState.section == PublicFeedSection.NEW) {
+                                                "Switch to Seen below to revisit previous pearls."
+                                            } else {
+                                                "Pearls you've opened will collect here for easy revisiting."
+                                            },
+                                            theme = theme,
+                                            actionLabel = if (uiState.section == PublicFeedSection.NEW && uiState.seenCount > 0) {
+                                                "Go to Seen"
+                                            } else {
+                                                null
+                                            },
+                                            onAction = if (uiState.section == PublicFeedSection.NEW && uiState.seenCount > 0) {
+                                                { onSectionSelected(PublicFeedSection.SEEN) }
+                                            } else {
+                                                null
+                                            },
+                                        )
+                                    }
+                                }
                             }
                         } else {
                             items(uiState.filteredPearls, key = { it.id }) { pearl ->
@@ -257,12 +320,7 @@ fun PublicFeedScreen(
         }
 
         if (isSignedIn && uiState.pearls.isNotEmpty()) {
-            PublicFeedSectionTabs(
-                selected = uiState.section,
-                newCount = uiState.newCount,
-                seenCount = uiState.seenCount,
-                theme = theme,
-                onSelected = onSectionSelected,
+            Column(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .navigationBarsPadding()
@@ -271,7 +329,22 @@ fun PublicFeedScreen(
                         end = PearlLayout.screenHorizontalPadding,
                         bottom = PearlLayout.tabBarOverlayInset - 8.dp,
                     ),
-            )
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                MovedToSeenTabToast(
+                    visible = uiState.showSeenToast,
+                    theme = theme,
+                    onDismiss = onDismissSeenToast,
+                    modifier = Modifier.padding(bottom = 10.dp),
+                )
+                PublicFeedSectionTabs(
+                    selected = uiState.section,
+                    newCount = uiState.newCount,
+                    seenCount = uiState.seenCount,
+                    theme = theme,
+                    onSelected = onSectionSelected,
+                )
+            }
         }
 
         if (!isSignedIn) {
@@ -320,11 +393,6 @@ fun PublicFeedScreen(
                 onDismiss = { saveTarget = null },
             )
         }
-
-        SeenToastView(
-            visible = uiState.showSeenToast,
-            onDismiss = onDismissSeenToast,
-        )
 
         if (uiState.showEmptyFilterAlert) {
             FeedEmptyFilterAlert(

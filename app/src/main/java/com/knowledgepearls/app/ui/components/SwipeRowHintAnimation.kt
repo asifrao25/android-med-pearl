@@ -3,7 +3,9 @@ package com.knowledgepearls.app.ui.components
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.spring
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 
 /** Matches iOS `SwipeRowHintAnimation` — gentle alternating peeks on the first list card. */
 object SwipeRowHintAnimation {
@@ -19,18 +21,21 @@ object SwipeRowHintAnimation {
         var startsWithLeading = true
         val peek = actionWidthPx * revealFraction
 
-        while (true) {
+        while (currentCoroutineContext().isActive) {
             val first = if (startsWithLeading) peek else -peek
             val second = if (startsWithLeading) -peek else peek
 
             hintOffset.animateTo(first, springIn)
             delay(720)
+            if (!currentCoroutineContext().isActive) break
 
             hintOffset.animateTo(0f, springOut)
             delay(420)
+            if (!currentCoroutineContext().isActive) break
 
             hintOffset.animateTo(second, springIn)
             delay(720)
+            if (!currentCoroutineContext().isActive) break
 
             hintOffset.animateTo(0f, springOut)
 

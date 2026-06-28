@@ -29,7 +29,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.PersonOff
 import androidx.compose.material.icons.filled.Send
-import androidx.compose.material3.AlertDialog
+import com.knowledgepearls.app.ui.components.PearlMaterialAlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -121,7 +121,7 @@ fun UserProfileScreen(
     }
 
     if (showBlockConfirm && uiState.profile != null) {
-        AlertDialog(
+        PearlMaterialAlertDialog(
             onDismissRequest = { showBlockConfirm = false },
             title = { Text("Block ${uiState.profile!!.displayName}?") },
             text = {
@@ -148,7 +148,7 @@ fun UserProfileScreen(
     }
 
     if (showDeleteConfirm) {
-        AlertDialog(
+        PearlMaterialAlertDialog(
             onDismissRequest = {
                 showDeleteConfirm = false
                 deleteConfirmText = ""

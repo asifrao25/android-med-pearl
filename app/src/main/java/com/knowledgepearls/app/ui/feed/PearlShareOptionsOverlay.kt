@@ -70,10 +70,10 @@ fun PearlShareOptionsOverlay(
                     .padding(horizontal = PearlLayout.screenHorizontalPadding)
                     .padding(bottom = PearlLayout.detailScrollBottomPadding)
                     .clip(RoundedCornerShape(22.dp))
-                    .background(PearlColors.glassOverlay(isPearlDarkTheme()))
+                    .background(PearlColors.popupSurface(isPearlDarkTheme()))
                     .border(
                         width = 1.dp,
-                        color = Color.White.copy(alpha = 0.12f),
+                        color = PearlColors.cardBorder(isPearlDarkTheme()),
                         shape = RoundedCornerShape(22.dp),
                     )
                     .clickable(enabled = false) {}

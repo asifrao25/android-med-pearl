@@ -3,14 +3,24 @@ package com.knowledgepearls.app.ui.media
 import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
 import java.io.File
+import java.net.URI
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 object MediaThumbnailUtils {
-    suspend fun loadVideoThumbnail(path: String): Bitmap? = withContext(Dispatchers.IO) {
+    suspend fun loadVideoThumbnail(source: String): Bitmap? = withContext(Dispatchers.IO) {
         runCatching {
             MediaMetadataRetriever().use { retriever ->
-                retriever.setDataSource(path)
+                when {
+                    source.startsWith("http://", ignoreCase = true) ||
+                        source.startsWith("https://", ignoreCase = true) -> {
+                        retriever.setDataSource(source, emptyMap())
+                    }
+                    source.startsWith("file:", ignoreCase = true) -> {
+                        retriever.setDataSource(File(URI(source)).absolutePath)
+                    }
+                    else -> retriever.setDataSource(source)
+                }
                 retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
             }
         }.getOrNull()

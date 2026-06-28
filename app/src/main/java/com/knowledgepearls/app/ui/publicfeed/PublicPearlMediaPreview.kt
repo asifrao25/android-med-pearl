@@ -22,10 +22,16 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -34,12 +40,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.SubcomposeAsyncImage
+import androidx.compose.foundation.Image
 import com.knowledgepearls.app.data.model.PublicPearl
 import com.knowledgepearls.app.data.model.PublicPearlMediaItem
 import com.knowledgepearls.app.ui.feed.LinkPearlPreviewSection
 import com.knowledgepearls.app.ui.feed.PearlDetailMetrics
 import com.knowledgepearls.app.ui.feed.parseOpenableUrl
 import com.knowledgepearls.app.ui.media.DocumentAttachmentActions
+import com.knowledgepearls.app.ui.media.MediaThumbnailUtils
 import com.knowledgepearls.app.ui.media.PearlDocumentPreviewCard
 import com.knowledgepearls.app.ui.theme.PearlColors
 import com.knowledgepearls.app.ui.theme.TabTheme
@@ -300,6 +308,7 @@ internal fun PublicPearlMediaSlideView(
             onClick = if (interactive) onOpen else null,
         )
         is PublicPearlMediaSlide.Video -> VideoPreviewCard(
+            url = slide.url,
             filename = slide.filename,
             theme = theme,
             height = height,
@@ -360,6 +369,7 @@ private fun PublicPearlImagePreview(
 
 @Composable
 private fun VideoPreviewCard(
+    url: String,
     filename: String,
     theme: TabTheme,
     height: androidx.compose.ui.unit.Dp,
@@ -367,6 +377,12 @@ private fun VideoPreviewCard(
     interactive: Boolean,
     onOpen: (() -> Unit)? = null,
 ) {
+    var thumbnail by remember(url) { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
+
+    LaunchedEffect(url) {
+        thumbnail = MediaThumbnailUtils.loadVideoThumbnail(url)?.asImageBitmap()
+    }
+
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -379,29 +395,62 @@ private fun VideoPreviewCard(
                     "Video $filename"
                 }
             }
-            .background(theme.primary.copy(alpha = 0.18f))
+            .background(PearlColors.controlFill(isPearlDarkTheme()))
             .then(if (interactive && onOpen != null) Modifier.clickable(onClick = onOpen) else Modifier),
-        contentAlignment = Alignment.Center,
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Icon(Icons.Default.PlayCircle, contentDescription = null, tint = theme.primary, modifier = Modifier.height(48.dp))
+        if (thumbnail != null) {
+            Image(
+                bitmap = thumbnail!!,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.28f)),
+            )
+        }
+
+        Column(
+            modifier = Modifier.align(Alignment.Center),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Icon(
+                Icons.Default.PlayCircle,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.height(48.dp),
+            )
             Text(
-                text = filename,
-                style = MaterialTheme.typography.bodyMedium,
-                color = PearlColors.heroPrimary(isPearlDarkTheme()),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 16.dp),
+                text = "Video",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
             )
             if (interactive && onOpen != null) {
                 Text(
                     text = "Tap to play",
                     style = MaterialTheme.typography.labelSmall,
-                    color = theme.primary,
+                    color = Color.White.copy(alpha = 0.9f),
                 )
             }
         }
+
+        Text(
+            text = filename,
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(10.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color.Black.copy(alpha = 0.55f))
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelSmall,
+            color = Color.White,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 

@@ -18,7 +18,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -39,6 +38,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.knowledgepearls.app.data.local.model.FolderWithCount
 import com.knowledgepearls.app.ui.components.GlassSurface
+import com.knowledgepearls.app.ui.components.PearlMaterialAlertDialog
 import com.knowledgepearls.app.ui.theme.PearlColors
 import com.knowledgepearls.app.ui.theme.TabTheme
 import com.knowledgepearls.app.ui.theme.isPearlDarkTheme
@@ -55,9 +55,9 @@ fun FolderNameDialog(
     var name by remember(initialName) { mutableStateOf(initialName) }
     val darkTheme = isPearlDarkTheme()
 
-    AlertDialog(
+    PearlMaterialAlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(title, color = PearlColors.heroPrimary(darkTheme)) },
+        title = { Text(title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(message, color = PearlColors.heroSecondary(darkTheme))
@@ -87,9 +87,9 @@ fun FolderDeleteDialog(
     onDismiss: () -> Unit,
 ) {
     val darkTheme = isPearlDarkTheme()
-    AlertDialog(
+    PearlMaterialAlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Delete this folder?", color = PearlColors.heroPrimary(darkTheme)) },
+        title = { Text("Delete this folder?") },
         text = {
             Text(
                 "Pearls inside this folder will not be deleted.",
@@ -127,6 +127,7 @@ fun FolderFloatingMenu(
     GlassSurface(
         modifier = modifier.width(280.dp),
         cornerRadius = 22.dp,
+        opaque = true,
     ) {
         Column {
             Box(
@@ -296,7 +297,7 @@ private fun FolderMenuRow(
     }
 
     if (showActions) {
-        AlertDialog(
+        PearlMaterialAlertDialog(
             onDismissRequest = { showActions = false },
             title = { Text(folder.folder.name) },
             text = { Text("Folder actions") },

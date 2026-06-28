@@ -18,11 +18,14 @@ fun GlassSurface(
     modifier: Modifier = Modifier,
     cornerRadius: Dp,
     darkTheme: Boolean = isPearlDarkTheme(),
+    opaque: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val shape = RoundedCornerShape(cornerRadius)
     val border = PearlColors.cardBorder(darkTheme)
-    val fill = if (darkTheme) {
+    val fill = if (opaque) {
+        PearlColors.popupSurface(darkTheme)
+    } else if (darkTheme) {
         Color.White.copy(alpha = 0.08f)
     } else {
         Color.White.copy(alpha = 0.72f)

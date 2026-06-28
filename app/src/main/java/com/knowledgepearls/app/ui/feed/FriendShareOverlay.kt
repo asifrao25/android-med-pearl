@@ -20,7 +20,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -45,6 +44,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.knowledgepearls.app.data.model.ShareProfileResult
 import com.knowledgepearls.app.ui.components.GlassSurface
+import com.knowledgepearls.app.ui.components.PearlMaterialAlertDialog
 import com.knowledgepearls.app.ui.theme.LiquidBackground
 import com.knowledgepearls.app.ui.theme.PearlColors
 import com.knowledgepearls.app.ui.theme.PearlLayout
@@ -269,7 +269,7 @@ fun FriendShareOverlay(
                     .background(Color.Black.copy(alpha = 0.35f)),
                 contentAlignment = Alignment.Center,
             ) {
-                GlassSurface(cornerRadius = 20.dp) {
+                GlassSurface(cornerRadius = 20.dp, opaque = true) {
                     Column(
                         modifier = Modifier.padding(horizontal = 28.dp, vertical = 22.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -287,7 +287,7 @@ fun FriendShareOverlay(
     }
 
     errorMessage?.let { message ->
-        AlertDialog(
+        PearlMaterialAlertDialog(
             onDismissRequest = { errorMessage = null },
             confirmButton = {
                 Button(onClick = { errorMessage = null }) { Text("OK") }

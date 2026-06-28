@@ -7,8 +7,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -58,6 +61,9 @@ fun CaptureShell(
 ) {
     val darkTheme = isPearlDarkTheme()
     val theme = TabTheme.Feed
+    val imeBottom = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
+    val keyboardVisible = imeBottom > 0.dp
+    val footerBottomPadding = if (keyboardVisible) 8.dp else PearlLayout.tabBarOverlayInset
 
     Box(Modifier.fillMaxSize()) {
         LiquidBackground(theme = theme, intensity = 0.65f)
@@ -65,8 +71,7 @@ fun CaptureShell(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .statusBarsPadding()
-                .imePadding(),
+                .statusBarsPadding(),
         ) {
             Row(
                 modifier = Modifier
@@ -113,66 +118,72 @@ fun CaptureShell(
                 content()
             }
 
-            if (showShareToPublicToggle) {
-                GlassSurface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = PearlLayout.screenHorizontalPadding),
-                    cornerRadius = PearlLayout.cardCornerRadius,
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 10.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Share to Public Feed",
-                                fontWeight = FontWeight.SemiBold,
-                                color = PearlColors.heroPrimary(darkTheme),
-                            )
-                            Text(
-                                text = "Submit for community review after saving locally.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = PearlColors.heroSecondary(darkTheme),
-                            )
-                        }
-                        Switch(
-                            checked = shareToPublicFeed,
-                            onCheckedChange = onShareToPublicFeedChange,
-                        )
-                    }
-                }
-            }
-
-            Button(
-                onClick = onSave,
-                enabled = !isSaveDisabled && !isSaving,
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(
-                        start = PearlLayout.screenHorizontalPadding,
-                        end = PearlLayout.screenHorizontalPadding,
-                        top = 12.dp,
-                        bottom = PearlLayout.tabBarOverlayInset,
-                    ),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = kind.primary,
-                    disabledContainerColor = kind.primary.copy(alpha = 0.45f),
-                    disabledContentColor = Color.White.copy(alpha = 0.85f),
-                ),
+                    .imePadding()
+                    .navigationBarsPadding(),
             ) {
-                if (isSaving) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(22.dp),
-                        color = Color.White,
-                        strokeWidth = 2.dp,
-                    )
-                } else {
-                    Text(saveTitle, fontWeight = FontWeight.Bold)
+                if (showShareToPublicToggle) {
+                    GlassSurface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = PearlLayout.screenHorizontalPadding),
+                        cornerRadius = PearlLayout.cardCornerRadius,
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Share to Public Feed",
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = PearlColors.heroPrimary(darkTheme),
+                                )
+                                Text(
+                                    text = "Submit for community review after saving locally.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = PearlColors.heroSecondary(darkTheme),
+                                )
+                            }
+                            Switch(
+                                checked = shareToPublicFeed,
+                                onCheckedChange = onShareToPublicFeedChange,
+                            )
+                        }
+                    }
+                }
+
+                Button(
+                    onClick = onSave,
+                    enabled = !isSaveDisabled && !isSaving,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            start = PearlLayout.screenHorizontalPadding,
+                            end = PearlLayout.screenHorizontalPadding,
+                            top = if (showShareToPublicToggle) 8.dp else 12.dp,
+                            bottom = footerBottomPadding,
+                        ),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = kind.primary,
+                        disabledContainerColor = kind.primary.copy(alpha = 0.45f),
+                        disabledContentColor = Color.White.copy(alpha = 0.85f),
+                    ),
+                ) {
+                    if (isSaving) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(22.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp,
+                        )
+                    } else {
+                        Text(saveTitle, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }

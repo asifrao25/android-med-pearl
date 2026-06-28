@@ -71,6 +71,7 @@ fun PublicPearlSaveOverlay(
                 .fillMaxWidth(0.82f)
                 .clickable(enabled = false, onClick = {}),
             cornerRadius = 22.dp,
+            opaque = true,
         ) {
             Column(
                 modifier = Modifier.padding(14.dp),

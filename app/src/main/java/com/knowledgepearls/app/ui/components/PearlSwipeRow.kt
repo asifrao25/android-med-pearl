@@ -147,8 +147,8 @@ fun PearlSwipeRow(
     )
     val showCornerWrap = SwipeRowLayout.showsCornerWrap(displayedOffsetPx, density)
 
-    LaunchedEffect(hintActive) {
-        if (!hintActive) {
+    LaunchedEffect(enableSwipeHint) {
+        if (!enableSwipeHint) {
             hintOffset.snapTo(0f)
             return@LaunchedEffect
         }
@@ -163,7 +163,7 @@ fun PearlSwipeRow(
         didReportSwipe = true
         suppressHint = true
         scope.launch {
-            hintOffset.animateTo(0f, SwipeRowLayout.settleSpring)
+            hintOffset.snapTo(0f)
         }
         onSwipeHintDismiss()
     }
@@ -219,6 +219,9 @@ fun PearlSwipeRow(
                         var totalDragX = 0f
                         var totalDragY = 0f
                         isHorizontalSwipe = dragStartSettled != 0f
+                        if (dragStartSettled != 0f) {
+                            registerUserSwipe()
+                        }
 
                         while (true) {
                             val event = awaitPointerEvent()
@@ -234,6 +237,9 @@ fun PearlSwipeRow(
                                         settledOffset.snapTo(dragStartSettled + dragOffset)
                                         dragOffset = 0f
                                         settledOffset.animateTo(snapped, SwipeRowLayout.settleSpring)
+                                        if (snapped != 0f) {
+                                            registerUserSwipe()
+                                        }
                                     }
                                 } else {
                                     dragOffset = 0f

@@ -1,9 +1,9 @@
 package com.knowledgepearls.app.data.model
 
 import com.knowledgepearls.app.data.local.model.ClinicalCasePayload
+import com.knowledgepearls.app.data.util.SupabaseTimestamps
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import java.time.Instant
 
 @Serializable
 data class PublicPearl(
@@ -164,11 +164,14 @@ data class PublicPearl(
         }
 
     val createdAtMillis: Long?
-        get() = runCatching { Instant.parse(createdAt).toEpochMilli() }.getOrNull()
-            ?: runCatching {
-                Instant.parse(createdAt.replace(" ", "T").let { if (it.endsWith("Z")) it else "${it}Z" })
-                    .toEpochMilli()
-            }.getOrNull()
+        get() = SupabaseTimestamps.toEpochMillis(createdAt)
+
+    val moderatedAtMillis: Long?
+        get() = SupabaseTimestamps.toEpochMillis(moderatedAt)
+
+    /** Newest-first ordering for the public feed (approval time wins when present). */
+    val feedSortMillis: Long
+        get() = listOfNotNull(createdAtMillis, moderatedAtMillis).maxOrNull() ?: 0L
 
     fun matches(filter: ContentTypeFilter): Boolean = when (filter) {
         ContentTypeFilter.ALL -> true

@@ -62,7 +62,7 @@ data class PublicFeedUiState(
             }
             return sectionPearls
                 .filter { it.matches(contentTypeFilter) }
-                .sortedByDescending { it.createdAtMillis ?: 0L }
+                .sortedByDescending { it.feedSortMillis }
         }
 }
 
@@ -133,10 +133,11 @@ class PublicFeedViewModel @Inject constructor(
                 repository.fetchPage(offset = 0)
             }.onSuccess { page ->
                 val visible = page.filter(::isVisible)
+                val freshIds = visible.map { it.id }.toSet()
                 val hadNew = visible.any { pearl -> existing.none { it.id == pearl.id } }
                 _uiState.update { current ->
                     current.copy(
-                        pearls = sortNewestFirst((visible + existing).distinctBy { it.id }),
+                        pearls = sortNewestFirst(visible + existing.filter { it.id !in freshIds }),
                         isLoading = false,
                         feedRefreshGeneration = if (hadNew) {
                             current.feedRefreshGeneration + 1
@@ -448,5 +449,8 @@ class PublicFeedViewModel @Inject constructor(
     }
 
     private fun sortNewestFirst(pearls: List<PublicPearl>): List<PublicPearl> =
-        pearls.sortedByDescending { it.createdAtMillis ?: 0L }
+        pearls.sortedWith(
+            compareByDescending<PublicPearl> { it.feedSortMillis }
+                .thenByDescending { it.id },
+        )
 }

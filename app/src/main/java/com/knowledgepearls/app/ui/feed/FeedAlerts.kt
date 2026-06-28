@@ -52,6 +52,7 @@ fun PearlDeleteConfirmationDialog(
                 .padding(horizontal = 32.dp)
                 .clickable(enabled = false, onClick = {}),
             cornerRadius = PearlLayout.cardCornerRadius,
+            opaque = true,
         ) {
             Column(
                 modifier = Modifier.padding(24.dp),
@@ -104,6 +105,7 @@ fun FeedEmptyFilterAlert(
                 .padding(horizontal = 32.dp)
                 .clickable(enabled = false, onClick = {}),
             cornerRadius = PearlLayout.cardCornerRadius,
+            opaque = true,
         ) {
             Column(
                 modifier = Modifier.padding(24.dp),

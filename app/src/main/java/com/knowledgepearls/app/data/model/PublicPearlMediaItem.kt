@@ -21,10 +21,7 @@ data class PublicPearlMediaItem(
         }
 
     val isVideo: Boolean
-        get() {
-            if (type == "video") return true
-            return type == "document" && PublicPearlMediaUrls.isVideoFilename(resolvedFilename)
-        }
+        get() = type == "video" || PublicPearlMediaUrls.isVideoFilename(resolvedFilename)
 
     val isPhoto: Boolean get() = type == "photo"
 

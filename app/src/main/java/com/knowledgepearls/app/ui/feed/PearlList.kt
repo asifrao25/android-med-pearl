@@ -16,16 +16,18 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.knowledgepearls.app.data.local.model.PearlWithMedia
 import com.knowledgepearls.app.data.local.model.decodedPublicPearl
 import com.knowledgepearls.app.ui.components.PearlSwipeAction
 import com.knowledgepearls.app.ui.components.PearlSwipeRow
+import com.knowledgepearls.app.ui.components.SwipeRowHintStorage
 import com.knowledgepearls.app.ui.publicfeed.PublicFeedCard
 import com.knowledgepearls.app.ui.theme.PearlColors
 import com.knowledgepearls.app.ui.theme.PearlLayout
@@ -43,7 +45,10 @@ fun PearlList(
     modifier: Modifier = Modifier,
     theme: TabTheme = TabTheme.Feed,
 ) {
-    var swipeHintDismissed by rememberSaveable { mutableStateOf(false) }
+    val context = LocalContext.current
+    var swipeHintDismissed by remember {
+        mutableStateOf(SwipeRowHintStorage.isDismissed(context))
+    }
 
     PearlListContent(
         pearls = pearls,
@@ -53,7 +58,10 @@ fun PearlList(
         onDeleteRequest = onDeleteRequest,
         onFoldersRequest = onFoldersRequest,
         enableSwipeHintOnFirst = !swipeHintDismissed,
-        onSwipeHintDismiss = { swipeHintDismissed = true },
+        onSwipeHintDismiss = {
+            SwipeRowHintStorage.dismiss(context)
+            swipeHintDismissed = true
+        },
         modifier = modifier,
         theme = theme,
     )

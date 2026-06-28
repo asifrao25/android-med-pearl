@@ -53,7 +53,7 @@ fun PearlCommentsSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = PearlColors.canvasDark,
+        containerColor = PearlColors.popupSurface(darkTheme),
         dragHandle = null,
     ) {
         Column(

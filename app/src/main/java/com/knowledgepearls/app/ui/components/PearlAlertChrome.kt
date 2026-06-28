@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -79,6 +80,7 @@ fun PearlAlertCard(
     GlassSurface(
         modifier = modifier.fillMaxWidth(),
         cornerRadius = 22.dp,
+        opaque = true,
         content = {
             Column(
                 modifier = Modifier.padding(bottom = 4.dp),
@@ -198,6 +200,7 @@ fun PearlToastCard(
     GlassSurface(
         modifier = modifier.fillMaxWidth(),
         cornerRadius = PearlLayout.cardCornerRadius,
+        opaque = true,
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
@@ -207,4 +210,25 @@ fun PearlToastCard(
             Text(message, style = MaterialTheme.typography.bodySmall, color = accent)
         }
     }
+}
+
+@Composable
+fun PearlMaterialAlertDialog(
+    onDismissRequest: () -> Unit,
+    title: @Composable () -> Unit,
+    text: @Composable (() -> Unit)? = null,
+    confirmButton: @Composable () -> Unit,
+    dismissButton: @Composable (() -> Unit)? = null,
+) {
+    val darkTheme = isPearlDarkTheme()
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        containerColor = PearlColors.popupSurface(darkTheme),
+        titleContentColor = PearlColors.heroPrimary(darkTheme),
+        textContentColor = PearlColors.heroSecondary(darkTheme),
+        title = title,
+        text = text,
+        confirmButton = confirmButton,
+        dismissButton = dismissButton,
+    )
 }
