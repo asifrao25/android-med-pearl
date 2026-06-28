@@ -56,6 +56,10 @@ fun FloatingInboxButton(
         "Inbox"
     }
 
+    val fabSize = PearlLayout.inboxButtonSize
+    // Extra space only when pulsing so the FAB itself stays bottom-end aligned.
+    val outerSize = if (hasUnread) fabSize + 14.dp else fabSize
+
     val pulseTransition = rememberInfiniteTransition(label = "inboxFabPulse")
     val pulseScale by pulseTransition.animateFloat(
         initialValue = 1f,
@@ -77,13 +81,13 @@ fun FloatingInboxButton(
     )
 
     Box(
-        modifier = modifier.size(PearlLayout.inboxButtonSize + 16.dp),
-        contentAlignment = Alignment.Center,
+        modifier = modifier.size(outerSize),
+        contentAlignment = Alignment.BottomEnd,
     ) {
         if (hasUnread) {
             Box(
                 modifier = Modifier
-                    .size(PearlLayout.inboxButtonSize + 12.dp)
+                    .size(fabSize + 10.dp)
                     .graphicsLayer {
                         scaleX = pulseScale
                         scaleY = pulseScale
@@ -94,7 +98,7 @@ fun FloatingInboxButton(
 
         Box(
             modifier = Modifier
-                .size(PearlLayout.inboxButtonSize)
+                .size(fabSize)
                 .semantics { contentDescription = description }
                 .shadow(10.dp, CircleShape, clip = false)
                 .clip(CircleShape)
@@ -113,24 +117,24 @@ fun FloatingInboxButton(
                 tint = Color.White,
                 modifier = Modifier.size(24.dp),
             )
-        }
 
-        badgeLabel?.let { label ->
-            Text(
-                text = label,
-                color = Color.White,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .offset(x = 2.dp, y = (-2).dp)
-                    .zIndex(1f)
-                    .defaultMinSize(minWidth = 20.dp, minHeight = 20.dp)
-                    .background(Color(0xFFFF3B30), CircleShape)
-                    .border(1.5.dp, Color.White, CircleShape)
-                    .padding(horizontal = 5.dp, vertical = 2.dp),
-            )
+            badgeLabel?.let { label ->
+                Text(
+                    text = label,
+                    color = Color.White,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .offset(x = 4.dp, y = (-2).dp)
+                        .zIndex(1f)
+                        .defaultMinSize(minWidth = 20.dp, minHeight = 20.dp)
+                        .background(Color(0xFFFF3B30), CircleShape)
+                        .border(1.5.dp, Color.White, CircleShape)
+                        .padding(horizontal = 5.dp, vertical = 2.dp),
+                )
+            }
         }
     }
 }
