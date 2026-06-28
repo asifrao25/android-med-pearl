@@ -9,9 +9,13 @@ import com.knowledgepearls.app.data.model.normalizeUserId
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Order
+import io.github.jan.supabase.postgrest.rpc
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -25,15 +29,35 @@ class PublicFeedRepository @Inject constructor(
     private val json = Json { ignoreUnknownKeys = true }
 
     suspend fun fetchPage(offset: Int, limit: Int = PAGE_SIZE): List<PublicPearl> {
-        val end = offset + limit - 1
-        return supabase.from("public_pearls").select {
+        val rpcPage = runCatching {
+            supabase.postgrest.rpc(
+                "list_approved_public_pearls",
+                ListApprovedPublicPearlsParams(limit = limit, offset = offset),
+            ).decodeList<PublicPearl>()
+        }
+
+        rpcPage.onSuccess { page ->
+            if (page.isNotEmpty() || offset > 0) return page
+        }
+
+        val directPage = runCatching { fetchApprovedPageDirect(offset, limit) }
+        directPage.onSuccess { page ->
+            if (page.isNotEmpty()) return page
+        }
+
+        return rpcPage.getOrElse { rpcError ->
+            directPage.getOrElse { throw rpcError }
+        }
+    }
+
+    private suspend fun fetchApprovedPageDirect(offset: Int, limit: Int): List<PublicPearl> =
+        supabase.from("public_pearls").select {
             filter {
                 eq("status", "approved")
             }
             order(column = "created_at", order = Order.DESCENDING)
-            range(offset.toLong(), end.toLong())
-        }.decodeList<PublicPearl>()
-    }
+            range(offset.toLong(), (offset + limit - 1).toLong())
+        }.decodeList()
 
     fun getSeenIds(): Set<String> = prefs.getStringSet(KEY_SEEN, emptySet()).orEmpty()
 
@@ -113,3 +137,9 @@ class PublicFeedRepository @Inject constructor(
         private const val KEY_BLOCKED_USERS = "publicFeedBlockedUserIDs"
     }
 }
+
+@Serializable
+private data class ListApprovedPublicPearlsParams(
+    @SerialName("p_limit") val limit: Int,
+    @SerialName("p_offset") val offset: Int,
+)

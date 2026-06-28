@@ -15,11 +15,11 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface KnowledgePearlDao {
     @Transaction
-    @Query("SELECT * FROM knowledge_pearls ORDER BY updatedAt DESC")
+    @Query("SELECT * FROM knowledge_pearls ORDER BY createdAt DESC")
     fun observeAllWithMedia(): Flow<List<PearlWithMedia>>
 
     @Transaction
-    @Query("SELECT * FROM knowledge_pearls WHERE isFavourite = 1 ORDER BY updatedAt DESC")
+    @Query("SELECT * FROM knowledge_pearls WHERE isFavourite = 1 ORDER BY createdAt DESC")
     fun observeFavouritesWithMedia(): Flow<List<PearlWithMedia>>
 
     @Transaction
@@ -33,7 +33,7 @@ interface KnowledgePearlDao {
         WHERE id IN (
             SELECT pearlId FROM pearl_folder_cross_ref WHERE folderId = :folderId
         )
-        ORDER BY updatedAt DESC
+        ORDER BY createdAt DESC
         """,
     )
     fun observePearlsInFolderWithMedia(folderId: String): Flow<List<PearlWithMedia>>
@@ -76,7 +76,7 @@ interface KnowledgePearlDao {
         SELECT p.* FROM knowledge_pearls p
         INNER JOIN pearl_folder_cross_ref ref ON ref.pearlId = p.id
         WHERE ref.folderId = :folderId
-        ORDER BY p.updatedAt DESC
+        ORDER BY p.createdAt DESC
         """,
     )
     suspend fun getPearlsInFolder(folderId: String): List<KnowledgePearlEntity>

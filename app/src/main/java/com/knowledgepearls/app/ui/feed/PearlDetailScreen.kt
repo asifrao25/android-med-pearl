@@ -27,6 +27,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -127,20 +128,17 @@ fun PearlDetailScreen(
                             onOpenMedia = { mediaViewerRequest = it },
                         )
                     } else if (item.pearl.isClinicalCase()) {
-                        ClinicalCaseDetailContent(
+                        LocalClinicalCaseDetailContent(
                             pearl = item,
                             theme = theme,
                             onOpenMedia = { mediaViewerRequest = it },
                         )
                     } else {
-                        StandardPearlDetailContent(item, theme)
-                        if (item.mediaItems.isNotEmpty() || !item.pearl.linkPreviewImagePath.isNullOrBlank()) {
-                            PearlDetailMediaSection(
-                                pearl = item,
-                                theme = theme,
-                                onOpenMedia = { mediaViewerRequest = it },
-                            )
-                        }
+                        StandardLocalPearlDetailContent(
+                            pearl = item,
+                            theme = theme,
+                            onOpenMedia = { mediaViewerRequest = it },
+                        )
                     }
                 }
             }
@@ -288,65 +286,93 @@ fun PearlDetailScreen(
 }
 
 @Composable
-private fun StandardPearlDetailContent(pearl: PearlWithMedia, theme: TabTheme) {
+private fun StandardLocalPearlDetailContent(
+    pearl: PearlWithMedia,
+    theme: TabTheme,
+    onOpenMedia: (PublicPearlMediaViewerRequest) -> Unit,
+) {
     val entity = pearl.pearl
-    PearlDetailSection(title = "Notes", body = entity.notes, theme = theme)
-    if (entity.sourceReference.isNotBlank()) {
-        PearlDetailSection(title = "Source", body = entity.sourceReference, theme = theme)
-    }
-    entity.sourceURL?.takeIf { it.isNotBlank() }?.let { url ->
-        PearlDetailSection(title = "Link", body = url, theme = theme)
-    }
-    if (entity.tags.isNotEmpty()) {
-        PearlDetailSection(title = "Tags", body = entity.tags.joinToString(", "), theme = theme, linkifyBody = false)
+    val context = LocalContext.current
+
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        PearlDetailMediaSection(
+            pearl = pearl,
+            theme = theme,
+            onOpenMedia = onOpenMedia,
+            onOpenUrl = { url -> openExternalUrl(context, url) },
+        )
+
+        PearlDetailDescriptionSection(text = entity.notes, theme = theme)
+
+        if (entity.sourceReference.isNotBlank()) {
+            PearlDetailSection(
+                title = "Source / Reference",
+                body = entity.sourceReference,
+                theme = theme,
+            )
+        }
+
+        if (entity.tags.isNotEmpty()) {
+            PearlDetailSection(
+                title = "Tags",
+                body = entity.tags.joinToString(", "),
+                theme = theme,
+                linkifyBody = false,
+            )
+        }
     }
 }
 
 @Composable
-private fun ClinicalCaseDetailContent(
+private fun LocalClinicalCaseDetailContent(
     pearl: PearlWithMedia,
     theme: TabTheme,
     onOpenMedia: (PublicPearlMediaViewerRequest) -> Unit,
 ) {
     val payload = pearl.pearl.clinicalCasePayload()
-    PearlDetailSection(title = "History", body = payload.history, theme = theme, linkifyBody = false)
-    DetailSectionWithMedia("Examination", payload.examination, pearl, "examination", theme, onOpenMedia)
-    DetailSectionWithMedia("Investigation", payload.investigation, pearl, "investigation", theme, onOpenMedia)
-    PearlDetailSection(title = "Diagnosis", body = payload.diagnosis, theme = theme, linkifyBody = false)
-    DetailSectionWithMedia("Discussion", payload.discussion, pearl, "discussion", theme, onOpenMedia)
-    PearlDetailSection(title = "References", body = payload.references, theme = theme)
+
+    Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+        localClinicalSection("History", payload.history, null, pearl, theme, onOpenMedia)
+        localClinicalSection("Examination", payload.examination, "examination", pearl, theme, onOpenMedia)
+        localClinicalSection("Investigation", payload.investigation, "investigation", pearl, theme, onOpenMedia)
+        localClinicalSection("Diagnosis", payload.diagnosis, null, pearl, theme, onOpenMedia)
+        localClinicalSection("Discussion", payload.discussion, "discussion", pearl, theme, onOpenMedia)
+        if (payload.references.isNotBlank()) {
+            localClinicalSection("References", payload.references, null, pearl, theme, onOpenMedia, linkifyBody = true)
+        }
+    }
 }
 
 @Composable
-private fun DetailSectionWithMedia(
+private fun localClinicalSection(
     title: String,
     body: String,
+    sectionTag: String?,
     pearl: PearlWithMedia,
-    sectionTag: String,
     theme: TabTheme,
     onOpenMedia: (PublicPearlMediaViewerRequest) -> Unit,
+    linkifyBody: Boolean = false,
 ) {
-    val hasMedia = pearl.mediaItems.any { it.sectionTag.equals(sectionTag, ignoreCase = true) }
-    if (body.isBlank() && !hasMedia) return
+    val trimmed = body.trim()
+    val sectionItems = sectionTag?.let { tag ->
+        pearl.mediaItems.filter { it.sectionTag.equals(tag, ignoreCase = true) }
+    }.orEmpty()
+    if (trimmed.isEmpty() && sectionItems.isEmpty()) return
 
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        if (body.isNotBlank()) {
-            PearlDetailSection(title = title, body = body, theme = theme, linkifyBody = false)
-        } else {
-            com.knowledgepearls.app.ui.components.GlassSurface(
-                modifier = Modifier.fillMaxWidth(),
-                cornerRadius = 14.dp,
-            ) {
-                Column(Modifier.padding(14.dp)) {
-                    PearlDetailSectionHeaderBar(title = title, theme = theme)
-                }
-            }
+    PearlDetailClinicalCaseSection(
+        title = title,
+        body = trimmed,
+        theme = theme,
+        linkifyBody = linkifyBody,
+    ) {
+        if (sectionItems.isNotEmpty()) {
+            PearlDetailMediaSection(
+                pearl = pearl.copy(mediaItems = sectionItems),
+                theme = theme,
+                onOpenMedia = onOpenMedia,
+                carouselHeight = PearlDetailMetrics.clinicalSectionMediaHeight,
+                showAttachmentLabel = false,
+            )
         }
-        PearlDetailSectionMedia(
-            pearl = pearl,
-            sectionTag = sectionTag,
-            theme = theme,
-            onOpenMedia = onOpenMedia,
-        )
     }
 }

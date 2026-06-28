@@ -8,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -30,7 +31,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.knowledgepearls.app.ui.components.AvatarView
 import com.knowledgepearls.app.ui.components.GlassSurface
 import com.knowledgepearls.app.ui.theme.PearlColors
@@ -172,29 +175,59 @@ fun PearlDetailSectionHeaderBar(
 }
 
 @Composable
-fun PearlDetailSection(
+fun PearlDetailInfoSection(
     title: String,
-    body: String,
-    theme: TabTheme,
     modifier: Modifier = Modifier,
-    linkifyBody: Boolean = title.equals("Source", ignoreCase = true) ||
-        title.equals("References", ignoreCase = true) ||
-        title.equals("Link", ignoreCase = true),
+    content: @Composable () -> Unit,
 ) {
-    if (body.isBlank()) return
     val darkTheme = isPearlDarkTheme()
-    val context = LocalContext.current
-    val openableUrl = if (linkifyBody) parseOpenableUrl(body) else null
-
     GlassSurface(
         modifier = modifier.fillMaxWidth(),
         cornerRadius = 14.dp,
     ) {
         Column(
             modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            PearlDetailSectionHeaderBar(title = title, theme = theme)
+            Text(
+                text = title.uppercase(),
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = PearlColors.heroSecondary(darkTheme),
+                letterSpacing = 0.6.sp,
+            )
+            content()
+        }
+    }
+}
+
+@Composable
+fun PearlDetailClinicalCaseSection(
+    title: String,
+    theme: TabTheme,
+    modifier: Modifier = Modifier,
+    body: String = "",
+    linkifyBody: Boolean = title.equals("References", ignoreCase = true),
+    content: @Composable (() -> Unit)? = null,
+) {
+    val trimmedBody = body.trim()
+    if (trimmedBody.isEmpty() && content == null) return
+
+    val darkTheme = isPearlDarkTheme()
+    val context = LocalContext.current
+    val openableUrl = if (linkifyBody) parseOpenableUrl(trimmedBody) else null
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color.White.copy(alpha = if (darkTheme) 0.04f else 0.35f))
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        PearlDetailSectionHeaderBar(title = title, theme = theme)
+
+        if (trimmedBody.isNotEmpty()) {
             if (openableUrl != null) {
                 Row(
                     modifier = Modifier
@@ -207,7 +240,7 @@ fun PearlDetailSection(
                 ) {
                     Icon(Icons.Default.Link, contentDescription = null, tint = theme.primary)
                     Text(
-                        text = body.trim(),
+                        text = trimmedBody,
                         style = MaterialTheme.typography.bodyLarge,
                         color = theme.primary,
                         fontWeight = FontWeight.Medium,
@@ -221,12 +254,143 @@ fun PearlDetailSection(
                 }
             } else {
                 Text(
-                    text = body,
+                    text = trimmedBody,
                     style = MaterialTheme.typography.bodyLarge,
                     color = PearlColors.heroPrimary(darkTheme),
                 )
             }
         }
+
+        content?.let { extraContent ->
+            extraContent()
+        }
+    }
+}
+
+@Composable
+fun PearlDetailTwitterAuthorSourceBox(
+    authorName: String,
+    theme: TabTheme,
+    onOpenTweet: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val darkTheme = isPearlDarkTheme()
+    PearlDetailInfoSection(title = "Source / Reference", modifier = modifier) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(PearlColors.sectionHeaderGradient(theme, darkTheme))
+                .border(
+                    width = 1.dp,
+                    color = Color.White.copy(alpha = 0.18f),
+                    shape = RoundedCornerShape(12.dp),
+                )
+                .clickable(onClick = onOpenTweet)
+                .padding(horizontal = 14.dp, vertical = 13.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "𝕏",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+            )
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(
+                    text = "Source",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Medium,
+                    color = Color.White.copy(alpha = 0.82f),
+                )
+                Text(
+                    text = authorName,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Icon(
+                Icons.Default.OpenInNew,
+                contentDescription = "Open tweet",
+                tint = Color.White.copy(alpha = 0.88f),
+            )
+        }
+    }
+}
+
+@Composable
+fun PearlDetailSection(
+    title: String,
+    body: String,
+    theme: TabTheme,
+    modifier: Modifier = Modifier,
+    linkifyBody: Boolean = title.equals("Source", ignoreCase = true) ||
+        title.equals("Source / Reference", ignoreCase = true) ||
+        title.equals("References", ignoreCase = true) ||
+        title.equals("Link", ignoreCase = true),
+) {
+    if (body.isBlank()) return
+    val darkTheme = isPearlDarkTheme()
+    val context = LocalContext.current
+    val openableUrl = if (linkifyBody) parseOpenableUrl(body) else null
+
+    PearlDetailInfoSection(title = title, modifier = modifier) {
+        if (openableUrl != null) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .clickable { openExternalUrl(context, openableUrl) }
+                    .padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Default.Link, contentDescription = null, tint = theme.primary)
+                Text(
+                    text = body.trim(),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = theme.primary,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.weight(1f),
+                )
+                Icon(
+                    Icons.Default.OpenInNew,
+                    contentDescription = "Open link",
+                    tint = PearlColors.heroSecondary(darkTheme),
+                )
+            }
+        } else {
+            Text(
+                text = body,
+                style = MaterialTheme.typography.bodyLarge,
+                color = PearlColors.heroPrimary(darkTheme),
+            )
+        }
+    }
+}
+
+@Composable
+fun PearlDetailDescriptionSection(
+    text: String,
+    theme: TabTheme,
+    modifier: Modifier = Modifier,
+) {
+    val displayText = text.trim().ifBlank { "No description" }
+    val darkTheme = isPearlDarkTheme()
+    PearlDetailInfoSection(title = "Description", modifier = modifier) {
+        Text(
+            text = displayText,
+            style = MaterialTheme.typography.bodyLarge,
+            color = if (displayText == "No description") {
+                PearlColors.heroSecondary(darkTheme)
+            } else {
+                PearlColors.heroPrimary(darkTheme)
+            },
+        )
     }
 }
 

@@ -27,6 +27,7 @@ data class PublicPearl(
     @SerialName("like_count") val likeCount: Int = 0,
     @SerialName("ingestion_source") val ingestionSource: String = "user",
     @SerialName("external_id") val externalId: String? = null,
+    @SerialName("ingestion_meta") val ingestionMeta: ScraperIngestionMeta? = null,
     @SerialName("moderated_at") val moderatedAt: String? = null,
     @SerialName("case_payload") val casePayload: ClinicalCasePayload? = null,
 ) {
@@ -37,6 +38,69 @@ data class PublicPearl(
     val isQuickPearl: Boolean get() = contentType == "text"
 
     val isLinkPearl: Boolean get() = contentType == "link"
+
+    val isFromTwitterScraper: Boolean
+        get() = ingestionSource == "twitter_scraper" || !ingestionMeta?.tweetUrl.isNullOrBlank()
+
+    val preferredPreviewUrl: String?
+        get() = ingestionMeta?.tweetUrl?.trim()?.takeIf { it.isNotEmpty() }
+            ?: sourceUrl?.trim()?.takeIf { it.isNotEmpty() }
+
+    val canLinkToTwitterOriginalAuthor: Boolean
+        get() = isFromTwitterScraper && preferredPreviewUrl != null
+
+    val twitterOriginalAuthorLinkLabel: String
+        get() {
+            ingestionMeta?.authorName?.trim()?.takeIf { it.isNotEmpty() && !it.startsWith("@") }?.let { return it }
+            return "Original poster on X"
+        }
+
+    val originalTweetAuthorLabel: String
+        get() {
+            ingestionMeta?.authorName?.trim()?.takeIf { it.isNotEmpty() && !it.startsWith("@") }?.let { return it }
+            ingestionMeta?.authorHandle?.trim()?.takeIf { it.isNotEmpty() }?.let { handle ->
+                return if (handle.startsWith("@")) handle else "@$handle"
+            }
+            return twitterOriginalAuthorLinkLabel
+        }
+
+    val scraperTweetText: String
+        get() {
+            ingestionMeta?.tweetText?.trim()?.takeIf { it.isNotEmpty() }?.let { return it }
+            val fromTitle = title.trim()
+            if (fromTitle.isNotEmpty() && fromTitle != "Tweet") return fromTitle
+            return ""
+        }
+
+    val scraperAISummary: String
+        get() {
+            ingestionMeta?.aiSummary?.trim()?.takeIf { it.isNotEmpty() }?.let { return it }
+            val noteText = notes.trim()
+            if (noteText.isNotEmpty() && noteText != scraperTweetText) return noteText
+            return ""
+        }
+
+    val scraperLearningPoint: String
+        get() {
+            ingestionMeta?.teachingPoint?.trim()?.takeIf { it.isNotEmpty() }?.let { return it }
+            ingestionMeta?.answer?.trim()?.takeIf { it.isNotEmpty() }?.let { return it }
+            return ""
+        }
+
+    val scraperExternalLinks: List<ScraperSourceLink>
+        get() {
+            val links = ingestionMeta?.sourceLinks.orEmpty()
+            return links.filter { link ->
+                val host = runCatching { android.net.Uri.parse(link.url).host?.lowercase() }.getOrNull().orEmpty()
+                if (host.contains("x.com") || host.contains("twitter.com")) return@filter false
+                val preferred = preferredPreviewUrl
+                if (preferred != null && link.url == preferred) return@filter false
+                true
+            }
+        }
+
+    val caseSectionMediaItems: List<PublicPearlMediaItem>
+        get() = resolvedMediaItems.filter { !it.section.isNullOrBlank() }
 
     val resolvedMediaItems: List<PublicPearlMediaItem>
         get() {

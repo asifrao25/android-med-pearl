@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 enum class PublicFeedSection(val label: String) {
@@ -24,6 +25,7 @@ enum class PublicFeedSection(val label: String) {
 
 data class PublicFeedUiState(
     val pearls: List<PublicPearl> = emptyList(),
+    val feedRefreshGeneration: Int = 0,
     val section: PublicFeedSection = PublicFeedSection.NEW,
     val contentTypeFilter: ContentTypeFilter = ContentTypeFilter.ALL,
     val isLoading: Boolean = false,
@@ -58,7 +60,9 @@ data class PublicFeedUiState(
                 PublicFeedSection.NEW -> unseenPearls
                 PublicFeedSection.SEEN -> seenPearls
             }
-            return sectionPearls.filter { it.matches(contentTypeFilter) }
+            return sectionPearls
+                .filter { it.matches(contentTypeFilter) }
+                .sortedByDescending { it.createdAtMillis ?: 0L }
         }
 }
 
@@ -78,9 +82,11 @@ class PublicFeedViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(PublicFeedUiState(seenIds = seenIds))
     val uiState: StateFlow<PublicFeedUiState> = _uiState.asStateFlow()
+    private var loadJob: Job? = null
 
     fun loadInitial() {
-        viewModelScope.launch {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             currentOffset = 0
             seenIds = repository.getSeenIds()
             hiddenIds = repository.getHiddenIds()
@@ -88,12 +94,67 @@ class PublicFeedViewModel @Inject constructor(
             _uiState.update {
                 it.copy(
                     pearls = emptyList(),
+                    feedRefreshGeneration = it.feedRefreshGeneration + 1,
                     isLoading = true,
                     hasMore = true,
                     errorMessage = null,
-                ).copy(seenIds = seenIds)
+                    seenIds = seenIds,
+                )
             }
             loadNextPageInternal(reset = true)
+        }
+    }
+
+    /** Fetches the latest approved pearls and merges them into the current list. */
+    fun refreshFeed() {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
+            seenIds = repository.getSeenIds()
+            hiddenIds = repository.getHiddenIds()
+            blockedUserIds = repository.getBlockedUserIds()
+            val existing = _uiState.value.pearls
+            if (existing.isEmpty()) {
+                currentOffset = 0
+                _uiState.update {
+                    it.copy(
+                        feedRefreshGeneration = it.feedRefreshGeneration + 1,
+                        isLoading = true,
+                        hasMore = true,
+                        errorMessage = null,
+                        seenIds = seenIds,
+                    )
+                }
+                loadNextPageInternal(reset = true)
+                return@launch
+            }
+
+            _uiState.update { it.copy(isLoading = true, errorMessage = null, seenIds = seenIds) }
+            runCatching {
+                repository.fetchPage(offset = 0)
+            }.onSuccess { page ->
+                val visible = page.filter(::isVisible)
+                val hadNew = visible.any { pearl -> existing.none { it.id == pearl.id } }
+                _uiState.update { current ->
+                    current.copy(
+                        pearls = sortNewestFirst((visible + existing).distinctBy { it.id }),
+                        isLoading = false,
+                        feedRefreshGeneration = if (hadNew) {
+                            current.feedRefreshGeneration + 1
+                        } else {
+                            current.feedRefreshGeneration
+                        },
+                        seenIds = seenIds,
+                    )
+                }
+                syncEngagement(visible.map { it.id })
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = error.message ?: "Could not refresh public feed.",
+                    )
+                }
+            }
         }
     }
 
@@ -117,7 +178,9 @@ class PublicFeedViewModel @Inject constructor(
             val visible = page.filter(::isVisible)
             _uiState.update { current ->
                 current.copy(
-                    pearls = if (reset) visible else current.pearls + visible,
+                    pearls = sortNewestFirst(
+                        if (reset) visible else current.pearls + visible,
+                    ),
                     isLoading = false,
                     showEmptyFilterAlert = shouldShowEmptyFilterAlert(current.contentTypeFilter, reset, visible),
                 ).copy(seenIds = seenIds)
@@ -383,4 +446,7 @@ class PublicFeedViewModel @Inject constructor(
         val pearls = if (reset) latestPage else _uiState.value.pearls
         return pearls.none { it.matches(filter) }
     }
+
+    private fun sortNewestFirst(pearls: List<PublicPearl>): List<PublicPearl> =
+        pearls.sortedByDescending { it.createdAtMillis ?: 0L }
 }

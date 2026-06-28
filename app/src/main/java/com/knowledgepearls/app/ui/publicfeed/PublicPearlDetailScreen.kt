@@ -23,13 +23,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.knowledgepearls.app.data.model.PublicPearl
 import com.knowledgepearls.app.ui.components.DetailDockAction
 import com.knowledgepearls.app.ui.components.LiquidDetailDock
 import com.knowledgepearls.app.ui.feed.PearlDetailAuthorBar
-import com.knowledgepearls.app.ui.feed.PearlDetailSection
 import com.knowledgepearls.app.ui.feed.PearlDetailTitleBar
+import com.knowledgepearls.app.ui.feed.PublicPearlDetailBody
+import com.knowledgepearls.app.ui.feed.openExternalUrl
 import com.knowledgepearls.app.ui.theme.LiquidBackground
 import com.knowledgepearls.app.ui.theme.PearlLayout
 import com.knowledgepearls.app.ui.theme.TabTheme
@@ -57,6 +59,7 @@ fun PublicPearlDetailScreen(
     onPostComment: (String) -> Unit,
 ) {
     val theme = TabTheme.PublicFeed
+    val context = LocalContext.current
     var mediaViewerRequest by remember(pearl.id) { mutableStateOf<PublicPearlMediaViewerRequest?>(null) }
     var commentsSheetOpen by remember(commentsVisible) { mutableStateOf(commentsVisible) }
     var savedFeedback by remember(pearl.id) { mutableStateOf(false) }
@@ -120,12 +123,18 @@ fun PublicPearlDetailScreen(
                     .padding(top = 12.dp, bottom = PearlLayout.detailScrollBottomPadding),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                PearlDetailTitleBar(title = pearl.titleDisplay)
+                if (!pearl.isFromTwitterScraper) {
+                    PearlDetailTitleBar(title = pearl.titleDisplay)
+                }
 
-                PublicPearlDetailMediaSection(
+                PublicPearlDetailBody(
                     pearl = pearl,
                     theme = theme,
                     onOpenMedia = { mediaViewerRequest = it },
+                    onOpenUrl = { url -> openExternalUrl(context, url) },
+                    onOpenTweet = {
+                        pearl.preferredPreviewUrl?.let { openExternalUrl(context, it) }
+                    },
                 )
 
                 PublicPearlEngagementBar(
@@ -140,43 +149,6 @@ fun PublicPearlDetailScreen(
                         onOpenComments()
                     },
                 )
-
-                if (pearl.isClinicalCase) {
-                    pearl.casePayload?.history?.takeIf { it.isNotBlank() }?.let {
-                        PearlDetailSection(title = "History", body = it, theme = theme, linkifyBody = false)
-                    }
-                    pearl.casePayload?.examination?.takeIf { it.isNotBlank() }?.let {
-                        PearlDetailSection(title = "Examination", body = it, theme = theme, linkifyBody = false)
-                    }
-                    pearl.casePayload?.investigation?.takeIf { it.isNotBlank() }?.let {
-                        PearlDetailSection(title = "Investigation", body = it, theme = theme, linkifyBody = false)
-                    }
-                    pearl.casePayload?.diagnosis?.takeIf { it.isNotBlank() }?.let {
-                        PearlDetailSection(title = "Diagnosis", body = it, theme = theme, linkifyBody = false)
-                    }
-                    pearl.casePayload?.discussion?.takeIf { it.isNotBlank() }?.let {
-                        PearlDetailSection(title = "Discussion", body = it, theme = theme, linkifyBody = false)
-                    }
-                } else if (pearl.notes.isNotBlank()) {
-                    PearlDetailSection(title = "Notes", body = pearl.notes, theme = theme, linkifyBody = false)
-                }
-
-                pearl.linkPreviewDescription?.takeIf { it.isNotBlank() }?.let {
-                    PearlDetailSection(title = "Preview", body = it, theme = theme, linkifyBody = false)
-                }
-
-                pearl.effectiveSourceReference.takeIf { it.isNotBlank() }?.let {
-                    PearlDetailSection(title = "Source", body = it, theme = theme)
-                }
-
-                if (pearl.tags.isNotEmpty()) {
-                    PearlDetailSection(
-                        title = "Tags",
-                        body = pearl.tags.joinToString(", "),
-                        theme = theme,
-                        linkifyBody = false,
-                    )
-                }
             }
         }
 

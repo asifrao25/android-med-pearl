@@ -32,6 +32,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.knowledgepearls.app.ui.folders.FolderPickerOverlay
 import com.knowledgepearls.app.ui.folders.FoldersViewModel
 import com.knowledgepearls.app.ui.components.HeaderIconButton
+import com.knowledgepearls.app.ui.components.InboxHeaderButton
 import com.knowledgepearls.app.ui.components.TabScreenHeader
 import com.knowledgepearls.app.ui.theme.LiquidBackground
 import com.knowledgepearls.app.ui.theme.PearlLayout
@@ -46,6 +47,9 @@ fun FeedScreen(
     feedAuthorContext: FeedAuthorContext,
     onResolveAvatarUrl: suspend (String) -> String?,
     onOpenSettings: () -> Unit,
+    isSignedIn: Boolean = false,
+    inboxBadgeCount: Int = 0,
+    onOpenInbox: () -> Unit = {},
     onPearlClick: (String) -> Unit,
     onSearchQueryChange: (String) -> Unit,
     onSearchActiveChange: (Boolean) -> Unit,
@@ -90,6 +94,13 @@ fun FeedScreen(
                 theme = theme,
                 onSettingsClick = onOpenSettings,
                 trailing = {
+                    if (isSignedIn) {
+                        InboxHeaderButton(
+                            theme = theme,
+                            inboxBadgeCount = inboxBadgeCount,
+                            onClick = onOpenInbox,
+                        )
+                    }
                     if (!uiState.isSearchActive) {
                         HeaderIconButton(theme = theme, onClick = { onSearchActiveChange(true) }) {
                             Icon(Icons.Default.Search, contentDescription = "Search", tint = theme.primary)

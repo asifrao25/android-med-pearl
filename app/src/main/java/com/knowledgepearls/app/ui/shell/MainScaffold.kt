@@ -18,6 +18,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.knowledgepearls.app.ui.account.AccountViewModel
 import com.knowledgepearls.app.ui.account.AuthScreen
@@ -31,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import com.knowledgepearls.app.data.connectivity.BackendHealthMonitor
 import com.knowledgepearls.app.data.connectivity.ConnectivityMonitor
 import com.knowledgepearls.app.ui.components.ConnectivityOverlays
+import com.knowledgepearls.app.ui.components.interactiveKeyboardDismiss
 import com.knowledgepearls.app.ui.components.InboxUnreadReminderChip
 import com.knowledgepearls.app.ui.components.CacheClearedSuccessAlert
 import com.knowledgepearls.app.ui.components.LiquidTabBar
@@ -53,7 +57,9 @@ import com.knowledgepearls.app.ui.tabs.PublicFeedTabScreen
 import com.knowledgepearls.app.ui.publicfeed.PublicFeedViewModel
 import com.knowledgepearls.app.ui.theme.PearlLayout
 import com.knowledgepearls.app.ui.theme.TabTheme
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.compose.runtime.DisposableEffect
 
 @Composable
 fun MainScaffold(
@@ -155,10 +161,53 @@ fun MainScaffold(
         }
     }
 
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, showSplash, accountState.isSignedIn, selectedTab) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME && !showSplash && accountState.isSignedIn) {
+                inboxViewModel.refreshBadge()
+            }
+            if (
+                event == Lifecycle.Event.ON_RESUME &&
+                !showSplash &&
+                accountState.isSignedIn &&
+                selectedTab == MainTab.PublicFeed
+            ) {
+                publicFeedViewModel.refreshFeed()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    var wasNetworkConnected by rememberSaveable { mutableStateOf(true) }
+    LaunchedEffect(connectivityState.isConnected, connectivityState.isOfflineMode, showSplash, accountState.isSignedIn) {
+        val connected = connectivityState.isConnected && !connectivityState.isOfflineMode
+        if (
+            !showSplash &&
+            accountState.isSignedIn &&
+            connected &&
+            !wasNetworkConnected
+        ) {
+            publicFeedViewModel.refreshFeed()
+        }
+        wasNetworkConnected = connected
+    }
+
+    LaunchedEffect(selectedTab, showSplash, accountState.isSignedIn) {
+        if (showSplash || !accountState.isSignedIn || selectedTab != MainTab.PublicFeed) return@LaunchedEffect
+        publicFeedViewModel.refreshFeed()
+        while (true) {
+            delay(PUBLIC_FEED_AUTO_REFRESH_MS)
+            publicFeedViewModel.refreshFeed()
+        }
+    }
+
     LaunchedEffect(accountState.isSignedIn, showSplash) {
         if (!showSplash && accountState.isSignedIn) {
             inboxViewModel.refreshBadge()
             inboxBadgeCount = inboxState.unreadBadge
+            publicFeedViewModel.refreshFeed()
         } else if (!accountState.isSignedIn) {
             inboxBadgeCount = 0
         }
@@ -188,13 +237,18 @@ fun MainScaffold(
         profileUserId = userId
     }
 
-    Box(Modifier.fillMaxSize()) {
+    Box(Modifier.fillMaxSize().interactiveKeyboardDismiss()) {
         Crossfade(targetState = backdropTab, label = "tabBackdrop") { tab ->
             when (tab) {
                 MainTab.Feed -> FeedTabScreen(
                     onOpenSettings = { settingsOpen = true },
                     onSignInRequired = { authOpen = true },
                     onOpenUserProfile = openUserProfile,
+                    onOpenInbox = {
+                        inboxOpen = true
+                        inboxViewModel.loadInbox()
+                    },
+                    inboxBadgeCount = inboxBadgeCount,
                     shareImport = shareImport,
                     onShareImportConsumed = {
                         shareImport = null
@@ -205,10 +259,18 @@ fun MainScaffold(
                     onOpenSettings = { settingsOpen = true },
                     onSignInRequired = { authOpen = true },
                     onOpenUserProfile = openUserProfile,
+                    onOpenInbox = {
+                        inboxOpen = true
+                        inboxViewModel.loadInbox()
+                    },
+                    inboxBadgeCount = inboxBadgeCount,
                 )
                 MainTab.PublicFeed -> PublicFeedTabScreen(
                     onOpenSettings = { settingsOpen = true },
-                    onOpenInbox = { inboxOpen = true },
+                    onOpenInbox = {
+                        inboxOpen = true
+                        inboxViewModel.loadInbox()
+                    },
                     inboxBadgeCount = inboxBadgeCount,
                     connectivityState = connectivityState,
                     onRetryConnection = connectivityMonitor::retryConnection,
@@ -450,7 +512,6 @@ fun MainScaffold(
                 senderName = sender,
                 onOpenInbox = {
                     pearlShareToast = null
-                    selectedTab = MainTab.PublicFeed
                     inboxOpen = true
                     inboxViewModel.loadInbox()
                 },
@@ -459,3 +520,5 @@ fun MainScaffold(
         }
     }
 }
+
+private const val PUBLIC_FEED_AUTO_REFRESH_MS = 45_000L

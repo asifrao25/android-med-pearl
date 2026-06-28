@@ -78,6 +78,19 @@ mkdir -p gradle
 echo 'java.home=/Applications/Android Studio.app/Contents/jbr/Contents/Home' > gradle/config.properties
 ```
 
+## Fix duplicate `androidx.activity.compose.R` (dex merge)
+
+**Cause:** Stale `app/build/` folders synced via m4sync, or multiple Activity Compose versions on the classpath.
+
+On your **MacBook** after syncing:
+
+```bash
+cd "/Users/asif/.m4sync/mirror/Xcode-projects/Android studio/Med-Pearls-Android"
+./scripts/clean-build.sh
+```
+
+Then **Build → Rebuild Project** in Android Studio.
+
 ## Open in Android Studio (MacBook)
 
 1. Sync this folder to your MacBook (same path or any location).

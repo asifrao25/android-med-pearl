@@ -1,6 +1,7 @@
 package com.knowledgepearls.app.ui.tabs
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,6 +34,8 @@ fun FeedTabScreen(
     onOpenSettings: () -> Unit,
     onSignInRequired: () -> Unit = {},
     onOpenUserProfile: (String) -> Unit = {},
+    onOpenInbox: () -> Unit = {},
+    inboxBadgeCount: Int = 0,
     shareImport: ShareImportPayload? = null,
     onShareImportConsumed: () -> Unit = {},
     feedViewModel: FeedViewModel = hiltViewModel(),
@@ -72,6 +75,9 @@ fun FeedTabScreen(
                 feedAuthorContext = feedAuthorContext,
                 onResolveAvatarUrl = feedViewModel::fetchAvatarUrl,
                 onOpenSettings = onOpenSettings,
+                isSignedIn = accountState.isSignedIn,
+                inboxBadgeCount = inboxBadgeCount,
+                onOpenInbox = onOpenInbox,
                 onPearlClick = { id -> navController.navigate("pearl/$id") },
                 onSearchQueryChange = feedViewModel::setSearchQuery,
                 onSearchActiveChange = feedViewModel::setSearchActive,
@@ -190,6 +196,8 @@ fun FavouritesTabScreen(
     onOpenSettings: () -> Unit,
     onSignInRequired: () -> Unit = {},
     onOpenUserProfile: (String) -> Unit = {},
+    onOpenInbox: () -> Unit = {},
+    inboxBadgeCount: Int = 0,
     favouritesViewModel: com.knowledgepearls.app.ui.favourites.FavouritesViewModel = hiltViewModel(),
     feedViewModel: FeedViewModel = hiltViewModel(),
     accountViewModel: AccountViewModel = hiltViewModel(),
@@ -209,6 +217,9 @@ fun FavouritesTabScreen(
                 feedAuthorContext = feedAuthorContext,
                 onResolveAvatarUrl = feedViewModel::fetchAvatarUrl,
                 onOpenSettings = onOpenSettings,
+                isSignedIn = accountState.isSignedIn,
+                inboxBadgeCount = inboxBadgeCount,
+                onOpenInbox = onOpenInbox,
                 onPearlClick = { id -> navController.navigate("pearl/$id") },
             )
         }
@@ -247,6 +258,16 @@ fun PublicFeedTabScreen(
     val accountState by accountViewModel.uiState.collectAsStateWithLifecycle()
     val folders by foldersViewModel.foldersWithCounts.collectAsStateWithLifecycle()
 
+    DisposableEffect(navController, accountState.isSignedIn) {
+        val listener = androidx.navigation.NavController.OnDestinationChangedListener { _, destination, _ ->
+            if (accountState.isSignedIn && destination.route == "public_feed") {
+                viewModel.refreshFeed()
+            }
+        }
+        navController.addOnDestinationChangedListener(listener)
+        onDispose { navController.removeOnDestinationChangedListener(listener) }
+    }
+
     NavHost(
         navController = navController,
         startDestination = "public_feed",
@@ -263,6 +284,7 @@ fun PublicFeedTabScreen(
                     navController.navigate("public_pearl/$pearlId")
                 },
                 onLoadInitial = viewModel::loadInitial,
+                onRefreshFeed = viewModel::refreshFeed,
                 onLoadNextPage = viewModel::loadNextPage,
                 onSectionSelected = viewModel::setSection,
                 onContentTypeSelected = viewModel::setContentTypeFilter,
@@ -299,6 +321,7 @@ fun PublicFeedTabScreen(
                     onSignIn = onSignIn,
                     onPearlClick = {},
                     onLoadInitial = viewModel::loadInitial,
+                onRefreshFeed = viewModel::refreshFeed,
                     onLoadNextPage = viewModel::loadNextPage,
                     onSectionSelected = viewModel::setSection,
                     onContentTypeSelected = viewModel::setContentTypeFilter,

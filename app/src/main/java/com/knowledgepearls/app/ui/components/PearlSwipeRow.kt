@@ -6,16 +6,18 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -28,13 +30,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.foundation.layout.size
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -43,6 +46,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import com.knowledgepearls.app.ui.theme.PearlLayout
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -101,6 +105,11 @@ object SwipeRowLayout {
     }
 
     val cardMaskColorValue: Color get() = cardMaskColor
+
+    val settleSpring = spring<Float>(
+        dampingRatio = 0.82f,
+        stiffness = Spring.StiffnessMedium,
+    )
 }
 
 @Composable
@@ -115,48 +124,60 @@ fun PearlSwipeRow(
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
     val settledOffset = remember { Animatable(0f) }
+    val hintOffset = remember { Animatable(0f) }
     var dragOffset by remember { mutableFloatStateOf(0f) }
-    var hintOffset by remember { mutableFloatStateOf(0f) }
+    var isHorizontalSwipe by remember { mutableStateOf(false) }
+    var suppressHint by remember { mutableStateOf(false) }
     var didReportSwipe by remember { mutableStateOf(false) }
 
+    val hintActive = enableSwipeHint && !suppressHint
+    val cornerRadiusPx = SwipeRowLayout.cornerRadiusPx(density)
+    val cardMaskShape = remember(cornerRadiusPx) { SwipeRowCardMaskShape(cornerRadiusPx) }
+    val actionWidthPx = SwipeRowLayout.maxSwipeOffsetPx(density)
+
     val displayedOffsetPx = SwipeRowLayout.clampedOffsetPx(
-        settledOffset.value + dragOffset + if (settledOffset.value != 0f || !enableSwipeHint) {
+        settledOffset.value + dragOffset + if (
+            isHorizontalSwipe || settledOffset.value != 0f || !hintActive
+        ) {
             0f
         } else {
-            hintOffset
+            hintOffset.value
         },
         density,
     )
+    val showCornerWrap = SwipeRowLayout.showsCornerWrap(displayedOffsetPx, density)
 
-    LaunchedEffect(enableSwipeHint) {
-        if (!enableSwipeHint) {
-            hintOffset = 0f
+    LaunchedEffect(hintActive) {
+        if (!hintActive) {
+            hintOffset.snapTo(0f)
             return@LaunchedEffect
         }
-        val max = SwipeRowLayout.maxSwipeOffsetPx(density)
-        val steps = listOf(0f, max * 0.45f, -max * 0.45f, 0f)
-        for (value in steps) {
-            hintOffset = value
-            kotlinx.coroutines.delay(if (value == 0f) 350 else 450)
+        SwipeRowHintAnimation.run(
+            hintOffset = hintOffset,
+            actionWidthPx = actionWidthPx,
+        )
+    }
+
+    fun registerUserSwipe() {
+        if (didReportSwipe) return
+        didReportSwipe = true
+        suppressHint = true
+        scope.launch {
+            hintOffset.animateTo(0f, SwipeRowLayout.settleSpring)
         }
         onSwipeHintDismiss()
     }
 
     fun close() {
         scope.launch {
-            settledOffset.animateTo(
-                targetValue = 0f,
-                animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-            )
+            settledOffset.animateTo(0f, SwipeRowLayout.settleSpring)
         }
         dragOffset = 0f
     }
 
-    val cornerRadiusPx = SwipeRowLayout.cornerRadiusPx(density)
-    val cardMaskShape = remember(cornerRadiusPx) { SwipeRowCardMaskShape(cornerRadiusPx) }
-    val showCornerWrap = SwipeRowLayout.showsCornerWrap(displayedOffsetPx, density)
-
-    Box(modifier = modifier.fillMaxWidth()) {
+    Box(
+        modifier = modifier.fillMaxWidth(),
+    ) {
         Box(Modifier.matchParentSize()) {
             if (leadingAction != null && displayedOffsetPx > 1f) {
                 SwipeActionRevealColumn(
@@ -191,52 +212,73 @@ fun PearlSwipeRow(
             modifier = Modifier
                 .fillMaxWidth()
                 .offset { IntOffset(displayedOffsetPx.roundToInt(), 0) }
-                .then(
-                    if (showCornerWrap) {
-                        Modifier.background(SwipeRowLayout.cardMaskColorValue, cardMaskShape)
-                    } else {
-                        Modifier
-                    },
-                )
                 .pointerInput(leadingAction, trailingAction) {
-                    var dragStartSettled = 0f
-                    var totalDrag = 0f
-                    detectHorizontalDragGestures(
-                        onDragStart = {
-                            dragStartSettled = settledOffset.value
-                            totalDrag = 0f
-                            if (!didReportSwipe) {
-                                didReportSwipe = true
-                                hintOffset = 0f
-                                onSwipeHintDismiss()
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        var dragStartSettled = settledOffset.value
+                        var totalDragX = 0f
+                        var totalDragY = 0f
+                        isHorizontalSwipe = dragStartSettled != 0f
+
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                            if (!change.pressed) {
+                                if (isHorizontalSwipe) {
+                                    val snapped = SwipeRowLayout.snapOffsetPx(
+                                        totalPx = dragStartSettled + totalDragX,
+                                        startingOffsetPx = dragStartSettled,
+                                        density = density,
+                                    )
+                                    scope.launch {
+                                        settledOffset.snapTo(dragStartSettled + dragOffset)
+                                        dragOffset = 0f
+                                        settledOffset.animateTo(snapped, SwipeRowLayout.settleSpring)
+                                    }
+                                } else {
+                                    dragOffset = 0f
+                                }
+                                isHorizontalSwipe = false
+                                break
                             }
-                        },
-                        onHorizontalDrag = { _, dragAmount ->
-                            totalDrag += dragAmount
-                            val proposed = dragStartSettled + totalDrag
-                            dragOffset = SwipeRowLayout.clampedOffsetPx(proposed, density) - dragStartSettled
-                        },
-                        onDragEnd = {
-                            val snapped = SwipeRowLayout.snapOffsetPx(
-                                totalPx = dragStartSettled + totalDrag,
-                                startingOffsetPx = dragStartSettled,
-                                density = density,
-                            )
-                            scope.launch {
-                                settledOffset.snapTo(dragStartSettled + dragOffset)
-                                dragOffset = 0f
-                                settledOffset.animateTo(
-                                    targetValue = snapped,
-                                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                                )
+
+                            val delta = change.positionChange()
+                            if (!change.isConsumed) {
+                                totalDragX += delta.x
+                                totalDragY += delta.y
                             }
-                        },
-                        onDragCancel = {
-                            dragOffset = 0f
-                        },
-                    )
+
+                            val dx = abs(totalDragX)
+                            val dy = abs(totalDragY)
+
+                            if (!isHorizontalSwipe) {
+                                if (dx <= 8f) continue
+                                if (dy >= dx) continue
+                                isHorizontalSwipe = true
+                                registerUserSwipe()
+                            }
+
+                            if (isHorizontalSwipe) {
+                                val proposed = dragStartSettled + totalDragX
+                                dragOffset = SwipeRowLayout.clampedOffsetPx(proposed, density) - dragStartSettled
+                                change.consume()
+                            }
+                        }
+                    }
                 },
         ) {
+            if (showCornerWrap) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .background(SwipeRowLayout.cardMaskColorValue, cardMaskShape),
+                )
+            }
+
+            Box(Modifier.fillMaxWidth()) {
+                content()
+            }
+
             if (showCornerWrap && displayedOffsetPx > 0f && leadingAction != null) {
                 SwipeActionCornerWrap(
                     edge = SwipeActionEdge.Leading,
@@ -244,7 +286,8 @@ fun PearlSwipeRow(
                     cornerRadiusPx = cornerRadiusPx,
                     modifier = Modifier
                         .align(Alignment.CenterStart)
-                        .offset(x = -SwipeRowLayout.cornerRadius),
+                        .offset(x = -SwipeRowLayout.cornerRadius)
+                        .zIndex(1f),
                 )
             }
             if (showCornerWrap && displayedOffsetPx < 0f && trailingAction != null) {
@@ -254,10 +297,10 @@ fun PearlSwipeRow(
                     cornerRadiusPx = cornerRadiusPx,
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
-                        .offset(x = SwipeRowLayout.cornerRadius),
+                        .offset(x = SwipeRowLayout.cornerRadius)
+                        .zIndex(1f),
                 )
             }
-            content()
         }
     }
 }
@@ -273,6 +316,8 @@ private fun SwipeActionRevealColumn(
 ) {
     val density = LocalDensity.current
     val clipWidthPx = SwipeRowLayout.capClipWidthPx(offsetPx, density)
+    if (clipWidthPx <= 1f) return
+
     val clipWidth = with(density) { clipWidthPx.toDp() }
     val capWidth = SwipeRowLayout.capWidth
     val backgroundShape = remember(edge, cornerRadiusPx) {
@@ -282,8 +327,7 @@ private fun SwipeActionRevealColumn(
     Box(
         modifier = modifier
             .width(clipWidth)
-            .fillMaxHeight()
-            .clip(RectangleShape),
+            .fillMaxHeight(),
         contentAlignment = if (edge == SwipeActionEdge.Leading) Alignment.CenterStart else Alignment.CenterEnd,
     ) {
         Box(
@@ -302,9 +346,10 @@ private fun SwipeActionRevealColumn(
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp),
                 modifier = Modifier
                     .width(SwipeRowLayout.actionWidth)
-                    .padding(horizontal = 4.dp),
+                    .padding(horizontal = 4.dp, vertical = 8.dp),
             ) {
                 Icon(
                     imageVector = action.icon,
@@ -333,29 +378,28 @@ private fun SwipeActionCornerWrap(
     modifier: Modifier = Modifier,
 ) {
     val cornerSize = with(LocalDensity.current) { cornerRadiusPx.toDp() }
-    Column(
+    Canvas(
         modifier = modifier
             .width(cornerSize)
             .fillMaxHeight(),
     ) {
-        Canvas(modifier = Modifier.size(cornerSize)) {
-            drawPath(
-                path = swipeActionInnerCornerPath(
-                    edge = edge,
-                    isTop = true,
-                    size = Size(size.width, size.height),
-                    cornerRadiusPx = cornerRadiusPx,
-                ),
-                color = color,
-            )
-        }
-        Box(modifier = Modifier.weight(1f))
-        Canvas(modifier = Modifier.size(cornerSize)) {
+        val cornerSizePx = cornerRadiusPx
+        val topSize = Size(cornerSizePx, cornerSizePx)
+        drawPath(
+            path = swipeActionInnerCornerPath(
+                edge = edge,
+                isTop = true,
+                size = topSize,
+                cornerRadiusPx = cornerRadiusPx,
+            ),
+            color = color,
+        )
+        translate(top = this.size.height - cornerSizePx) {
             drawPath(
                 path = swipeActionInnerCornerPath(
                     edge = edge,
                     isTop = false,
-                    size = Size(size.width, size.height),
+                    size = topSize,
                     cornerRadiusPx = cornerRadiusPx,
                 ),
                 color = color,

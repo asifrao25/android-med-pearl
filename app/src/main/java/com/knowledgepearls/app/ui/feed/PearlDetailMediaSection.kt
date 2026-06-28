@@ -3,11 +3,9 @@ package com.knowledgepearls.app.ui.feed
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.knowledgepearls.app.data.local.model.PearlWithMedia
 import com.knowledgepearls.app.ui.media.localPearlMediaSlides
@@ -17,9 +15,7 @@ import com.knowledgepearls.app.ui.publicfeed.PublicPearlMediaCarousel
 import com.knowledgepearls.app.ui.publicfeed.PublicPearlMediaSlide
 import com.knowledgepearls.app.ui.publicfeed.PublicPearlMediaSlideView
 import com.knowledgepearls.app.ui.publicfeed.PublicPearlMediaViewerRequest
-import com.knowledgepearls.app.ui.theme.PearlColors
 import com.knowledgepearls.app.ui.theme.TabTheme
-import com.knowledgepearls.app.ui.theme.isPearlDarkTheme
 
 @Composable
 fun PearlDetailSectionMedia(
@@ -28,6 +24,7 @@ fun PearlDetailSectionMedia(
     theme: TabTheme,
     onOpenMedia: (PublicPearlMediaViewerRequest) -> Unit,
     modifier: Modifier = Modifier,
+    carouselHeight: Dp = PearlDetailMetrics.clinicalSectionMediaHeight,
 ) {
     val sectionItems = pearl.mediaItems.filter { it.sectionTag.equals(sectionTag, ignoreCase = true) }
     if (sectionItems.isEmpty()) return
@@ -37,6 +34,8 @@ fun PearlDetailSectionMedia(
         theme = theme,
         onOpenMedia = onOpenMedia,
         modifier = modifier,
+        carouselHeight = carouselHeight,
+        showAttachmentLabel = false,
     )
 }
 
@@ -46,61 +45,60 @@ fun PearlDetailMediaSection(
     theme: TabTheme,
     onOpenMedia: (PublicPearlMediaViewerRequest) -> Unit,
     modifier: Modifier = Modifier,
+    carouselHeight: Dp = PearlDetailMetrics.openedMediaCarouselHeight,
+    showAttachmentLabel: Boolean = true,
+    onOpenUrl: (String) -> Unit = {},
 ) {
+    val entity = pearl.pearl
     val slides = localPearlMediaSlides(pearl.mediaItems)
-    val darkTheme = isPearlDarkTheme()
-    val openSlide: (PublicPearlMediaSlide) -> Unit = { slide ->
-        pearlMediaViewerRequest(pearl, slide)?.let(onOpenMedia)
-    }
+    val linkUrl = entity.sourceURL?.trim()?.takeIf { it.isNotEmpty() && slides.isEmpty() }
 
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         when {
-            slides.isNotEmpty() -> {
-                Text(
-                    text = if (slides.size > 1) "Attachments" else "Attachment",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = PearlColors.heroPrimary(darkTheme),
+            linkUrl != null -> {
+                LinkPearlPreviewSection(
+                    url = linkUrl,
+                    theme = theme,
+                    onOpenExternal = onOpenUrl,
+                    onOpenBrowser = {
+                        parseOpenableUrl(linkUrl)?.let(onOpenUrl)
+                    },
                 )
+            }
+            slides.isNotEmpty() -> {
                 if (slides.size > 1) {
                     PublicPearlMediaCarousel(
                         slides = slides,
                         theme = theme,
-                        height = 220.dp,
+                        height = carouselHeight,
                         interactive = true,
                         onOpenAtIndex = { index ->
                             onOpenMedia(PublicPearlMediaViewerRequest(slides, index))
                         },
                     )
                 } else {
+                    val slide = slides.first()
                     PublicPearlMediaSlideView(
-                        slide = slides.first(),
+                        slide = slide,
                         theme = theme,
-                        height = 220.dp,
+                        height = carouselHeight,
                         interactive = true,
-                        onOpen = { openSlide(slides.first()) },
+                        onOpen = {
+                            pearlMediaViewerRequest(pearl, slide)?.let(onOpenMedia)
+                        },
                     )
                 }
             }
-            pearl.pearl.linkPreviewImagePath?.takeIf { it.isNotBlank() } != null -> {
-                val path = pearl.pearl.linkPreviewImagePath!!
-                Text(
-                    text = "Preview",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = PearlColors.heroPrimary(darkTheme),
-                )
+            !entity.linkPreviewImagePath.isNullOrBlank() -> {
+                val path = entity.linkPreviewImagePath!!
+                val slide = PublicPearlMediaSlide.Image(mediaUriForPath(path))
                 PublicPearlMediaSlideView(
-                    slide = PublicPearlMediaSlide.Image(mediaUriForPath(path)),
+                    slide = slide,
                     theme = theme,
-                    height = 220.dp,
+                    height = carouselHeight,
                     interactive = true,
                     onOpen = {
-                        onOpenMedia(
-                            PublicPearlMediaViewerRequest(
-                                slides = listOf(PublicPearlMediaSlide.Image(mediaUriForPath(path))),
-                            ),
-                        )
+                        onOpenMedia(PublicPearlMediaViewerRequest(slides = listOf(slide)))
                     },
                 )
             }

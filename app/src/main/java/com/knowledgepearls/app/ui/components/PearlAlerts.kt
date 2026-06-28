@@ -141,7 +141,7 @@ fun SharedPearlIntroAlert(
             PearlAlertIcon(icon = Icons.Default.Public, tint = theme.primary)
             PearlAlertTitle("Creating a Shared Pearl")
             PearlAlertMessage(
-                "This pearl will be saved to My Feed and submitted to the Public Feed for community approval. It won't appear publicly until approved.",
+                "This pearl will be submitted to the Public Feed for community approval. It won't appear publicly until approved. Track pending submissions in Settings.",
             )
             PearlAlertPrimaryButton(text = "Continue", theme = theme, onClick = onContinue)
             PearlAlertSecondaryButton(text = "Cancel", onClick = onCancel)
@@ -161,7 +161,7 @@ fun SharedPearlSubmitAlert(
             PearlAlertIcon(icon = Icons.Default.Send, tint = theme.primary)
             PearlAlertTitle("Submit for Approval?")
             PearlAlertMessage(
-                "\"${pearlTitle.ifBlank { "Untitled pearl" }}\" will be saved to My Feed and sent for moderation. Track it under Pending Submissions in Settings.",
+                "\"${pearlTitle.ifBlank { "Untitled pearl" }}\" will be sent for moderation. Track it under Pending Submissions in Settings.",
             )
             PearlAlertPrimaryButton(text = "Submit", theme = theme, onClick = onSubmit)
             PearlAlertSecondaryButton(text = "Go Back", onClick = onCancel)

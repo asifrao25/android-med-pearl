@@ -6,6 +6,7 @@ import com.knowledgepearls.app.data.local.model.PearlWithMedia
 import com.knowledgepearls.app.data.local.model.clinicalCasePayload
 import com.knowledgepearls.app.data.local.model.decodedPublicPearl
 import com.knowledgepearls.app.data.local.model.effectiveSourceReference
+import com.knowledgepearls.app.data.local.model.belongsInMyFeed
 import com.knowledgepearls.app.data.local.model.isClinicalCase
 import com.knowledgepearls.app.data.local.model.matches
 import com.knowledgepearls.app.data.local.model.toPickedMedia
@@ -79,12 +80,14 @@ class FeedViewModel @Inject constructor(
         val shareError = values[8] as String?
 
         val filtered = pearls.filter { pearl ->
-            pearl.matches(filter) &&
+            pearl.pearl.belongsInMyFeed() &&
+                pearl.matches(filter) &&
                 (tag == null || tag in pearl.pearl.tags) &&
                 (query.isBlank() || pearlMatchesQuery(pearl, query))
         }
 
-        val emptyFilterAlert = filter != ContentTypeFilter.ALL && pearls.none { it.matches(filter) }
+        val emptyFilterAlert = filter != ContentTypeFilter.ALL &&
+            pearls.none { it.pearl.belongsInMyFeed() && it.matches(filter) }
 
         FeedUiState(
             pearls = pearls,

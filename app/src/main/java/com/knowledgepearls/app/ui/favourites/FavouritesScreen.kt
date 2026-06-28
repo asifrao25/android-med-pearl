@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.knowledgepearls.app.data.local.model.PearlWithMedia
+import com.knowledgepearls.app.ui.components.InboxHeaderButton
 import com.knowledgepearls.app.ui.components.TabScreenHeader
 import com.knowledgepearls.app.ui.feed.FeedAuthorContext
 import com.knowledgepearls.app.ui.feed.PearlDeleteConfirmationDialog
@@ -42,6 +43,9 @@ fun FavouritesScreen(
     feedAuthorContext: FeedAuthorContext,
     onResolveAvatarUrl: suspend (String) -> String?,
     onOpenSettings: () -> Unit,
+    isSignedIn: Boolean = false,
+    inboxBadgeCount: Int = 0,
+    onOpenInbox: () -> Unit = {},
     onPearlClick: (String) -> Unit,
     foldersViewModel: FoldersViewModel = hiltViewModel(),
 ) {
@@ -75,6 +79,15 @@ fun FavouritesScreen(
                 subtitle = "Saved pearls",
                 theme = theme,
                 onSettingsClick = onOpenSettings,
+                trailing = {
+                    if (isSignedIn) {
+                        InboxHeaderButton(
+                            theme = theme,
+                            inboxBadgeCount = inboxBadgeCount,
+                            onClick = onOpenInbox,
+                        )
+                    }
+                },
             )
 
             if (favourites.isEmpty()) {

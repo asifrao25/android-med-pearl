@@ -36,6 +36,9 @@ data class MessageThreadUiState(
     val conversationId: String = "",
     val otherDisplayName: String = "",
     val otherAvatarUrl: String? = null,
+    val currentUserId: String = "",
+    val currentUserDisplayName: String = "You",
+    val currentUserAvatarUrl: String? = null,
     val messages: List<DirectMessage> = emptyList(),
     val isLoading: Boolean = false,
     val isSending: Boolean = false,
@@ -96,10 +99,14 @@ class InboxViewModel @Inject constructor(
 
     fun openConversation(conversation: ConversationRow) {
         viewModelScope.launch {
+            val viewer = loadViewerContext()
             _threadState.value = MessageThreadUiState(
                 conversationId = conversation.id,
                 otherDisplayName = conversation.otherDisplayName,
                 otherAvatarUrl = conversation.otherAvatarUrl,
+                currentUserId = viewer.userId,
+                currentUserDisplayName = viewer.displayName,
+                currentUserAvatarUrl = viewer.avatarUrl,
                 isLoading = true,
             )
             runCatching {
@@ -207,10 +214,14 @@ class InboxViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             val userId = accountRepository.currentUserId() ?: return@launch
+            val viewer = loadViewerContext()
             _inboxState.update { it.copy(selectedTab = InboxTab.Messages, errorMessage = null) }
             _threadState.value = MessageThreadUiState(
                 otherDisplayName = otherDisplayName,
                 otherAvatarUrl = otherAvatarUrl,
+                currentUserId = viewer.userId,
+                currentUserDisplayName = viewer.displayName,
+                currentUserAvatarUrl = viewer.avatarUrl,
                 isLoading = true,
             )
             runCatching {
@@ -259,5 +270,25 @@ class InboxViewModel @Inject constructor(
                 _inboxState.update { it.copy(isLoading = false) }
             }
         }
+    }
+
+    private data class ViewerContext(
+        val userId: String,
+        val displayName: String,
+        val avatarUrl: String?,
+    )
+
+    private suspend fun loadViewerContext(): ViewerContext {
+        val userId = accountRepository.currentUserId().orEmpty()
+        if (userId.isBlank()) {
+            return ViewerContext(userId = "", displayName = "You", avatarUrl = null)
+        }
+        val profile = accountRepository.fetchProfile(userId)
+        val displayName = profile?.name?.trim().orEmpty().ifBlank { "You" }
+        return ViewerContext(
+            userId = userId,
+            displayName = displayName,
+            avatarUrl = profile?.avatarUrl,
+        )
     }
 }

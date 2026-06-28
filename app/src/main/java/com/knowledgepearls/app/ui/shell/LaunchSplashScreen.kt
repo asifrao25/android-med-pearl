@@ -68,6 +68,7 @@ import com.knowledgepearls.app.ui.theme.isPearlDarkTheme
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private val AccentCyan = Color(0xFF2ED6FA)
 private val AccentAmber = Color(0xFFFF9E38)
@@ -136,10 +137,13 @@ fun LaunchSplashScreen(onFinished: () -> Unit) {
         delay(50)
         progress = 1f
 
+        // Match iOS: pearl beads light on a staggered schedule in parallel, not sequentially.
         val pearlInterval = SplashDurationMs.toFloat() / PearlCount
         repeat(PearlCount) { index ->
-            delay(250L + (pearlInterval * index).toLong())
-            litPearls = index + 1
+            launch {
+                delay(250L + (pearlInterval * index).toLong())
+                litPearls = index + 1
+            }
         }
 
         delay(SplashDurationMs + 300L)

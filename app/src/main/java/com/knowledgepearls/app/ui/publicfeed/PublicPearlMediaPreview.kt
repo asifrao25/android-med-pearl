@@ -36,6 +36,9 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.SubcomposeAsyncImage
 import com.knowledgepearls.app.data.model.PublicPearl
 import com.knowledgepearls.app.data.model.PublicPearlMediaItem
+import com.knowledgepearls.app.ui.feed.LinkPearlPreviewSection
+import com.knowledgepearls.app.ui.feed.PearlDetailMetrics
+import com.knowledgepearls.app.ui.feed.parseOpenableUrl
 import com.knowledgepearls.app.ui.media.DocumentAttachmentActions
 import com.knowledgepearls.app.ui.media.PearlDocumentPreviewCard
 import com.knowledgepearls.app.ui.theme.PearlColors
@@ -123,53 +126,82 @@ fun PublicPearlDetailMediaSection(
     theme: TabTheme,
     onOpenMedia: (PublicPearlMediaViewerRequest) -> Unit,
     modifier: Modifier = Modifier,
+    includeLinkTunnel: Boolean = true,
+    onOpenUrl: (String) -> Unit = {},
 ) {
-    val slides = publicPearlMediaSlides(pearl.resolvedMediaItems)
+    val detailHeight = PearlDetailMetrics.openedMediaCarouselHeight
+    val documents = pearl.resolvedMediaItems.filter { it.isDocument }
+    val galleryItems = pearl.resolvedMediaItems.filter { !it.isDocument }
+    val gallerySlides = publicPearlMediaSlides(galleryItems)
     val darkTheme = isPearlDarkTheme()
     val openSlide: (PublicPearlMediaSlide) -> Unit = { slide ->
-        val index = slides.indexOfFirst { it.id == slide.id }.coerceAtLeast(0)
-        onOpenMedia(PublicPearlMediaViewerRequest(slides, index))
+        val index = gallerySlides.indexOfFirst { it.id == slide.id }.coerceAtLeast(0)
+        onOpenMedia(PublicPearlMediaViewerRequest(gallerySlides, index))
+    }
+
+    val linkUrl = when {
+        pearl.isFromTwitterScraper -> pearl.preferredPreviewUrl
+        pearl.isLinkPearl -> pearl.sourceUrl?.trim()?.takeIf { it.isNotEmpty() }
+        else -> null
     }
 
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         when {
-            slides.isNotEmpty() -> {
-                Text(
-                    text = if (slides.size > 1) "Attachments" else "Attachment",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = PearlColors.heroPrimary(darkTheme),
+            includeLinkTunnel && linkUrl != null -> {
+                LinkPearlPreviewSection(
+                    url = linkUrl,
+                    theme = theme,
+                    onOpenExternal = onOpenUrl,
+                    onOpenBrowser = {
+                        parseOpenableUrl(linkUrl)?.let(onOpenUrl)
+                    },
                 )
-                if (slides.size > 1) {
+            }
+            gallerySlides.isNotEmpty() -> {
+                if (gallerySlides.size > 1) {
+                    Text(
+                        text = "Attachments",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = PearlColors.heroPrimary(darkTheme),
+                    )
                     PublicPearlMediaCarousel(
-                        slides = slides,
+                        slides = gallerySlides,
                         theme = theme,
-                        height = 220.dp,
+                        height = detailHeight,
                         interactive = true,
                         onOpenAtIndex = { index ->
-                            onOpenMedia(PublicPearlMediaViewerRequest(slides, index))
+                            onOpenMedia(PublicPearlMediaViewerRequest(gallerySlides, index))
                         },
                     )
                 } else {
                     PublicPearlMediaSlideView(
-                        slide = slides.first(),
+                        slide = gallerySlides.first(),
                         theme = theme,
-                        height = 220.dp,
+                        height = detailHeight,
                         interactive = true,
-                        onOpen = { openSlide(slides.first()) },
+                        onOpen = { openSlide(gallerySlides.first()) },
+                    )
+                }
+
+                documents.forEach { document ->
+                    val url = document.loadableUrl ?: return@forEach
+                    val slide = PublicPearlMediaSlide.Document(url, document.resolvedFilename)
+                    PublicPearlMediaSlideView(
+                        slide = slide,
+                        theme = theme,
+                        height = detailHeight,
+                        interactive = true,
+                        onOpen = {
+                            onOpenMedia(PublicPearlMediaViewerRequest(listOf(slide), 0))
+                        },
                     )
                 }
             }
             pearl.resolvedLinkPreviewImageUrl != null -> {
-                Text(
-                    text = "Preview",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = PearlColors.heroPrimary(darkTheme),
-                )
                 PublicPearlImagePreview(
                     url = pearl.resolvedLinkPreviewImageUrl!!,
-                    height = 220.dp,
+                    height = detailHeight,
                     onClick = {
                         onOpenMedia(
                             PublicPearlMediaViewerRequest(

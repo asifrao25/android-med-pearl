@@ -18,11 +18,14 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -47,6 +50,7 @@ import com.knowledgepearls.app.ui.components.PublicFeedOfflineState
 import com.knowledgepearls.app.ui.components.SeenToastView
 import com.knowledgepearls.app.ui.feed.FeedEmptyFilterAlert
 import com.knowledgepearls.app.ui.components.HeaderIconButton
+import com.knowledgepearls.app.ui.components.InboxHeaderButton
 import com.knowledgepearls.app.ui.components.TabScreenHeader
 import com.knowledgepearls.app.ui.feed.ContentTypePicker
 import com.knowledgepearls.app.ui.theme.LiquidBackground
@@ -55,6 +59,7 @@ import com.knowledgepearls.app.ui.theme.PearlLayout
 import com.knowledgepearls.app.ui.theme.TabTheme
 import com.knowledgepearls.app.ui.theme.isPearlDarkTheme
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PublicFeedScreen(
     uiState: PublicFeedUiState,
@@ -65,6 +70,7 @@ fun PublicFeedScreen(
     onSignIn: () -> Unit,
     onPearlClick: (String) -> Unit,
     onLoadInitial: () -> Unit,
+    onRefreshFeed: () -> Unit = onLoadInitial,
     onLoadNextPage: () -> Unit,
     onSectionSelected: (PublicFeedSection) -> Unit,
     onContentTypeSelected: (com.knowledgepearls.app.data.model.ContentTypeFilter) -> Unit,
@@ -101,6 +107,12 @@ fun PublicFeedScreen(
         }
     }
 
+    LaunchedEffect(uiState.feedRefreshGeneration, uiState.isLoading) {
+        if (uiState.feedRefreshGeneration > 0 && !uiState.isLoading && uiState.filteredPearls.isNotEmpty()) {
+            listState.scrollToItem(0)
+        }
+    }
+
     LaunchedEffect(shouldLoadMore, uiState.hasMore, uiState.isLoading) {
         if (isSignedIn && shouldLoadMore && uiState.hasMore && !uiState.isLoading && uiState.pearls.isNotEmpty()) {
             onLoadNextPage()
@@ -122,28 +134,11 @@ fun PublicFeedScreen(
                 onSettingsClick = onOpenSettings,
                 trailing = {
                     if (isSignedIn) {
-                        HeaderIconButton(theme = theme, onClick = onOpenInbox) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Default.Inbox,
-                                    contentDescription = if (inboxBadgeCount > 0) {
-                                        "Inbox, $inboxBadgeCount unread"
-                                    } else {
-                                        "Inbox"
-                                    },
-                                    tint = theme.primary,
-                                    modifier = Modifier.size(18.dp),
-                                )
-                                if (inboxBadgeCount > 0) {
-                                    Box(
-                                        modifier = Modifier
-                                            .align(Alignment.TopEnd)
-                                            .size(8.dp)
-                                            .background(theme.secondary, CircleShape),
-                                    )
-                                }
-                            }
-                        }
+                        InboxHeaderButton(
+                            theme = theme,
+                            inboxBadgeCount = inboxBadgeCount,
+                            onClick = onOpenInbox,
+                        )
                     }
                 },
             )
@@ -187,17 +182,23 @@ fun PublicFeedScreen(
                     }
                 }
                 else -> {
-                    LazyColumn(
-                        state = listState,
+                    val isRefreshing = uiState.isLoading && uiState.pearls.isNotEmpty()
+                    PullToRefreshBox(
+                        isRefreshing = isRefreshing,
+                        onRefresh = onRefreshFeed,
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(
-                            start = PearlLayout.screenHorizontalPadding,
-                            end = PearlLayout.screenHorizontalPadding,
-                            top = 8.dp,
-                            bottom = PearlLayout.tabBarOverlayInset + 52.dp,
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(
+                                start = PearlLayout.screenHorizontalPadding,
+                                end = PearlLayout.screenHorizontalPadding,
+                                top = 8.dp,
+                                bottom = PearlLayout.tabBarOverlayInset + 52.dp,
+                            ),
+                            verticalArrangement = Arrangement.spacedBy(14.dp),
+                        ) {
                         if (uiState.filteredPearls.isEmpty()) {
                             item {
                                 Text(
@@ -248,6 +249,7 @@ fun PublicFeedScreen(
                                     CircularProgressIndicator(color = theme.primary)
                                 }
                             }
+                        }
                         }
                     }
                 }

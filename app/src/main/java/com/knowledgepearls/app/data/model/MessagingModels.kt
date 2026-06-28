@@ -32,3 +32,6 @@ data class ConversationRow(
     val lastMessageBody: String?,
     val unreadCount: Int,
 )
+
+fun DirectMessage.isFrom(userId: String): Boolean =
+    userId.isNotBlank() && senderId.equals(userId, ignoreCase = true)

@@ -14,6 +14,14 @@ fun KnowledgePearlEntity.effectiveSourceReference(): String {
 fun KnowledgePearlEntity.isSharedToPublicFeed(): Boolean =
     isSharedPublicly && publicPearlStatus in setOf("pending", "approved")
 
+fun KnowledgePearlEntity.belongsInMyFeed(): Boolean {
+    if (isSharedFromFriend) return true
+    if (publicFeedSnapshot.trim().isNotEmpty()) return true
+    if (isSharedPublicly) return false
+    if (!publicPearlID.isNullOrBlank() && publicPearlStatus.isNotBlank()) return false
+    return true
+}
+
 fun PearlMediaEntity.toPickedMedia(): PickedMedia? {
     val path = localPath?.takeIf { it.isNotBlank() } ?: return null
     val file = File(path)
