@@ -410,6 +410,10 @@ fun MainScaffold(
                     accountViewModel.signOut()
                 }
             },
+            onOpenUserProfile = { userId ->
+                settingsOpen = false
+                openUserProfile(userId)
+            },
         )
 
         if (inboxOpen) {

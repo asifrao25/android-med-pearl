@@ -92,6 +92,7 @@ fun SettingsScreen(
     onMeasureCache: () -> Unit,
     onClearCache: () -> Unit,
     onDeleteAccount: () -> Unit,
+    onOpenUserProfile: (String) -> Unit = {},
 ) {
     if (!visible) return
 
@@ -139,6 +140,9 @@ fun SettingsScreen(
         )
         SettingsRoute.AboutCreator -> AboutCreatorScreen(
             onBack = { onNavigate(SettingsRoute.Main) },
+            onOpenProfile = { userId ->
+                onOpenUserProfile(userId)
+            },
         )
     }
 }
@@ -251,7 +255,7 @@ private fun SettingsMainScreen(
 
                 item {
                     SettingsSection(title = "About") {
-                        SettingsNavRow("About the creator", onClick = { onNavigate(SettingsRoute.AboutCreator) })
+                        AboutCreatorSettingsRow(onClick = { onNavigate(SettingsRoute.AboutCreator) })
                         Text(
                             text = "Med Pearls v1.0.0",
                             color = PearlColors.heroSecondary(darkTheme),
@@ -421,26 +425,6 @@ private fun PrivacySettingsScreen(
                 Text("Delete account")
             }
         }
-    }
-}
-
-@Composable
-private fun AboutCreatorScreen(onBack: () -> Unit) {
-    val darkTheme = isPearlDarkTheme()
-
-    SettingsSubScreenShell(title = "About the creator", subtitle = "Med Pearls", onBack = onBack) {
-        Text(
-            text = "Med Pearls helps clinicians capture, organise, and share learning pearls — " +
-                "from quick notes and links to structured clinical cases.",
-            color = PearlColors.heroPrimary(darkTheme),
-            style = MaterialTheme.typography.bodyLarge,
-        )
-        Text(
-            text = "Built for cross-platform use with a shared Supabase backend so your community " +
-                "pearls and friend shares work across iOS and Android.",
-            color = PearlColors.heroSecondary(darkTheme),
-            style = MaterialTheme.typography.bodyMedium,
-        )
     }
 }
 
