@@ -73,6 +73,7 @@ fun FolderContentsScreen(
     onClose: () -> Unit,
     onSignInRequired: () -> Unit = {},
     onOpenUserProfile: (String) -> Unit = {},
+    onRegisterPopToRoot: (((() -> Unit)?) -> Unit)? = null,
     feedViewModel: FeedViewModel = hiltViewModel(),
     accountViewModel: com.knowledgepearls.app.ui.account.AccountViewModel = hiltViewModel(),
 ) {
@@ -96,6 +97,16 @@ fun FolderContentsScreen(
         }
     }
 
+    androidx.compose.runtime.DisposableEffect(navController) {
+        onRegisterPopToRoot?.invoke {
+            val popped = navController.popBackStack("folder_list", false)
+            if (!popped) {
+                onClose()
+            }
+        }
+        onDispose { onRegisterPopToRoot?.invoke(null) }
+    }
+
     Box(Modifier.fillMaxSize()) {
         LiquidBackground(theme = theme, intensity = 0.5f)
 
@@ -108,7 +119,8 @@ fun FolderContentsScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .statusBarsPadding(),
+                        .statusBarsPadding()
+                        .padding(bottom = PearlLayout.tabBarOverlayInset),
                 ) {
                     Row(
                         modifier = Modifier
@@ -142,16 +154,22 @@ fun FolderContentsScreen(
             }
             composable("pearl/{pearlId}") { entry ->
                 val pearlId = entry.arguments?.getString("pearlId").orEmpty()
-                PearlDetailScreen(
-                    pearlId = pearlId,
-                    viewModel = feedViewModel,
-                    feedAuthorContext = feedAuthorContext,
-                    onResolveAvatarUrl = onResolveAvatarUrl,
-                    onBack = { navController.popBackStack() },
-                    isSignedIn = accountState.isSignedIn,
-                    onSignInRequired = onSignInRequired,
-                    onOpenUserProfile = onOpenUserProfile,
-                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(bottom = PearlLayout.tabBarOverlayInset),
+                ) {
+                    PearlDetailScreen(
+                        pearlId = pearlId,
+                        viewModel = feedViewModel,
+                        feedAuthorContext = feedAuthorContext,
+                        onResolveAvatarUrl = onResolveAvatarUrl,
+                        onBack = { navController.popBackStack() },
+                        isSignedIn = accountState.isSignedIn,
+                        onSignInRequired = onSignInRequired,
+                        onOpenUserProfile = onOpenUserProfile,
+                    )
+                }
             }
         }
 

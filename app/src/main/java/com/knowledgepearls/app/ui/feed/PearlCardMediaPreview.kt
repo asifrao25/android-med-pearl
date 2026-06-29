@@ -54,6 +54,7 @@ fun PearlCardMediaPreview(
                 height = previewHeight,
                 interactive = interactive,
                 modifier = modifier,
+                onOpenMedia = onOpenMedia,
                 onOpenAtIndex = if (interactive && onOpenMedia != null) {
                     { index -> onOpenMedia(PublicPearlMediaViewerRequest(slides, index)) }
                 } else {
@@ -69,6 +70,7 @@ fun PearlCardMediaPreview(
                 height = previewHeight,
                 interactive = interactive,
                 modifier = modifier,
+                onOpenMedia = onOpenMedia,
                 onOpen = if (interactive && onOpenMedia != null) {
                     { pearlMediaViewerRequest(pearl, slide)?.let(onOpenMedia) }
                 } else {

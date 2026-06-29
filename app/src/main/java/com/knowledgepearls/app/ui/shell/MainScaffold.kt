@@ -115,6 +115,45 @@ fun MainScaffold(
     var pendingPublicPearlId by rememberSaveable { mutableStateOf<String?>(null) }
     var feedRootVisible by rememberSaveable { mutableStateOf(true) }
     var publicFeedRootVisible by rememberSaveable { mutableStateOf(true) }
+    val tabPopHandlers = remember {
+        object {
+            var feed: (() -> Unit)? = null
+            var favourites: (() -> Unit)? = null
+            var publicFeed: (() -> Unit)? = null
+            var folder: (() -> Unit)? = null
+        }
+    }
+
+    fun reselectTab(tab: MainTab) {
+        when (tab) {
+            MainTab.Feed -> tabPopHandlers.feed?.invoke()
+            MainTab.Favourites -> tabPopHandlers.favourites?.invoke()
+            MainTab.PublicFeed -> tabPopHandlers.publicFeed?.invoke()
+            MainTab.Folders -> {
+                when {
+                    openedFolderId != null -> tabPopHandlers.folder?.invoke()
+                    foldersMenuOpen -> foldersMenuOpen = false
+                    else -> {
+                        if (selectedTab != MainTab.Folders) {
+                            tabBeforeFolders = selectedTab
+                        }
+                        selectedTab = MainTab.Folders
+                        foldersMenuOpen = true
+                    }
+                }
+            }
+        }
+    }
+
+    fun openFoldersDrawer() {
+        if (selectedTab != MainTab.Folders) {
+            tabBeforeFolders = selectedTab
+        }
+        selectedTab = MainTab.Folders
+        openedFolderId = null
+        openedFolderName = null
+        foldersMenuOpen = true
+    }
 
     LaunchedEffect(initialShareImport) {
         if (initialShareImport != null) {
@@ -293,6 +332,7 @@ fun MainScaffold(
                     },
                     inboxBadgeCount = inboxBadgeCount,
                     onFeedRootVisibilityChange = { feedRootVisible = it },
+                    onRegisterPopToRoot = { handler -> tabPopHandlers.feed = handler },
                     shareImport = shareImport,
                     onShareImportConsumed = {
                         shareImport = null
@@ -308,6 +348,7 @@ fun MainScaffold(
                         inboxViewModel.loadInbox()
                     },
                     inboxBadgeCount = inboxBadgeCount,
+                    onRegisterPopToRoot = { handler -> tabPopHandlers.favourites = handler },
                 )
                 MainTab.PublicFeed -> PublicFeedTabScreen(
                     onOpenSettings = { settingsOpen = true },
@@ -317,9 +358,9 @@ fun MainScaffold(
                     },
                     inboxBadgeCount = inboxBadgeCount,
                     onPublicFeedRootVisibilityChange = { publicFeedRootVisible = it },
+                    onRegisterPopToRoot = { handler -> tabPopHandlers.publicFeed = handler },
                     connectivityState = connectivityState,
                     onRetryConnection = connectivityMonitor::retryConnection,
-                    onSignIn = { authOpen = true },
                     onOpenUserProfile = openUserProfile,
                     viewModel = publicFeedViewModel,
                     accountViewModel = accountViewModel,
@@ -342,6 +383,7 @@ fun MainScaffold(
                 openedFolderId = folder.folder.id
                 openedFolderName = folder.folder.name
                 foldersMenuOpen = false
+                selectedTab = MainTab.Folders
             },
         )
 
@@ -354,6 +396,7 @@ fun MainScaffold(
                     feedAuthorContext = feedAuthorContext,
                     onResolveAvatarUrl = feedViewModel::fetchAvatarUrl,
                     onOpenUserProfile = openUserProfile,
+                    onRegisterPopToRoot = { handler -> tabPopHandlers.folder = handler },
                     onClose = {
                         openedFolderId = null
                         openedFolderName = null
@@ -368,18 +411,24 @@ fun MainScaffold(
             publicFeedNewCount = publicFeedState.newCount,
             foldersMenuOpen = foldersMenuOpen,
             onTabSelected = { tab ->
-                foldersMenuOpen = false
-                selectedTab = tab
+                if (tab == selectedTab) {
+                    reselectTab(tab)
+                } else {
+                    foldersMenuOpen = false
+                    if (tab != MainTab.Folders) {
+                        openedFolderId = null
+                        openedFolderName = null
+                    }
+                    selectedTab = tab
+                }
             },
             onFoldersTap = {
-                if (foldersMenuOpen) {
+                if (selectedTab == MainTab.Folders && (openedFolderId != null || foldersMenuOpen)) {
+                    reselectTab(MainTab.Folders)
+                } else if (foldersMenuOpen) {
                     foldersMenuOpen = false
                 } else {
-                    if (selectedTab != MainTab.Folders) {
-                        tabBeforeFolders = selectedTab
-                    }
-                    selectedTab = MainTab.Folders
-                    foldersMenuOpen = true
+                    openFoldersDrawer()
                 }
             },
             modifier = Modifier

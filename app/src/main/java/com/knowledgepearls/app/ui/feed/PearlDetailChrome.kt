@@ -5,10 +5,10 @@ import android.net.Uri
 import android.text.format.DateUtils
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -80,7 +80,7 @@ fun PearlDetailAuthorBar(
     LaunchedEffect(userId, avatarUrl) {
         resolvedAvatarUrl = avatarUrl
         if (avatarUrl.isNullOrBlank() && !userId.isNullOrBlank() && onResolveAvatarUrl != null) {
-            resolvedAvatarUrl = onResolveAvatarUrl(userId)
+            resolvedAvatarUrl = runCatching { onResolveAvatarUrl(userId) }.getOrNull()
         }
     }
 
@@ -160,15 +160,16 @@ fun PearlDetailSectionHeaderBar(
     theme: TabTheme,
     modifier: Modifier = Modifier,
 ) {
-    val darkTheme = isPearlDarkTheme()
+    val shape = RoundedCornerShape(10.dp)
     Text(
         text = title,
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .background(PearlColors.sectionHeaderGradient(theme, darkTheme))
-            .padding(horizontal = 14.dp, vertical = 10.dp),
-        style = MaterialTheme.typography.titleSmall,
+            .clip(shape)
+            .background(PearlColors.sectionHeaderGradient(theme, isPearlDarkTheme()))
+            .border(1.dp, Color.White.copy(alpha = 0.16f), shape)
+            .padding(horizontal = 14.dp, vertical = 11.dp),
+        style = MaterialTheme.typography.titleMedium,
         fontWeight = FontWeight.Bold,
         color = Color.White,
     )
@@ -177,25 +178,19 @@ fun PearlDetailSectionHeaderBar(
 @Composable
 fun PearlDetailInfoSection(
     title: String,
+    theme: TabTheme,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    val darkTheme = isPearlDarkTheme()
     GlassSurface(
         modifier = modifier.fillMaxWidth(),
         cornerRadius = 14.dp,
     ) {
         Column(
             modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text(
-                text = title.uppercase(),
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = PearlColors.heroSecondary(darkTheme),
-                letterSpacing = 0.6.sp,
-            )
+            PearlDetailSectionHeaderBar(title = title, theme = theme)
             content()
         }
     }
@@ -275,7 +270,7 @@ fun PearlDetailTwitterAuthorSourceBox(
     modifier: Modifier = Modifier,
 ) {
     val darkTheme = isPearlDarkTheme()
-    PearlDetailInfoSection(title = "Source / Reference", modifier = modifier) {
+    PearlDetailInfoSection(title = "Source / Reference", theme = theme, modifier = modifier) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -338,7 +333,7 @@ fun PearlDetailSection(
     val context = LocalContext.current
     val openableUrl = if (linkifyBody) parseOpenableUrl(body) else null
 
-    PearlDetailInfoSection(title = title, modifier = modifier) {
+    PearlDetailInfoSection(title = title, theme = theme, modifier = modifier) {
         if (openableUrl != null) {
             Row(
                 modifier = Modifier
@@ -381,7 +376,7 @@ fun PearlDetailDescriptionSection(
 ) {
     val displayText = text.trim().ifBlank { "No description" }
     val darkTheme = isPearlDarkTheme()
-    PearlDetailInfoSection(title = "Description", modifier = modifier) {
+    PearlDetailInfoSection(title = "Description", theme = theme, modifier = modifier) {
         Text(
             text = displayText,
             style = MaterialTheme.typography.bodyLarge,

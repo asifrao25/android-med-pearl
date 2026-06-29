@@ -19,11 +19,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.knowledgepearls.app.data.model.PublicPearl
 import com.knowledgepearls.app.ui.publicfeed.PublicPearlDetailMediaSection
 import com.knowledgepearls.app.ui.publicfeed.PublicPearlMediaViewerRequest
@@ -50,12 +48,9 @@ fun ScraperPearlDetailContent(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text(
-            text = pearl.originalTweetAuthorLabel,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = PearlColors.heroPrimary(darkTheme),
-            modifier = Modifier.fillMaxWidth(),
+        PearlDetailSectionHeaderBar(
+            title = pearl.originalTweetAuthorLabel,
+            theme = theme,
         )
 
         if (tweetText.isNotBlank()) {
@@ -75,7 +70,7 @@ fun ScraperPearlDetailContent(
         )
 
         if (aiSummary.isNotBlank()) {
-            ScraperDetailPanel(title = "AI Summary") {
+            ScraperDetailPanel(title = "AI Summary", theme = theme) {
                 Text(
                     text = aiSummary,
                     style = MaterialTheme.typography.bodyLarge,
@@ -85,7 +80,7 @@ fun ScraperPearlDetailContent(
         }
 
         if (learningPoint.isNotBlank()) {
-            ScraperDetailPanel(title = "Learning Point") {
+            ScraperDetailPanel(title = "Learning Point", theme = theme) {
                 Text(
                     text = learningPoint,
                     style = MaterialTheme.typography.bodyLarge,
@@ -96,14 +91,8 @@ fun ScraperPearlDetailContent(
         }
 
         if (externalLinks.isNotEmpty()) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = "LINKS",
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = PearlColors.heroSecondary(darkTheme),
-                    letterSpacing = 0.8.sp,
-                )
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                PearlDetailSectionHeaderBar(title = "Links", theme = theme)
                 externalLinks.forEach { link ->
                     val openable = parseOpenableUrl(link.url) ?: link.url
                     Row(
@@ -157,6 +146,7 @@ fun ScraperPearlDetailContent(
 @Composable
 private fun ScraperDetailPanel(
     title: String,
+    theme: TabTheme,
     content: @Composable () -> Unit,
 ) {
     val darkTheme = isPearlDarkTheme()
@@ -164,18 +154,12 @@ private fun ScraperDetailPanel(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .background(Color.White.copy(alpha = if (darkTheme) 0.04f else 0.35f))
-            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(14.dp))
+            .background(androidx.compose.ui.graphics.Color.White.copy(alpha = if (darkTheme) 0.04f else 0.35f))
+            .border(1.dp, androidx.compose.ui.graphics.Color.White.copy(alpha = 0.08f), RoundedCornerShape(14.dp))
             .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text(
-            text = title.uppercase(),
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = PearlColors.heroSecondary(darkTheme),
-            letterSpacing = 0.8.sp,
-        )
+        PearlDetailSectionHeaderBar(title = title, theme = theme)
         content()
     }
 }

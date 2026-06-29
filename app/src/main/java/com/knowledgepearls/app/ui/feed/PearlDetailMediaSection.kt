@@ -66,12 +66,16 @@ fun PearlDetailMediaSection(
                 )
             }
             slides.isNotEmpty() -> {
+                if (showAttachmentLabel && slides.size > 1) {
+                    PearlDetailSectionHeaderBar(title = "Attachments", theme = theme)
+                }
                 if (slides.size > 1) {
                     PublicPearlMediaCarousel(
                         slides = slides,
                         theme = theme,
                         height = carouselHeight,
                         interactive = true,
+                        onOpenMedia = onOpenMedia,
                         onOpenAtIndex = { index ->
                             onOpenMedia(PublicPearlMediaViewerRequest(slides, index))
                         },
@@ -83,6 +87,7 @@ fun PearlDetailMediaSection(
                         theme = theme,
                         height = carouselHeight,
                         interactive = true,
+                        onOpenMedia = onOpenMedia,
                         onOpen = {
                             pearlMediaViewerRequest(pearl, slide)?.let(onOpenMedia)
                         },

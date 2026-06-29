@@ -191,6 +191,7 @@ class PearlShareRepository @Inject constructor(
                 sourceReference = pearl.effectiveSourceReference(),
                 casePayload = payload,
                 mediaItems = uploadedMedia,
+                publicFeedSnapshot = pearl.publicFeedSnapshot.takeIf { it.isNotBlank() },
             )
         }
 
@@ -204,6 +205,7 @@ class PearlShareRepository @Inject constructor(
             linkPreviewDescription = pearl.linkPreviewDescription,
             sourceReference = pearl.effectiveSourceReference(),
             mediaItems = uploadedMedia,
+            publicFeedSnapshot = pearl.publicFeedSnapshot.takeIf { it.isNotBlank() },
         )
     }
 

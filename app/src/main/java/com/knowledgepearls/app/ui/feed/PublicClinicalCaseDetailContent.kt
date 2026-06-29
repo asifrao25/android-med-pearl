@@ -74,6 +74,7 @@ private fun publicClinicalSection(
                     theme = theme,
                     height = PearlDetailMetrics.clinicalSectionMediaHeight,
                     interactive = true,
+                    onOpenMedia = onOpenMedia,
                     onOpenAtIndex = { index ->
                         onOpenMedia(PublicPearlMediaViewerRequest(slides, index))
                     },
@@ -84,6 +85,7 @@ private fun publicClinicalSection(
                     theme = theme,
                     height = PearlDetailMetrics.clinicalSectionMediaHeight,
                     interactive = true,
+                    onOpenMedia = onOpenMedia,
                     onOpen = {
                         onOpenMedia(PublicPearlMediaViewerRequest(slides, 0))
                     },
@@ -99,9 +101,7 @@ private fun publicClinicalSection(
                 theme = theme,
                 height = PearlDetailMetrics.clinicalSectionMediaHeight,
                 interactive = true,
-                onOpen = {
-                    onOpenMedia(PublicPearlMediaViewerRequest(listOf(slide), 0))
-                },
+                onOpenMedia = onOpenMedia,
             )
         }
     }

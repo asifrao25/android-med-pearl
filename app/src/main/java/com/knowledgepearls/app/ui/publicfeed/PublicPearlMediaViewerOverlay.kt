@@ -1,7 +1,5 @@
 package com.knowledgepearls.app.ui.publicfeed
 
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -49,8 +47,9 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import androidx.compose.ui.graphics.Color
 import com.knowledgepearls.app.ui.media.DocumentDownloader
+import com.knowledgepearls.app.ui.media.DocumentOpener
 import com.knowledgepearls.app.ui.media.DocumentSupport
-import com.knowledgepearls.app.ui.media.FullscreenOfficeDocumentViewer
+import com.knowledgepearls.app.ui.media.FullscreenExternalDocumentLauncher
 import com.knowledgepearls.app.ui.media.FullscreenPdfDocumentViewer
 import com.knowledgepearls.app.ui.media.ZoomableFullscreenImage
 import com.knowledgepearls.app.ui.media.effectiveMediaFilename
@@ -276,81 +275,20 @@ private fun FullscreenDocument(
     onZoomChanged: (Boolean) -> Unit = {},
 ) {
     val effectiveName = effectiveMediaFilename(filename, url)
-    when {
-        DocumentSupport.isPdf(effectiveName, url) -> FullscreenPdfDocumentViewer(
+    if (DocumentOpener.usesInAppPdfViewer(url, effectiveName)) {
+        FullscreenPdfDocumentViewer(
             url = url,
             filename = effectiveName,
             onDismissProgress = onDismissProgress,
             onDismiss = onDismiss,
             onZoomChanged = onZoomChanged,
         )
-        DocumentSupport.isOfficeDocument(effectiveName, url) && DocumentSupport.isRemoteUrl(url) ->
-            EmbeddedDocumentWebViewer(
-                viewerUrl = DocumentSupport.officeEmbedUrl(url),
-                filename = effectiveName,
-            )
-        DocumentSupport.isOfficeDocument(effectiveName, url) ->
-            FullscreenOfficeDocumentViewer(
-                url = url,
-                filename = effectiveName,
-                onDismissProgress = onDismissProgress,
-                onDismiss = onDismiss,
-                onZoomChanged = onZoomChanged,
-            )
-        DocumentSupport.isRemoteUrl(url) ->
-            EmbeddedDocumentWebViewer(
-                viewerUrl = DocumentSupport.googleViewerUrl(url),
-                filename = effectiveName,
-            )
-        else -> FullscreenOfficeDocumentViewer(
+    } else {
+        FullscreenExternalDocumentLauncher(
             url = url,
             filename = effectiveName,
-            onDismissProgress = onDismissProgress,
             onDismiss = onDismiss,
-            onZoomChanged = onZoomChanged,
-        )
-    }
-}
-
-@Composable
-private fun EmbeddedDocumentWebViewer(viewerUrl: String, filename: String) {
-    Column(modifier = Modifier.fillMaxSize()) {
-        AndroidView(
-            factory = { context ->
-                WebView(context).apply {
-                    settings.javaScriptEnabled = true
-                    settings.domStorageEnabled = true
-                    settings.loadWithOverviewMode = true
-                    settings.useWideViewPort = true
-                    settings.builtInZoomControls = true
-                    settings.displayZoomControls = false
-                    webViewClient = WebViewClient()
-                    loadUrl(viewerUrl)
-                }
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .padding(top = 56.dp),
-            update = { webView ->
-                if (webView.url != viewerUrl) {
-                    webView.loadUrl(viewerUrl)
-                }
-            },
-            onRelease = { webView ->
-                webView.destroy()
-            },
-        )
-        Text(
-            text = filename,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            style = MaterialTheme.typography.bodySmall,
-            color = Color.White.copy(alpha = 0.85f),
-            textAlign = TextAlign.Center,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
+            autoLaunch = true,
         )
     }
 }

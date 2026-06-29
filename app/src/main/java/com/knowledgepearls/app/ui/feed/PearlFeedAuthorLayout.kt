@@ -1,6 +1,7 @@
 package com.knowledgepearls.app.ui.feed
 
 import android.text.format.DateUtils
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,6 +38,7 @@ fun PearlFeedAuthorLayout(
     userId: String?,
     onResolveAvatarUrl: suspend (String) -> String?,
     modifier: Modifier = Modifier,
+    onAuthorClick: (() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
     val darkTheme = isPearlDarkTheme()
@@ -45,7 +47,7 @@ fun PearlFeedAuthorLayout(
     LaunchedEffect(userId, avatarUrl) {
         resolvedAvatarUrl = avatarUrl
         if (avatarUrl.isNullOrBlank() && !userId.isNullOrBlank()) {
-            resolvedAvatarUrl = onResolveAvatarUrl(userId)
+            resolvedAvatarUrl = runCatching { onResolveAvatarUrl(userId) }.getOrNull()
         }
     }
 
@@ -56,10 +58,16 @@ fun PearlFeedAuthorLayout(
         horizontalArrangement = Arrangement.spacedBy(columnSpacing),
         verticalAlignment = Alignment.Top,
     ) {
+        val avatarModifier = if (onAuthorClick != null) {
+            Modifier.clickable(onClick = onAuthorClick)
+        } else {
+            Modifier
+        }
         AvatarView(
             url = resolvedAvatarUrl,
             displayName = resolvedName,
             size = avatarSize,
+            modifier = avatarModifier,
         )
 
         Column(
@@ -70,9 +78,16 @@ fun PearlFeedAuthorLayout(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                val nameModifier = if (onAuthorClick != null) {
+                    Modifier
+                        .weight(1f)
+                        .clickable(onClick = onAuthorClick)
+                } else {
+                    Modifier.weight(1f)
+                }
                 Text(
                     text = resolvedName,
-                    modifier = Modifier.weight(1f),
+                    modifier = nameModifier,
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.SemiBold,
                     color = PearlColors.heroPrimary(darkTheme),

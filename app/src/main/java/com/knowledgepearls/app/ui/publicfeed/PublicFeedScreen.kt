@@ -49,6 +49,8 @@ import com.knowledgepearls.app.ui.components.PearlAlreadyInFeedAlert
 import com.knowledgepearls.app.ui.components.PearlActionSuccessAlert
 import com.knowledgepearls.app.ui.components.PublicFeedOfflineState
 import com.knowledgepearls.app.ui.feed.FeedEmptyFilterAlert
+import com.knowledgepearls.app.ui.feed.FeedPearlAuthorInfo
+import com.knowledgepearls.app.ui.feed.PearlFeedAuthorLayout
 import com.knowledgepearls.app.ui.components.HeaderIconButton
 import com.knowledgepearls.app.ui.components.TabScreenHeader
 import com.knowledgepearls.app.ui.feed.ContentTypePicker
@@ -61,6 +63,7 @@ import com.knowledgepearls.app.ui.capture.CaptureOptionsOverlay
 import com.knowledgepearls.app.ui.capture.GlowingAddButton
 import com.knowledgepearls.app.data.capture.CaptureSheet
 import com.knowledgepearls.app.ui.components.SharedPearlIntroAlert
+import com.knowledgepearls.app.ui.account.AccountUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -70,8 +73,16 @@ fun PublicFeedScreen(
     inboxBadgeCount: Int = 0,
     onOpenSettings: () -> Unit,
     onOpenInbox: () -> Unit,
-    onSignIn: () -> Unit,
+    onSignIn: (String, String) -> Unit,
+    onSignUp: (String, String) -> Unit,
+    onGoogleSignIn: () -> Unit,
+    onVerifyCode: (String, String) -> Unit,
+    onResendCode: (String) -> Unit,
+    onClearSignInSuccess: () -> Unit,
+    accountState: AccountUiState,
     onPearlClick: (String) -> Unit,
+    onResolveAvatarUrl: suspend (String) -> String? = { null },
+    onOpenUserProfile: (String) -> Unit = {},
     onLoadInitial: () -> Unit,
     onRefreshFeed: () -> Unit = onLoadInitial,
     onLoadNextPage: () -> Unit,
@@ -288,25 +299,37 @@ fun PublicFeedScreen(
                             }
                         } else {
                             items(uiState.filteredPearls, key = { it.id }) { pearl ->
-                                PearlSwipeRow(
-                                    leadingAction = PearlSwipeAction(
-                                        icon = Icons.Default.CreateNewFolder,
-                                        title = "Save",
-                                        color = theme.primary,
-                                        onClick = { saveTarget = pearl },
-                                    ),
-                                    trailingAction = PearlSwipeAction(
-                                        icon = Icons.Default.Delete,
-                                        title = "Remove",
-                                        color = Color(0xFFFF3B30),
-                                        onClick = { removeTarget = pearl },
-                                    ),
+                                val author = FeedPearlAuthorInfo.fromPublicPearl(pearl)
+                                PearlFeedAuthorLayout(
+                                    displayName = author.displayName,
+                                    avatarUrl = author.avatarUrl,
+                                    createdAtMillis = pearl.feedSortMillis,
+                                    userId = author.userId,
+                                    onResolveAvatarUrl = onResolveAvatarUrl,
+                                    onAuthorClick = author.userId
+                                        ?.takeIf { it.isNotBlank() }
+                                        ?.let { userId -> { onOpenUserProfile(userId) } },
                                 ) {
-                                    PublicFeedCard(
-                                        pearl = pearl,
-                                        theme = theme,
-                                        onClick = { onPearlClick(pearl.id) },
-                                    )
+                                    PearlSwipeRow(
+                                        leadingAction = PearlSwipeAction(
+                                            icon = Icons.Default.CreateNewFolder,
+                                            title = "Save",
+                                            color = theme.primary,
+                                            onClick = { saveTarget = pearl },
+                                        ),
+                                        trailingAction = PearlSwipeAction(
+                                            icon = Icons.Default.Delete,
+                                            title = "Remove",
+                                            color = Color(0xFFFF3B30),
+                                            onClick = { removeTarget = pearl },
+                                        ),
+                                    ) {
+                                        PublicFeedCard(
+                                            pearl = pearl,
+                                            theme = theme,
+                                            onClick = { onPearlClick(pearl.id) },
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -389,7 +412,15 @@ fun PublicFeedScreen(
         }
 
         if (!isSignedIn) {
-            PublicFeedAuthGate(onSignIn = onSignIn)
+            PublicFeedAuthGate(
+                accountState = accountState,
+                onSignIn = onSignIn,
+                onSignUp = onSignUp,
+                onGoogleSignIn = onGoogleSignIn,
+                onVerifyCode = onVerifyCode,
+                onResendCode = onResendCode,
+                onClearSignInSuccess = onClearSignInSuccess,
+            )
         }
 
         when (uiState.actionOutcome) {

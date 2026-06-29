@@ -24,9 +24,10 @@ data class FeedPearlAuthorInfo(
         ): FeedPearlAuthorInfo {
             val entity = pearl.pearl
 
-            publicPearl?.safeDisplayName?.takeIf { it.isNotBlank() }?.let { name ->
+            // Preserve original public-feed creator across saves and friend shares.
+            if (publicPearl != null && publicPearl.safeDisplayName.isNotBlank()) {
                 return FeedPearlAuthorInfo(
-                    displayName = name,
+                    displayName = publicPearl.safeDisplayName,
                     avatarUrl = null,
                     userId = publicPearl.userId,
                 )
@@ -46,6 +47,13 @@ data class FeedPearlAuthorInfo(
                 userId = account.userId,
             )
         }
+
+        fun fromPublicPearl(pearl: PublicPearl): FeedPearlAuthorInfo =
+            FeedPearlAuthorInfo(
+                displayName = pearl.safeDisplayName.ifBlank { "Unknown" },
+                avatarUrl = null,
+                userId = pearl.userId,
+            )
 
         private fun currentUserDisplayName(account: FeedAuthorContext): String {
             account.userProfile?.name?.takeIf { it.isNotBlank() }?.let { return it }

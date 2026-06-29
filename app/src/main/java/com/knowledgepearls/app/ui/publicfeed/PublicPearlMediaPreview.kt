@@ -26,6 +26,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,6 +39,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil3.compose.SubcomposeAsyncImage
 import androidx.compose.foundation.Image
@@ -45,13 +47,16 @@ import com.knowledgepearls.app.data.model.PublicPearl
 import com.knowledgepearls.app.data.model.PublicPearlMediaItem
 import com.knowledgepearls.app.ui.feed.LinkPearlPreviewSection
 import com.knowledgepearls.app.ui.feed.PearlDetailMetrics
+import com.knowledgepearls.app.ui.feed.PearlDetailSectionHeaderBar
 import com.knowledgepearls.app.ui.feed.parseOpenableUrl
 import com.knowledgepearls.app.ui.media.DocumentAttachmentActions
+import com.knowledgepearls.app.ui.media.DocumentMediaActions
 import com.knowledgepearls.app.ui.media.MediaThumbnailUtils
 import com.knowledgepearls.app.ui.media.PearlDocumentPreviewCard
 import com.knowledgepearls.app.ui.theme.PearlColors
 import com.knowledgepearls.app.ui.theme.TabTheme
 import com.knowledgepearls.app.ui.theme.isPearlDarkTheme
+import kotlinx.coroutines.launch
 
 private val previewHeight = 158.dp
 private val previewShape = RoundedCornerShape(12.dp)
@@ -167,17 +172,13 @@ fun PublicPearlDetailMediaSection(
 
         if (gallerySlides.isNotEmpty()) {
             if (gallerySlides.size > 1) {
-                Text(
-                    text = "Attachments",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = PearlColors.heroPrimary(darkTheme),
-                )
+                PearlDetailSectionHeaderBar(title = "Attachments", theme = theme)
                 PublicPearlMediaCarousel(
                     slides = gallerySlides,
                     theme = theme,
                     height = detailHeight,
                     interactive = true,
+                    onOpenMedia = onOpenMedia,
                     onOpenAtIndex = { index ->
                         onOpenMedia(PublicPearlMediaViewerRequest(gallerySlides, index))
                     },
@@ -193,6 +194,10 @@ fun PublicPearlDetailMediaSection(
             }
         }
 
+        if (documents.isNotEmpty() && gallerySlides.isEmpty()) {
+            PearlDetailSectionHeaderBar(title = "Documents", theme = theme)
+        }
+
         documents.forEach { document ->
             val url = document.loadableUrl ?: return@forEach
             val slide = PublicPearlMediaSlide.Document(url, document.resolvedFilename)
@@ -201,9 +206,7 @@ fun PublicPearlDetailMediaSection(
                 theme = theme,
                 height = detailHeight,
                 interactive = true,
-                onOpen = {
-                    onOpenMedia(PublicPearlMediaViewerRequest(listOf(slide), 0))
-                },
+                onOpenMedia = onOpenMedia,
             )
         }
 
@@ -231,6 +234,7 @@ internal fun PublicPearlMediaCarousel(
     interactive: Boolean,
     modifier: Modifier = Modifier,
     onOpenAtIndex: ((Int) -> Unit)? = null,
+    onOpenMedia: ((PublicPearlMediaViewerRequest) -> Unit)? = null,
 ) {
     val pagerState = rememberPagerState(pageCount = { slides.size })
 
@@ -253,11 +257,17 @@ internal fun PublicPearlMediaCarousel(
                     height = height,
                     interactive = interactive,
                     includeDocumentActions = false,
-                    onOpen = if (interactive && onOpenAtIndex != null) {
-                        { onOpenAtIndex(page) }
-                    } else {
-                        null
+                    onOpen = when {
+                        !interactive -> null
+                        onOpenMedia != null -> {
+                            { onOpenMedia(PublicPearlMediaViewerRequest(slides, page)) }
+                        }
+                        onOpenAtIndex != null -> {
+                            { onOpenAtIndex(page) }
+                        }
+                        else -> null
                     },
+                    onOpenMedia = onOpenMedia,
                 )
             }
 
@@ -284,6 +294,10 @@ internal fun PublicPearlMediaCarousel(
                     url = currentSlide.url,
                     filename = currentSlide.filename,
                     theme = theme,
+                    onOpenPdfInApp = { request ->
+                        onOpenMedia?.invoke(request)
+                            ?: onOpenAtIndex?.invoke(pagerState.currentPage)
+                    },
                 )
             }
         }
@@ -299,6 +313,7 @@ internal fun PublicPearlMediaSlideView(
     modifier: Modifier = Modifier,
     includeDocumentActions: Boolean = true,
     onOpen: (() -> Unit)? = null,
+    onOpenMedia: ((PublicPearlMediaViewerRequest) -> Unit)? = null,
 ) {
     when (slide) {
         is PublicPearlMediaSlide.Image -> PublicPearlImagePreview(
@@ -317,6 +332,25 @@ internal fun PublicPearlMediaSlideView(
             onOpen = if (interactive) onOpen else null,
         )
         is PublicPearlMediaSlide.Document -> {
+            val context = LocalContext.current
+            val scope = rememberCoroutineScope()
+            val openPdfInApp: (PublicPearlMediaViewerRequest) -> Unit = { request ->
+                onOpenMedia?.invoke(request) ?: onOpen?.invoke()
+            }
+            val openDocument: (() -> Unit)? = if (interactive) {
+                {
+                    scope.launch {
+                        DocumentMediaActions.openSlide(
+                            context = context,
+                            slide = slide,
+                            onOpenPdfInApp = openPdfInApp,
+                        )
+                    }
+                }
+            } else {
+                null
+            }
+
             Column(
                 modifier = modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -328,13 +362,14 @@ internal fun PublicPearlMediaSlideView(
                     height = height,
                     modifier = Modifier.fillMaxWidth(),
                     interactive = interactive,
-                    onOpen = if (interactive) onOpen else null,
+                    onOpen = openDocument,
                 )
                 if (interactive && includeDocumentActions) {
                     DocumentAttachmentActions(
                         url = slide.url,
                         filename = slide.filename,
                         theme = theme,
+                        onOpenPdfInApp = openPdfInApp,
                     )
                 }
             }

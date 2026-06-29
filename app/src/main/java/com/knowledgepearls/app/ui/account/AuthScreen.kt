@@ -19,27 +19,17 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.knowledgepearls.app.AppBrand
@@ -64,10 +54,6 @@ fun AuthScreen(
     onClearSignInSuccess: () -> Unit,
 ) {
     val darkTheme = isPearlDarkTheme()
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var verificationCode by remember { mutableStateOf("") }
-    var isSignUp by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState.showSignInSuccess) {
         if (uiState.showSignInSuccess) {
@@ -115,94 +101,14 @@ fun AuthScreen(
 
                 Spacer(Modifier.height(20.dp))
 
-                OutlinedButton(
-                    onClick = onGoogleSignIn,
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !uiState.isLoading,
-                    shape = RoundedCornerShape(14.dp),
-                ) {
-                    Text("Continue with Google")
-                }
-
-                Spacer(Modifier.height(16.dp))
-
-                Text(
-                    text = "or",
-                    modifier = Modifier.fillMaxWidth(),
-                    textAlign = TextAlign.Center,
-                    color = PearlColors.heroSecondary(darkTheme),
+                InlineAuthPanel(
+                    uiState = uiState,
+                    onSignIn = onSignIn,
+                    onSignUp = onSignUp,
+                    onGoogleSignIn = onGoogleSignIn,
+                    onVerifyCode = onVerifyCode,
+                    onResendCode = onResendCode,
                 )
-
-                Spacer(Modifier.height(16.dp))
-
-                if (uiState.pendingVerificationEmail != null) {
-                    val pendingEmail = uiState.pendingVerificationEmail
-                    EmailVerificationSection(
-                        email = pendingEmail,
-                        code = verificationCode,
-                        onCodeChange = { verificationCode = it.filter(Char::isDigit).take(6) },
-                        isLoading = uiState.isLoading,
-                        errorMessage = uiState.errorMessage,
-                        infoMessage = uiState.verificationCodeSentMessage,
-                        onVerify = { onVerifyCode(pendingEmail, verificationCode) },
-                        onResend = { onResendCode(pendingEmail) },
-                    )
-                } else {
-                    AccountGlassTextField(
-                        value = email,
-                        onValueChange = { email = it },
-                        label = "Email",
-                        keyboardType = KeyboardType.Email,
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    AccountGlassTextField(
-                        value = password,
-                        onValueChange = { password = it },
-                        label = "Password",
-                        isPassword = true,
-                    )
-
-                    uiState.errorMessage?.let { message ->
-                        Spacer(Modifier.height(12.dp))
-                        Text(
-                            text = message,
-                            color = Color(0xFFFF6B6B),
-                            style = MaterialTheme.typography.bodySmall,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
-
-                    Spacer(Modifier.height(20.dp))
-
-                    Button(
-                        onClick = {
-                            if (isSignUp) onSignUp(email, password) else onSignIn(email, password)
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(52.dp),
-                        enabled = !uiState.isLoading && email.isNotBlank() && password.length >= 6,
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Teal),
-                    ) {
-                        if (uiState.isLoading) {
-                            CircularProgressIndicator(modifier = Modifier.size(22.dp), color = Color.White)
-                        } else {
-                            Text(if (isSignUp) "Create account" else "Sign in", fontWeight = FontWeight.Bold)
-                        }
-                    }
-
-                    TextButton(
-                        onClick = { isSignUp = !isSignUp },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(
-                            text = if (isSignUp) "Already have an account? Sign in" else "Need an account? Sign up",
-                            color = PearlColors.heroSecondary(darkTheme),
-                        )
-                    }
-                }
 
                 Spacer(Modifier.height(32.dp))
             }
@@ -233,50 +139,6 @@ private fun AuthHeroSection() {
                 fontWeight = FontWeight.Bold,
                 color = Color.White,
             )
-        }
-    }
-}
-
-@Composable
-private fun EmailVerificationSection(
-    email: String,
-    code: String,
-    onCodeChange: (String) -> Unit,
-    isLoading: Boolean,
-    errorMessage: String?,
-    infoMessage: String?,
-    onVerify: () -> Unit,
-    onResend: () -> Unit,
-) {
-    val darkTheme = isPearlDarkTheme()
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(
-            text = "We sent a 6-digit code to $email. In Gmail, check Spam and Promotions, or search for \"Med Pearls verification\".",
-            color = PearlColors.heroSecondary(darkTheme),
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        AccountGlassTextField(
-            value = code,
-            onValueChange = onCodeChange,
-            label = "Verification code",
-            keyboardType = KeyboardType.Number,
-        )
-        errorMessage?.let {
-            Text(it, color = Color(0xFFFF6B6B), style = MaterialTheme.typography.bodySmall)
-        }
-        infoMessage?.let {
-            Text(it, color = Teal, style = MaterialTheme.typography.bodySmall)
-        }
-        Button(
-            onClick = onVerify,
-            modifier = Modifier.fillMaxWidth(),
-            enabled = !isLoading && code.length == 6,
-            colors = ButtonDefaults.buttonColors(containerColor = Teal),
-        ) {
-            Text("Verify email")
-        }
-        TextButton(onClick = onResend, enabled = !isLoading) {
-            Text("Resend code", color = PearlColors.heroSecondary(darkTheme))
         }
     }
 }

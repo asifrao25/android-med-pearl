@@ -1,83 +1,99 @@
 package com.knowledgepearls.app.ui.publicfeed
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Public
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.knowledgepearls.app.ui.theme.LiquidBackground
+import com.knowledgepearls.app.ui.account.AccountUiState
+import com.knowledgepearls.app.ui.account.AuthSignInSuccessScreen
+import com.knowledgepearls.app.ui.account.InlineAuthPanel
 import com.knowledgepearls.app.ui.theme.PearlColors
 import com.knowledgepearls.app.ui.theme.PearlLayout
 import com.knowledgepearls.app.ui.theme.TabTheme
 import com.knowledgepearls.app.ui.theme.isPearlDarkTheme
+import kotlinx.coroutines.delay
 
 @Composable
 fun PublicFeedAuthGate(
-    onSignIn: () -> Unit,
+    accountState: AccountUiState,
+    onSignIn: (String, String) -> Unit,
+    onSignUp: (String, String) -> Unit,
+    onGoogleSignIn: () -> Unit,
+    onVerifyCode: (String, String) -> Unit,
+    onResendCode: (String) -> Unit,
+    onClearSignInSuccess: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val theme = TabTheme.PublicFeed
     val darkTheme = isPearlDarkTheme()
 
+    LaunchedEffect(accountState.showSignInSuccess) {
+        if (accountState.showSignInSuccess) {
+            delay(1400)
+            onClearSignInSuccess()
+        }
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.68f)),
-        contentAlignment = Alignment.BottomCenter,
+            .background(Color.Black.copy(alpha = 0.55f)),
     ) {
-        Column(
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp))
-                .background(PearlColors.popupSurface(darkTheme))
-                .navigationBarsPadding(),
+                .fillMaxSize()
+                .padding(horizontal = PearlLayout.screenHorizontalPadding)
+                .padding(bottom = PearlLayout.tabBarOverlayInset),
+            contentAlignment = Alignment.Center,
         ) {
-            Box(Modifier.fillMaxWidth()) {
-                LiquidBackground(theme = theme, modifier = Modifier.matchParentSize())
+            if (accountState.showSignInSuccess) {
+                AuthSignInSuccessScreen(email = accountState.userEmail)
+            } else {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 28.dp, vertical = 32.dp),
+                        .heightIn(max = 620.dp)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(PearlColors.popupSurface(darkTheme))
+                        .border(
+                            width = 1.dp,
+                            color = Color.White.copy(alpha = if (darkTheme) 0.12f else 0.28f),
+                            shape = RoundedCornerShape(24.dp),
+                        )
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 24.dp, vertical = 28.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(999.dp))
-                            .background(Color.White.copy(alpha = 0.22f))
-                            .padding(horizontal = 36.dp, vertical = 2.dp)
-                            .height(4.dp),
-                    )
-
                     Icon(
                         imageVector = Icons.Default.Public,
                         contentDescription = null,
                         tint = theme.primary,
-                        modifier = Modifier.height(44.dp),
+                        modifier = Modifier.size(44.dp),
                     )
 
                     Text(
@@ -88,39 +104,20 @@ fun PublicFeedAuthGate(
                     )
 
                     Text(
-                        text = "Discover and share clinical pearls\nfrom doctors across the UK.",
+                        text = "Discover and share clinical pearls from doctors across the UK.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = PearlColors.heroSecondary(darkTheme),
                         textAlign = TextAlign.Center,
                     )
 
-                    Spacer(Modifier.height(8.dp))
-
-                    Button(
-                        onClick = onSignIn,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-                        contentPadding = ButtonDefaults.ContentPadding,
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(
-                                    brush = Brush.horizontalGradient(
-                                        listOf(theme.primary, theme.secondary),
-                                    ),
-                                )
-                                .padding(vertical = 14.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                text = "Sign in to browse",
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold,
-                            )
-                        }
-                    }
+                    InlineAuthPanel(
+                        uiState = accountState,
+                        onSignIn = onSignIn,
+                        onSignUp = onSignUp,
+                        onGoogleSignIn = onGoogleSignIn,
+                        onVerifyCode = onVerifyCode,
+                        onResendCode = onResendCode,
+                    )
                 }
             }
         }
@@ -149,7 +146,7 @@ fun PublicFeedEmptyState(
                 color = PearlColors.heroSecondary(darkTheme),
                 textAlign = TextAlign.Center,
             )
-            Button(onClick = onRetry) {
+            androidx.compose.material3.Button(onClick = onRetry) {
                 Text("Try again")
             }
         } else {

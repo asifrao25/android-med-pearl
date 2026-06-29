@@ -37,9 +37,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.knowledgepearls.app.data.local.model.FolderWithCount
-import com.knowledgepearls.app.ui.components.GlassSurface
 import com.knowledgepearls.app.ui.components.PearlMaterialAlertDialog
 import com.knowledgepearls.app.ui.theme.PearlColors
+import com.knowledgepearls.app.ui.theme.PearlLayout
 import com.knowledgepearls.app.ui.theme.TabTheme
 import com.knowledgepearls.app.ui.theme.isPearlDarkTheme
 
@@ -117,6 +117,7 @@ fun FolderFloatingMenu(
     onRenameFolder: (FolderWithCount, String) -> Unit,
     onDeleteFolder: (FolderWithCount) -> Unit,
     modifier: Modifier = Modifier,
+    showDragHandle: Boolean = true,
 ) {
     val theme = TabTheme.Folders
     val darkTheme = isPearlDarkTheme()
@@ -124,12 +125,13 @@ fun FolderFloatingMenu(
     var renameTarget by remember { mutableStateOf<FolderWithCount?>(null) }
     var deleteTarget by remember { mutableStateOf<FolderWithCount?>(null) }
 
-    GlassSurface(
-        modifier = modifier.width(280.dp),
-        cornerRadius = 22.dp,
-        opaque = true,
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = PearlLayout.screenHorizontalPadding)
+            .padding(bottom = 8.dp),
     ) {
-        Column {
+        if (showDragHandle) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -144,75 +146,86 @@ fun FolderFloatingMenu(
                         .background(Color.White.copy(alpha = 0.28f)),
                 )
             }
+        }
 
-            Text(
-                text = "Folders",
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = PearlColors.heroPrimary(darkTheme),
-            )
+        Text(
+            text = "Folders",
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = PearlColors.heroPrimary(darkTheme),
+        )
 
-            Column(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                if (folders.isEmpty()) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Text(
-                            "No folders yet",
-                            fontWeight = FontWeight.SemiBold,
-                            color = PearlColors.heroPrimary(darkTheme),
-                        )
-                        Text(
-                            "Create one to organise pearls.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = PearlColors.heroSecondary(darkTheme),
-                            textAlign = TextAlign.Center,
-                        )
-                    }
-                } else {
-                    Column(
-                        modifier = Modifier
-                            .height(280.dp)
-                            .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        folders.forEach { folder ->
-                            FolderMenuRow(
-                                folder = folder,
-                                onClick = { onSelectFolder(folder) },
-                                onRename = { renameTarget = folder },
-                                onDelete = { deleteTarget = folder },
-                            )
-                        }
-                    }
-                }
+        Text(
+            text = "Organise pearls into collections",
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 4.dp, bottom = 12.dp),
+            textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.bodySmall,
+            color = PearlColors.heroSecondary(darkTheme),
+        )
 
-                Row(
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            if (folders.isEmpty()) {
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(999.dp))
-                        .background(theme.primary.copy(alpha = 0.14f))
-                        .clickable { showCreateDialog = true }
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically,
+                        .padding(vertical = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Icon(Icons.Default.Folder, contentDescription = null, tint = theme.primary)
                     Text(
-                        "Add Folder",
-                        modifier = Modifier.padding(start = 8.dp),
-                        color = theme.primary,
+                        "No folders yet",
                         fontWeight = FontWeight.SemiBold,
+                        color = PearlColors.heroPrimary(darkTheme),
+                    )
+                    Text(
+                        "Create one to organise pearls.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = PearlColors.heroSecondary(darkTheme),
+                        textAlign = TextAlign.Center,
                     )
                 }
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(320.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    folders.forEach { folder ->
+                        FolderMenuRow(
+                            folder = folder,
+                            onClick = { onSelectFolder(folder) },
+                            onRename = { renameTarget = folder },
+                            onDelete = { deleteTarget = folder },
+                        )
+                    }
+                }
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(theme.primary.copy(alpha = 0.14f))
+                    .clickable { showCreateDialog = true }
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Default.Folder, contentDescription = null, tint = theme.primary)
+                Text(
+                    "Add Folder",
+                    modifier = Modifier.padding(start = 8.dp),
+                    color = theme.primary,
+                    fontWeight = FontWeight.SemiBold,
+                )
             }
         }
     }

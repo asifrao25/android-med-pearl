@@ -23,6 +23,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,11 +33,169 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.knowledgepearls.app.ui.theme.TabTheme
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+@Composable
+fun FullscreenExternalDocumentLauncher(
+    url: String,
+    filename: String,
+    modifier: Modifier = Modifier,
+    onDismiss: () -> Unit = {},
+    autoLaunch: Boolean = true,
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val effectiveName = effectiveMediaFilename(filename, url)
+    var isPreparing by remember(url, effectiveName) { mutableStateOf(autoLaunch) }
+    var errorMessage by remember(url, effectiveName) { mutableStateOf<String?>(null) }
+    var hasAutoLaunched by remember(url, effectiveName) { mutableStateOf(false) }
+
+    suspend fun launchExternal(): Boolean {
+        isPreparing = true
+        errorMessage = null
+        return when (val result = DocumentOpener.openDocument(context, url, effectiveName)) {
+            DocumentOpenResult.OpenedExternally -> {
+                isPreparing = false
+                onDismiss()
+                true
+            }
+            DocumentOpenResult.ViewInApp -> false
+            is DocumentOpenResult.Failed -> {
+                isPreparing = false
+                errorMessage = result.message
+                false
+            }
+        }
+    }
+
+    LaunchedEffect(url, effectiveName, autoLaunch) {
+        if (autoLaunch && !hasAutoLaunched) {
+            hasAutoLaunched = true
+            launchExternal()
+        } else if (!autoLaunch) {
+            isPreparing = false
+        }
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(Color.Black)
+            .padding(top = 72.dp, bottom = 24.dp, start = 20.dp, end = 20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(Color(0xFF141416)),
+            contentAlignment = Alignment.Center,
+        ) {
+            when {
+                isPreparing -> {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        CircularProgressIndicator(color = Color.White)
+                        Text(
+                            text = "Preparing ${DocumentSupport.documentLabel(effectiveName)}…",
+                            color = Color.White.copy(alpha = 0.88f),
+                            textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                }
+                errorMessage != null -> {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Text(
+                            text = errorMessage.orEmpty(),
+                            color = Color.White.copy(alpha = 0.92f),
+                            textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Text(
+                            text = DocumentSupport.openActionHint(effectiveName),
+                            color = Color.White.copy(alpha = 0.68f),
+                            textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                }
+                else -> {
+                    Text(
+                        text = "Opening ${DocumentSupport.documentLabel(effectiveName)}…",
+                        color = Color.White.copy(alpha = 0.88f),
+                        textAlign = TextAlign.Center,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(24.dp),
+                    )
+                }
+            }
+        }
+
+        Text(
+            text = effectiveName,
+            color = Color.White,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.titleMedium,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+
+        Text(
+            text = DocumentSupport.openActionTitle(effectiveName),
+            color = Color.White,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(999.dp))
+                .background(Color.White.copy(alpha = 0.16f))
+                .clickable(enabled = !isPreparing) {
+                    scope.launch { launchExternal() }
+                }
+                .padding(horizontal = 22.dp, vertical = 14.dp),
+        )
+
+        Text(
+            text = "Download",
+            color = Color.White.copy(alpha = 0.88f),
+            fontWeight = FontWeight.Medium,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(999.dp))
+                .background(Color.White.copy(alpha = 0.08f))
+                .clickable(enabled = !isPreparing) {
+                    scope.launch {
+                        withContext(Dispatchers.IO) {
+                            DocumentDownloader.download(
+                                context = context,
+                                cacheDir = context.cacheDir,
+                                url = url,
+                                filename = effectiveName,
+                            )
+                        }
+                    }
+                }
+                .padding(horizontal = 22.dp, vertical = 14.dp),
+        )
+    }
+}
 
 @Composable
 fun FullscreenPdfDocumentViewer(
@@ -104,12 +263,11 @@ fun FullscreenPdfDocumentViewer(
             }
         }
         error != null -> {
-            FullscreenOfficeDocumentViewer(
+            FullscreenExternalDocumentLauncher(
                 url = url,
                 filename = effectiveName,
-                onDismissProgress = onDismissProgress,
                 onDismiss = onDismiss,
-                onZoomChanged = onZoomChanged,
+                autoLaunch = true,
             )
         }
         else -> {

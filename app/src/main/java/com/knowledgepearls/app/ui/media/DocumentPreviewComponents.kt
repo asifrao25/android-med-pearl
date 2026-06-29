@@ -241,6 +241,7 @@ fun PearlDocumentDetailPreview(
     theme: TabTheme,
     onOpen: () -> Unit,
     modifier: Modifier = Modifier,
+    onOpenPdfInApp: (com.knowledgepearls.app.ui.publicfeed.PublicPearlMediaViewerRequest) -> Unit = {},
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -259,6 +260,7 @@ fun PearlDocumentDetailPreview(
             filename = filename,
             theme = theme,
             showFilename = true,
+            onOpenPdfInApp = onOpenPdfInApp,
         )
     }
 }

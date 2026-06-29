@@ -1,8 +1,6 @@
 package com.knowledgepearls.app.ui.shell
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +11,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
@@ -20,10 +20,12 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -115,6 +117,7 @@ fun SettingsSheet(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FolderMenuOverlay(
     visible: Boolean,
@@ -126,25 +129,26 @@ fun FolderMenuOverlay(
 
     val darkTheme = isPearlDarkTheme()
     val folders by viewModel.foldersWithCounts.collectAsStateWithLifecycle()
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    Box(Modifier.fillMaxSize()) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(PearlColors.scrim(darkTheme, 0.38f))
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onDismiss,
-                ),
-        )
+    LaunchedEffect(Unit) {
+        sheetState.show()
+    }
 
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = PearlColors.popupSurface(darkTheme),
+        scrimColor = PearlColors.scrim(darkTheme, 0.42f),
+        dragHandle = {
+            FolderDrawerDragHandle()
+        },
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+    ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .navigationBarsPadding()
-                .padding(bottom = PearlLayout.tabBarOverlayInset),
-            horizontalAlignment = Alignment.End,
+                .fillMaxWidth()
+                .navigationBarsPadding(),
         ) {
             FolderFloatingMenu(
                 folders = folders,
@@ -153,9 +157,35 @@ fun FolderMenuOverlay(
                 onCreateFolder = viewModel::createFolder,
                 onRenameFolder = { folder, name -> viewModel.renameFolder(folder.folder.id, name) },
                 onDeleteFolder = viewModel::deleteFolder,
-                modifier = Modifier
-                    .padding(top = 120.dp, end = PearlLayout.screenHorizontalPadding),
+                modifier = Modifier.fillMaxWidth(),
+                showDragHandle = false,
             )
+
+            Spacer(Modifier.height(PearlLayout.tabBarOverlayInset))
         }
+    }
+}
+
+@Composable
+private fun FolderDrawerDragHandle() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 10.dp, bottom = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .width(40.dp)
+                .height(4.dp)
+                .clip(RoundedCornerShape(999.dp))
+                .background(Color.White.copy(alpha = 0.32f)),
+        )
+        Text(
+            text = "Pull down to close",
+            style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
+            color = PearlColors.heroSecondary(isPearlDarkTheme()).copy(alpha = 0.72f),
+        )
     }
 }

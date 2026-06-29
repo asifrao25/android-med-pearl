@@ -177,21 +177,27 @@ class AccountRepository @Inject constructor(
     }
 
     suspend fun fetchAvatarUrl(userId: String): String? {
-        val rows = supabase.from("profiles").select {
-            filter { eq("id", userId) }
-            limit(1)
-        }.decodeList<AvatarUrlRow>()
-        return rows.firstOrNull()?.avatarUrl
+        if (userId.isBlank() || !isAuthenticated()) return null
+        return runCatching {
+            val rows = supabase.from("profiles").select {
+                filter { eq("id", userId) }
+                limit(1)
+            }.decodeList<AvatarUrlRow>()
+            rows.firstOrNull()?.avatarUrl
+        }.getOrNull()
     }
 
     suspend fun fetchProfile(userId: String): UserProfile? {
-        val profiles = supabase.from("profiles").select {
-            filter { eq("id", normalizeUserId(userId)) }
-        }.decodeList<UserProfile>()
-        return profiles.firstOrNull()
-            ?: supabase.from("profiles").select {
-                filter { eq("id", userId.trim()) }
-            }.decodeList<UserProfile>().firstOrNull()
+        if (userId.isBlank() || !isAuthenticated()) return null
+        return runCatching {
+            val profiles = supabase.from("profiles").select {
+                filter { eq("id", normalizeUserId(userId)) }
+            }.decodeList<UserProfile>()
+            profiles.firstOrNull()
+                ?: supabase.from("profiles").select {
+                    filter { eq("id", userId.trim()) }
+                }.decodeList<UserProfile>().firstOrNull()
+        }.getOrNull()
     }
 
     suspend fun createProfile(

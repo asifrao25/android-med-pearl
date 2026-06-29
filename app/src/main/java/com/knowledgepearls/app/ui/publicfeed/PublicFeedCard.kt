@@ -83,16 +83,6 @@ fun PublicFeedCard(
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
             )
-            if (pearl.safeDisplayName.isNotBlank()) {
-                Box(modifier = Modifier.weight(1f))
-                Text(
-                    text = pearl.safeDisplayName,
-                    color = Color.White.copy(alpha = 0.85f),
-                    style = MaterialTheme.typography.labelSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
         }
 
         Column(

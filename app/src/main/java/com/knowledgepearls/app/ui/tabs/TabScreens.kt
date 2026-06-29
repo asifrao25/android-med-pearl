@@ -7,6 +7,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
@@ -39,6 +40,7 @@ fun FeedTabScreen(
     onOpenInbox: () -> Unit = {},
     inboxBadgeCount: Int = 0,
     onFeedRootVisibilityChange: (Boolean) -> Unit = {},
+    onRegisterPopToRoot: (((() -> Unit)?) -> Unit)? = null,
     shareImport: ShareImportPayload? = null,
     onShareImportConsumed: () -> Unit = {},
     feedViewModel: FeedViewModel = hiltViewModel(),
@@ -70,6 +72,16 @@ fun FeedTabScreen(
             !payload.text.isNullOrBlank() -> navController.navigate("capture/quick/import")
         }
         onShareImportConsumed()
+    }
+
+    DisposableEffect(navController) {
+        onRegisterPopToRoot?.invoke {
+            captureMenuOpen = false
+            feedViewModel.setSearchActive(false)
+            feedViewModel.setSearchQuery("")
+            navController.popBackStack("feed", false)
+        }
+        onDispose { onRegisterPopToRoot?.invoke(null) }
     }
 
     NavHost(
@@ -205,6 +217,7 @@ fun FavouritesTabScreen(
     onOpenUserProfile: (String) -> Unit = {},
     onOpenInbox: () -> Unit = {},
     inboxBadgeCount: Int = 0,
+    onRegisterPopToRoot: (((() -> Unit)?) -> Unit)? = null,
     favouritesViewModel: com.knowledgepearls.app.ui.favourites.FavouritesViewModel = hiltViewModel(),
     feedViewModel: FeedViewModel = hiltViewModel(),
     accountViewModel: AccountViewModel = hiltViewModel(),
@@ -216,6 +229,13 @@ fun FavouritesTabScreen(
         userEmail = accountState.userEmail,
         userProfile = accountState.userProfile,
     )
+
+    DisposableEffect(navController) {
+        onRegisterPopToRoot?.invoke {
+            navController.popBackStack("favourites", false)
+        }
+        onDispose { onRegisterPopToRoot?.invoke(null) }
+    }
 
     NavHost(navController = navController, startDestination = "favourites") {
         composable("favourites") {
@@ -250,10 +270,10 @@ fun FavouritesTabScreen(
 fun PublicFeedTabScreen(
     onOpenSettings: () -> Unit,
     onOpenInbox: () -> Unit,
-    onSignIn: () -> Unit,
     onOpenUserProfile: (String) -> Unit = {},
     inboxBadgeCount: Int = 0,
     onPublicFeedRootVisibilityChange: (Boolean) -> Unit = {},
+    onRegisterPopToRoot: (((() -> Unit)?) -> Unit)? = null,
     connectivityState: ConnectivityState = ConnectivityState(),
     onRetryConnection: () -> Unit = {},
     initialPearlId: String? = null,
@@ -264,6 +284,7 @@ fun PublicFeedTabScreen(
     captureViewModel: CaptureViewModel = hiltViewModel(),
     foldersViewModel: com.knowledgepearls.app.ui.folders.FoldersViewModel = hiltViewModel(),
 ) {
+    val activityContext = LocalContext.current
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     LaunchedEffect(navBackStackEntry) {
@@ -306,6 +327,14 @@ fun PublicFeedTabScreen(
         onInitialPearlConsumed()
     }
 
+    DisposableEffect(navController) {
+        onRegisterPopToRoot?.invoke {
+            captureMenuOpen = false
+            navController.popBackStack("public_feed", false)
+        }
+        onDispose { onRegisterPopToRoot?.invoke(null) }
+    }
+
     NavHost(
         navController = navController,
         startDestination = "public_feed",
@@ -317,10 +346,18 @@ fun PublicFeedTabScreen(
                 inboxBadgeCount = inboxBadgeCount,
                 onOpenSettings = onOpenSettings,
                 onOpenInbox = onOpenInbox,
-                onSignIn = onSignIn,
+                onSignIn = accountViewModel::signIn,
+                onSignUp = accountViewModel::signUp,
+                onGoogleSignIn = { accountViewModel.signInWithGoogle(activityContext) },
+                onVerifyCode = accountViewModel::verifySignupCode,
+                onResendCode = accountViewModel::resendVerificationCode,
+                onClearSignInSuccess = accountViewModel::clearSignInSuccess,
+                accountState = accountState,
                 onPearlClick = { pearlId ->
                     navController.navigate("public_pearl/$pearlId")
                 },
+                onResolveAvatarUrl = feedViewModel::fetchAvatarUrl,
+                onOpenUserProfile = onOpenUserProfile,
                 onLoadInitial = viewModel::loadInitial,
                 onRefreshFeed = viewModel::refreshFeed,
                 onLoadNextPage = viewModel::loadNextPage,
@@ -416,8 +453,16 @@ fun PublicFeedTabScreen(
                     inboxBadgeCount = inboxBadgeCount,
                     onOpenSettings = onOpenSettings,
                     onOpenInbox = onOpenInbox,
-                    onSignIn = onSignIn,
+                    onSignIn = accountViewModel::signIn,
+                    onSignUp = accountViewModel::signUp,
+                    onGoogleSignIn = { accountViewModel.signInWithGoogle(activityContext) },
+                    onVerifyCode = accountViewModel::verifySignupCode,
+                    onResendCode = accountViewModel::resendVerificationCode,
+                    onClearSignInSuccess = accountViewModel::clearSignInSuccess,
+                    accountState = accountState,
                     onPearlClick = {},
+                    onResolveAvatarUrl = feedViewModel::fetchAvatarUrl,
+                    onOpenUserProfile = onOpenUserProfile,
                     onLoadInitial = viewModel::loadInitial,
                 onRefreshFeed = viewModel::refreshFeed,
                     onLoadNextPage = viewModel::loadNextPage,
