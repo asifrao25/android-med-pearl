@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.knowledgepearls.app.ui.theme.PearlLayout
 import com.knowledgepearls.app.ui.theme.TabTheme
 
 @Composable
@@ -41,7 +42,7 @@ fun InboxHeaderButton(
                     "Inbox"
                 },
                 tint = theme.primary,
-                modifier = Modifier.size(18.dp),
+                modifier = Modifier.size(PearlLayout.headerIconSize),
             )
             badgeLabel?.let { label ->
                 Text(

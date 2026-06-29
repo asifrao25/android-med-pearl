@@ -4,7 +4,6 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -434,7 +433,6 @@ fun MainScaffold(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
-                .navigationBarsPadding()
                 .padding(bottom = PearlLayout.tabBarBottomPadding),
         )
 
@@ -619,7 +617,6 @@ fun MainScaffold(
                 },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .navigationBarsPadding()
                     .padding(end = 20.dp, bottom = inboxButtonBottomPadding),
             )
         }
@@ -641,7 +638,6 @@ fun MainScaffold(
                 onDismiss = { inboxReminderDismissed = true },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .navigationBarsPadding()
                     .padding(bottom = PearlLayout.inboxReminderBottomPadding(inboxButtonBottomPadding)),
             )
         }

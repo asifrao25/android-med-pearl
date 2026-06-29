@@ -7,8 +7,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -59,6 +61,7 @@ import com.knowledgepearls.app.ui.theme.isPearlDarkTheme
 fun AboutCreatorScreen(
     onBack: () -> Unit,
     onOpenProfile: (String) -> Unit,
+    embeddedInSheet: Boolean = false,
     viewModel: AboutCreatorViewModel = hiltViewModel(),
 ) {
     val theme = TabTheme.Settings
@@ -79,91 +82,99 @@ fun AboutCreatorScreen(
         )
     }
 
-    Box(Modifier.fillMaxSize()) {
-        LiquidBackground(theme = theme, intensity = 0.55f)
+    val shellModifier = Modifier
+        .fillMaxSize()
+        .then(if (embeddedInSheet) Modifier.navigationBarsPadding() else Modifier.statusBarsPadding().navigationBarsPadding())
+
+    val bodyColumn: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit = {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    tint = PearlColors.heroPrimary(darkTheme),
+                )
+            }
+        }
 
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .navigationBarsPadding(),
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = PearlLayout.screenHorizontalPadding)
+                .padding(top = 8.dp, bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-            ) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        tint = PearlColors.heroPrimary(darkTheme),
+            CreatorPortraitHero(theme = theme, darkTheme = darkTheme)
+
+            SettingsMenuCard(theme = theme) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Text(
+                        text = "About me",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = PearlColors.heroPrimary(darkTheme),
+                    )
+
+                    Image(
+                        painter = painterResource(R.drawable.creator_portrait),
+                        contentDescription = null,
+                        contentScale = ContentScale.FillWidth,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .border(
+                                width = 1.dp,
+                                color = Color.White.copy(alpha = 0.12f),
+                                shape = RoundedCornerShape(14.dp),
+                            ),
+                    )
+
+                    Text(
+                        text = AboutCreatorContent.BIO,
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            lineHeight = 24.sp,
+                            color = PearlColors.heroPrimary(darkTheme).copy(alpha = 0.92f),
+                        ),
+                    )
+
+                    CreatorLinkButton(
+                        label = "Read app creation story",
+                        icon = Icons.AutoMirrored.Filled.OpenInNew,
+                        theme = theme,
+                        onClick = { showCreationStoryAlert = true },
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+
+                    CreatorLinkButton(
+                        label = "Profile",
+                        icon = Icons.Default.Person,
+                        theme = theme,
+                        onClick = { onOpenProfile(creatorUserId) },
+                        modifier = Modifier.padding(top = 2.dp),
                     )
                 }
             }
+        }
 
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = PearlLayout.screenHorizontalPadding)
-                    .padding(top = 8.dp, bottom = 32.dp),
-                verticalArrangement = Arrangement.spacedBy(24.dp),
-            ) {
-                CreatorPortraitHero(theme = theme, darkTheme = darkTheme)
+        if (embeddedInSheet) {
+            Spacer(Modifier.height(PearlLayout.tabBarOverlayInset))
+        }
+    }
 
-                GlassSurface(cornerRadius = PearlLayout.cardCornerRadius) {
-                    Column(
-                        modifier = Modifier.padding(20.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                    ) {
-                        Text(
-                            text = "About me",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = PearlColors.heroPrimary(darkTheme),
-                        )
-
-                        Image(
-                            painter = painterResource(R.drawable.creator_portrait),
-                            contentDescription = null,
-                            contentScale = ContentScale.FillWidth,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(14.dp))
-                                .border(
-                                    width = 1.dp,
-                                    color = Color.White.copy(alpha = 0.12f),
-                                    shape = RoundedCornerShape(14.dp),
-                                ),
-                        )
-
-                        Text(
-                            text = AboutCreatorContent.BIO,
-                            style = MaterialTheme.typography.bodyLarge.copy(
-                                lineHeight = 24.sp,
-                                color = PearlColors.heroPrimary(darkTheme).copy(alpha = 0.92f),
-                            ),
-                        )
-
-                        CreatorLinkButton(
-                            label = "Read app creation story",
-                            icon = Icons.AutoMirrored.Filled.OpenInNew,
-                            theme = theme,
-                            onClick = { showCreationStoryAlert = true },
-                            modifier = Modifier.padding(top = 4.dp),
-                        )
-
-                        CreatorLinkButton(
-                            label = "Profile",
-                            icon = Icons.Default.Person,
-                            theme = theme,
-                            onClick = { onOpenProfile(creatorUserId) },
-                            modifier = Modifier.padding(top = 2.dp),
-                        )
-                    }
-                }
-            }
+    if (embeddedInSheet) {
+        Column(modifier = shellModifier, content = bodyColumn)
+    } else {
+        Box(Modifier.fillMaxSize()) {
+            LiquidBackground(theme = theme, intensity = 0.55f)
+            Column(modifier = shellModifier, content = bodyColumn)
         }
     }
 }
@@ -181,7 +192,7 @@ fun AboutCreatorSettingsRow(
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
             .clickable(onClick = onClick)
-            .padding(vertical = 6.dp),
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

@@ -81,16 +81,18 @@ object PearlColors {
 /** Layout tokens from iOS `LiquidTabBarLayout` and `TabScreenHeaderMetrics`. */
 object PearlLayout {
     val screenHorizontalPadding = 20.dp
-    val tabBarHeight = 58.dp
-    val tabBarBottomPadding = 10.dp
+    val tabBarHeight = 64.dp
+    val tabBarIconSize = 26.dp
+    /** Small lift from the physical screen bottom — matches iOS `screenBottomPadding`. */
+    val tabBarBottomPadding = 8.dp
     /** Space reserved above the floating tab bar for FABs and bottom actions. */
-    val tabBarOverlayInset = tabBarHeight + tabBarBottomPadding + 20.dp
+    val tabBarOverlayInset = tabBarHeight + tabBarBottomPadding + 16.dp
     val addButtonSize = 52.dp
     val floatingActionStackSpacing = 10.dp
     /** Matches [addButtonSize] — inbox FAB is the same diameter as the add button. */
     val inboxButtonSize = addButtonSize
     /** Section tabs row height including inner padding (matches `PublicFeedSectionTabs`). */
-    val publicFeedSectionTabsHeight = 52.dp
+    val publicFeedSectionTabsHeight = 40.dp
     val fabAboveSectionTabsSpacing = 12.dp
     val publicFeedSectionTabsSpacing = 2.dp
 
@@ -121,7 +123,7 @@ object PearlLayout {
 
     val inboxSheetHorizontalInset = 14.dp
     /** Gap between the floating inbox card and the tab bar. */
-    val inboxSheetBottomInset = 78.dp
+    val inboxSheetBottomInset = tabBarOverlayInset
     const val inboxSheetHeightFraction = 0.68f
     val inboxSheetMaxHeight = 560.dp
     val inboxSheetMinHeight = 360.dp
@@ -132,6 +134,7 @@ object PearlLayout {
     val detailDockBottomPadding = tabBarHeight + tabBarBottomPadding + 12.dp
     val detailScrollBottomPadding = detailDockHeight + detailDockTopPadding + detailDockBottomPadding + 8.dp
     val cardCornerRadius = 18.dp
-    val headerContentHeight = 52.dp
-    val headerActionSize = 36.dp
+    val headerContentHeight = 56.dp
+    val headerActionSize = 44.dp
+    val headerIconSize = 24.dp
 }

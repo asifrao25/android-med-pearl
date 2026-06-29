@@ -4,8 +4,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -95,7 +95,12 @@ fun FeedScreen(
                 trailing = {
                     if (!uiState.isSearchActive) {
                         HeaderIconButton(theme = theme, onClick = { onSearchActiveChange(true) }) {
-                            Icon(Icons.Default.Search, contentDescription = "Search", tint = theme.primary)
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = "Search",
+                                tint = theme.primary,
+                                modifier = Modifier.size(PearlLayout.headerIconSize),
+                            )
                         }
                     }
                 },
@@ -199,7 +204,6 @@ fun FeedScreen(
             onClick = { onCaptureMenuOpenChange(!captureMenuOpen) },
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .navigationBarsPadding()
                 .padding(end = 20.dp, bottom = PearlLayout.addButtonBottomPadding),
         )
     }

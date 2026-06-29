@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -356,7 +355,6 @@ fun PublicFeedScreen(
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .navigationBarsPadding()
                     .padding(
                         start = PearlLayout.screenHorizontalPadding,
                         end = PearlLayout.screenHorizontalPadding,
@@ -398,7 +396,6 @@ fun PublicFeedScreen(
                 },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .navigationBarsPadding()
                     .padding(end = 20.dp, bottom = floatingAddButtonBottomPadding),
             )
         }

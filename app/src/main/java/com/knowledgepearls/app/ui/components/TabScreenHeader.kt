@@ -105,7 +105,7 @@ fun TabScreenHeader(
                             imageVector = Icons.Default.Settings,
                             contentDescription = "Settings",
                             tint = theme.primary,
-                            modifier = Modifier.size(18.dp),
+                            modifier = Modifier.size(PearlLayout.headerIconSize),
                         )
                     }
                 }

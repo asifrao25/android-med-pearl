@@ -1,32 +1,23 @@
 package com.knowledgepearls.app.ui.publicfeed
 
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
@@ -38,11 +29,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.knowledgepearls.app.ui.theme.PearlColors
+import com.knowledgepearls.app.ui.theme.PearlLayout
 import com.knowledgepearls.app.ui.theme.TabTheme
 import com.knowledgepearls.app.ui.theme.isPearlDarkTheme
-
-private val outerShape = RoundedCornerShape(999.dp)
-private val segmentShape = RoundedCornerShape(999.dp)
 
 @Composable
 fun PublicFeedSectionTabs(
@@ -54,66 +43,32 @@ fun PublicFeedSectionTabs(
     modifier: Modifier = Modifier,
 ) {
     val darkTheme = isPearlDarkTheme()
+    val shape = RoundedCornerShape(999.dp)
 
-    Box(
+    Row(
         modifier = modifier
             .fillMaxWidth()
-            .shadow(elevation = 10.dp, shape = outerShape, clip = false)
-            .clip(outerShape)
-            .background(PearlColors.popupSurface(darkTheme))
-            .border(1.5.dp, PearlColors.strongBorder(darkTheme), outerShape)
-            .padding(4.dp)
-            .height(44.dp),
+            .height(PearlLayout.publicFeedSectionTabsHeight)
+            .clip(shape)
+            .background(PearlColors.glassOverlay(darkTheme))
+            .border(1.dp, PearlColors.cardBorder(darkTheme), shape)
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        BoxWithConstraints(Modifier.fillMaxSize()) {
-            val segmentWidth = maxWidth / 2
-            val indicatorOffset by animateDpAsState(
-                targetValue = if (selected == PublicFeedSection.NEW) 0.dp else segmentWidth,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessMediumLow,
-                ),
-                label = "sectionIndicator",
-            )
-
-            Box(
-                modifier = Modifier
-                    .offset(x = indicatorOffset)
-                    .width(segmentWidth)
-                    .fillMaxHeight()
-                    .clip(segmentShape)
-                    .background(
-                        brush = Brush.horizontalGradient(
-                            listOf(theme.primary, theme.secondary.copy(alpha = 0.88f)),
-                        ),
-                    )
-                    .border(
-                        width = 1.dp,
-                        color = Color.White.copy(alpha = if (darkTheme) 0.18f else 0.35f),
-                        shape = segmentShape,
-                    ),
-            )
-
-            Row(Modifier.fillMaxSize()) {
-                SectionTab(
-                    label = PublicFeedSection.NEW.label,
-                    count = newCount,
-                    selected = selected == PublicFeedSection.NEW,
-                    theme = theme,
-                    darkTheme = darkTheme,
-                    modifier = Modifier.weight(1f),
-                    onClick = { onSelected(PublicFeedSection.NEW) },
-                )
-                SectionTab(
-                    label = PublicFeedSection.SEEN.label,
-                    count = seenCount,
-                    selected = selected == PublicFeedSection.SEEN,
-                    theme = theme,
-                    darkTheme = darkTheme,
-                    modifier = Modifier.weight(1f),
-                    onClick = { onSelected(PublicFeedSection.SEEN) },
-                )
+        PublicFeedSection.entries.forEach { section ->
+            val count = when (section) {
+                PublicFeedSection.NEW -> newCount
+                PublicFeedSection.SEEN -> seenCount
             }
+            SectionTab(
+                label = section.label,
+                count = count,
+                selected = selected == section,
+                theme = theme,
+                darkTheme = darkTheme,
+                modifier = Modifier.weight(1f),
+                onClick = { onSelected(section) },
+            )
         }
     }
 }
@@ -128,14 +83,29 @@ private fun SectionTab(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
+    val shape = RoundedCornerShape(999.dp)
+
     Box(
         modifier = modifier
             .fillMaxHeight()
+            .clip(shape)
             .semantics(mergeDescendants = true) {
                 contentDescription = if (count > 0) "$label, $count" else label
                 role = Role.Tab
                 this.selected = selected
             }
+            .then(
+                if (selected) {
+                    Modifier.background(
+                        brush = Brush.horizontalGradient(
+                            listOf(theme.primary.copy(alpha = 0.92f), theme.secondary.copy(alpha = 0.72f)),
+                        ),
+                        shape = shape,
+                    )
+                } else {
+                    Modifier
+                },
+            )
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -149,13 +119,9 @@ private fun SectionTab(
         ) {
             Text(
                 text = label,
-                fontSize = 14.sp,
-                fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
-                color = if (selected) {
-                    Color.White
-                } else {
-                    PearlColors.heroSecondary(darkTheme)
-                },
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = if (selected) Color.White else PearlColors.segmentedInactive(darkTheme),
             )
             if (count > 0) {
                 Text(
@@ -166,9 +132,9 @@ private fun SectionTab(
                         .clip(RoundedCornerShape(999.dp))
                         .background(
                             if (selected) {
-                                Color.White.copy(alpha = 0.22f)
+                                PearlColors.selectedPillFill(darkTheme)
                             } else {
-                                theme.primary.copy(alpha = 0.16f)
+                                theme.primary.copy(alpha = 0.22f)
                             },
                         )
                         .padding(horizontal = 7.dp, vertical = 2.dp),

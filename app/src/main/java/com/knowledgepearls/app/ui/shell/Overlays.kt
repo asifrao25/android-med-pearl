@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.knowledgepearls.app.data.local.model.FolderWithCount
 import com.knowledgepearls.app.ui.account.AccountUiState
+import com.knowledgepearls.app.ui.components.SheetDragHandle
 import com.knowledgepearls.app.ui.components.TabScreenHeader
 import com.knowledgepearls.app.ui.folders.FolderFloatingMenu
 import com.knowledgepearls.app.ui.folders.FoldersViewModel
@@ -141,7 +142,7 @@ fun FolderMenuOverlay(
         containerColor = PearlColors.popupSurface(darkTheme),
         scrimColor = PearlColors.scrim(darkTheme, 0.42f),
         dragHandle = {
-            FolderDrawerDragHandle()
+            SheetDragHandle()
         },
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
     ) {
@@ -163,29 +164,5 @@ fun FolderMenuOverlay(
 
             Spacer(Modifier.height(PearlLayout.tabBarOverlayInset))
         }
-    }
-}
-
-@Composable
-private fun FolderDrawerDragHandle() {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 10.dp, bottom = 6.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        Box(
-            modifier = Modifier
-                .width(40.dp)
-                .height(4.dp)
-                .clip(RoundedCornerShape(999.dp))
-                .background(Color.White.copy(alpha = 0.32f)),
-        )
-        Text(
-            text = "Pull down to close",
-            style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
-            color = PearlColors.heroSecondary(isPearlDarkTheme()).copy(alpha = 0.72f),
-        )
     }
 }

@@ -69,7 +69,7 @@ fun LiquidTabBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(PearlLayout.tabBarHeight)
-                .padding(6.dp),
+                .padding(horizontal = 4.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -128,7 +128,7 @@ private fun RowScope.TabChip(
     Box(
         modifier = Modifier
             .then(if (expand) Modifier.weight(1f) else Modifier)
-            .height(PearlLayout.tabBarHeight - 12.dp)
+            .height(PearlLayout.tabBarHeight - 8.dp)
             .clip(shape)
             .semantics(mergeDescendants = true) {
                 contentDescription = label
@@ -162,7 +162,7 @@ private fun RowScope.TabChip(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                modifier = Modifier.size(20.dp),
+                modifier = Modifier.size(PearlLayout.tabBarIconSize),
                 tint = if (selected) Color.White else inactive,
             )
             if (selected) {
@@ -194,7 +194,7 @@ private fun RowScope.PublicFeedTabChip(
     Box(
         modifier = Modifier
             .then(if (expand) Modifier.weight(1f) else Modifier)
-            .height(PearlLayout.tabBarHeight - 12.dp)
+            .height(PearlLayout.tabBarHeight - 8.dp)
             .clip(shape)
             .semantics(mergeDescendants = true) {
                 contentDescription = tabLabel
@@ -229,7 +229,7 @@ private fun RowScope.PublicFeedTabChip(
                 Icon(
                     imageVector = Icons.Default.Public,
                     contentDescription = null,
-                    modifier = Modifier.size(20.dp),
+                    modifier = Modifier.size(PearlLayout.tabBarIconSize),
                     tint = if (selected) Color.White else inactive,
                 )
                 if (newCount > 0) {

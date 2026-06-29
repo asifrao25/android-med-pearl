@@ -2,58 +2,63 @@ package com.knowledgepearls.app.ui.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import com.knowledgepearls.app.ui.components.GlassSurface
+import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Policy
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.knowledgepearls.app.data.remote.SupabaseConfig
 import com.knowledgepearls.app.ui.account.AccountUiState
 import com.knowledgepearls.app.ui.account.profileDisplayName
 import com.knowledgepearls.app.ui.account.profileSubtitle
-import com.knowledgepearls.app.ui.profile.SettingsProfileAvatar
+import com.knowledgepearls.app.ui.components.GlassSurface
+import com.knowledgepearls.app.ui.components.SheetDragHandle
 import com.knowledgepearls.app.ui.components.TabScreenHeader
+import com.knowledgepearls.app.ui.profile.SettingsProfileAvatar
 import com.knowledgepearls.app.ui.publicfeed.PendingSubmissionsScreen
 import com.knowledgepearls.app.ui.theme.AppearanceMode
 import com.knowledgepearls.app.ui.theme.LiquidBackground
@@ -71,6 +76,7 @@ enum class SettingsRoute {
     AboutCreator,
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     visible: Boolean,
@@ -96,54 +102,81 @@ fun SettingsScreen(
 ) {
     if (!visible) return
 
-    when (route) {
-        SettingsRoute.Main -> SettingsMainScreen(
-            accountState = accountState,
-            settingsState = settingsState,
-            appearanceMode = appearanceMode,
-            onDismiss = onDismiss,
-            onNavigate = onNavigate,
-            onSignIn = onSignIn,
-            onOpenProfile = onOpenProfile,
-            onSignOut = onSignOut,
-            onSetAppearance = onSetAppearance,
-        )
-        SettingsRoute.PendingSubmissions -> {
-            LaunchedEffect(Unit) { onLoadPending() }
-            PendingSubmissionsScreen(
-                submissions = settingsState.pendingSubmissions,
-                isLoading = settingsState.isLoadingPending,
-                withdrawingId = settingsState.withdrawingId,
-                errorMessage = settingsState.errorMessage,
-                onBack = { onNavigate(SettingsRoute.Main) },
-                onRefresh = onLoadPending,
-                onWithdraw = onWithdrawSubmission,
-            )
+    val darkTheme = isPearlDarkTheme()
+    val theme = TabTheme.Settings
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    LaunchedEffect(Unit) {
+        sheetState.show()
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = PearlColors.popupSurface(darkTheme),
+        scrimColor = PearlColors.scrim(darkTheme, 0.42f),
+        dragHandle = { SheetDragHandle() },
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.94f),
+        ) {
+            LiquidBackground(theme = theme, intensity = 0.72f)
+
+            when (route) {
+                SettingsRoute.Main -> SettingsMainScreen(
+                    accountState = accountState,
+                    settingsState = settingsState,
+                    appearanceMode = appearanceMode,
+                    onDismiss = onDismiss,
+                    onNavigate = onNavigate,
+                    onSignIn = onSignIn,
+                    onOpenProfile = onOpenProfile,
+                    onSignOut = onSignOut,
+                    onSetAppearance = onSetAppearance,
+                )
+                SettingsRoute.PendingSubmissions -> {
+                    LaunchedEffect(Unit) { onLoadPending() }
+                    PendingSubmissionsScreen(
+                        submissions = settingsState.pendingSubmissions,
+                        isLoading = settingsState.isLoadingPending,
+                        withdrawingId = settingsState.withdrawingId,
+                        errorMessage = settingsState.errorMessage,
+                        onBack = { onNavigate(SettingsRoute.Main) },
+                        onRefresh = onLoadPending,
+                        onWithdraw = onWithdrawSubmission,
+                        embeddedInSheet = true,
+                    )
+                }
+                SettingsRoute.BackupRestore -> BackupRestoreScreen(
+                    settingsState = settingsState,
+                    onBack = { onNavigate(SettingsRoute.Main) },
+                    onLoad = onLoadBackups,
+                    onCreate = onCreateBackup,
+                    onRestore = onRestoreBackup,
+                )
+                SettingsRoute.DeviceCache -> DeviceCacheScreen(
+                    settingsState = settingsState,
+                    onBack = { onNavigate(SettingsRoute.Main) },
+                    onMeasure = onMeasureCache,
+                    onClear = onClearCache,
+                )
+                SettingsRoute.Privacy -> PrivacySettingsScreen(
+                    settingsState = settingsState,
+                    onBack = { onNavigate(SettingsRoute.Main) },
+                    onDeleteAccount = onDeleteAccount,
+                )
+                SettingsRoute.AboutCreator -> AboutCreatorScreen(
+                    onBack = { onNavigate(SettingsRoute.Main) },
+                    onOpenProfile = { userId ->
+                        onOpenUserProfile(userId)
+                    },
+                    embeddedInSheet = true,
+                )
+            }
         }
-        SettingsRoute.BackupRestore -> BackupRestoreScreen(
-            settingsState = settingsState,
-            onBack = { onNavigate(SettingsRoute.Main) },
-            onLoad = onLoadBackups,
-            onCreate = onCreateBackup,
-            onRestore = onRestoreBackup,
-        )
-        SettingsRoute.DeviceCache -> DeviceCacheScreen(
-            settingsState = settingsState,
-            onBack = { onNavigate(SettingsRoute.Main) },
-            onMeasure = onMeasureCache,
-            onClear = onClearCache,
-        )
-        SettingsRoute.Privacy -> PrivacySettingsScreen(
-            settingsState = settingsState,
-            onBack = { onNavigate(SettingsRoute.Main) },
-            onDeleteAccount = onDeleteAccount,
-        )
-        SettingsRoute.AboutCreator -> AboutCreatorScreen(
-            onBack = { onNavigate(SettingsRoute.Main) },
-            onOpenProfile = { userId ->
-                onOpenUserProfile(userId)
-            },
-        )
     }
 }
 
@@ -161,136 +194,218 @@ private fun SettingsMainScreen(
 ) {
     val theme = TabTheme.Settings
     val darkTheme = isPearlDarkTheme()
+    val pendingSubtitle = if (settingsState.pendingCount > 0) {
+        "${settingsState.pendingCount} awaiting approval"
+    } else {
+        "Track shared pearls sent for moderation"
+    }
 
-    Box(Modifier.fillMaxSize()) {
-        LiquidBackground(theme = theme)
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .navigationBarsPadding(),
-        ) {
-            TabScreenHeader(
-                title = "Settings",
-                subtitle = "Account & app",
-                theme = theme,
-                showsSettingsButton = false,
-                trailing = {
-                    IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Close", tint = theme.primary)
-                    }
-                },
-            )
-
-            LazyColumn(
-                contentPadding = PaddingValues(
-                    horizontal = PearlLayout.screenHorizontalPadding,
-                    vertical = 12.dp,
-                ),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                item {
-                    SettingsAccountSection(
-                        accountState = accountState,
-                        theme = theme,
-                        onOpenProfile = onOpenProfile,
-                        onSignIn = {
-                            onDismiss()
-                            onSignIn()
-                        },
-                        onSignOut = onSignOut,
-                    )
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .navigationBarsPadding(),
+    ) {
+        TabScreenHeader(
+            title = "Settings",
+            subtitle = "Account & app",
+            theme = theme,
+            showsSettingsButton = false,
+            trailing = {
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Default.Close, contentDescription = "Close", tint = theme.primary)
                 }
+            },
+        )
 
+        LazyColumn(
+            contentPadding = PaddingValues(
+                horizontal = PearlLayout.screenHorizontalPadding,
+                vertical = 12.dp,
+            ),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            item {
+                SettingsAccountSection(
+                    accountState = accountState,
+                    theme = theme,
+                    onOpenProfile = onOpenProfile,
+                    onSignIn = {
+                        onDismiss()
+                        onSignIn()
+                    },
+                    onSignOut = onSignOut,
+                )
+            }
+
+            if (accountState.isSignedIn) {
                 item {
-                    SettingsSection(title = "Community") {
-                        SettingsNavRow(
-                            label = "Pending submissions",
-                            detail = if (settingsState.pendingCount > 0) "${settingsState.pendingCount} pending" else null,
+                    SettingsSectionHeader(title = "Community")
+                    SettingsMenuCard(theme = theme) {
+                        SettingsMenuRow(
+                            icon = Icons.Default.Schedule,
+                            accent = SettingsSectionAccent.Community,
+                            title = "Pending submissions",
+                            subtitle = pendingSubtitle,
+                            theme = theme,
                             onClick = { onNavigate(SettingsRoute.PendingSubmissions) },
+                            trailing = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    if (settingsState.pendingCount > 0) {
+                                        Text(
+                                            text = "${settingsState.pendingCount} pending",
+                                            color = SettingsSectionAccent.Community.colors(theme, darkTheme).first,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.SemiBold,
+                                            modifier = Modifier.padding(end = 4.dp),
+                                        )
+                                    }
+                                    Icon(
+                                        Icons.Default.ChevronRight,
+                                        contentDescription = null,
+                                        tint = PearlColors.heroSecondary(darkTheme),
+                                    )
+                                }
+                            },
                         )
                     }
                 }
+            }
 
-                item {
-                    SettingsSection(title = "Appearance") {
-                        AppearanceMode.entries.forEach { mode ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { onSetAppearance(mode) }
-                                    .padding(vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                RadioButton(
-                                    selected = appearanceMode == mode,
-                                    onClick = { onSetAppearance(mode) },
-                                )
-                                Text(
-                                    text = when (mode) {
-                                        AppearanceMode.System -> "System"
-                                        AppearanceMode.Light -> "Light"
-                                        AppearanceMode.Dark -> "Dark"
-                                    },
-                                    color = PearlColors.heroPrimary(darkTheme),
-                                )
+            item {
+                SettingsSectionHeader(title = "Appearance")
+                SettingsMenuCard(theme = theme) {
+                    Column {
+                        AppearanceMode.entries.forEachIndexed { index, mode ->
+                            if (index > 0) {
+                                SettingsMenuDivider()
                             }
+                            AppearanceModeRow(
+                                mode = mode,
+                                isSelected = appearanceMode == mode,
+                                theme = theme,
+                                onClick = { onSetAppearance(mode) },
+                            )
                         }
                     }
                 }
+            }
 
-                item {
-                    SettingsSection(title = "Data & Sync") {
-                        SettingsNavRow("Backup & restore", onClick = { onNavigate(SettingsRoute.BackupRestore) })
-                        SettingsNavRow("Device cache", onClick = { onNavigate(SettingsRoute.DeviceCache) })
+            item {
+                SettingsSectionHeader(title = "Data & Sync")
+                SettingsMenuCard(theme = theme) {
+                    Column {
+                        SettingsMenuRow(
+                            icon = Icons.Default.CloudUpload,
+                            accent = SettingsSectionAccent.Backup,
+                            title = "Backup & restore",
+                            subtitle = "Export and import your pearls locally",
+                            theme = theme,
+                            onClick = { onNavigate(SettingsRoute.BackupRestore) },
+                            trailing = {
+                                Icon(
+                                    Icons.Default.ChevronRight,
+                                    contentDescription = null,
+                                    tint = PearlColors.heroSecondary(darkTheme),
+                                )
+                            },
+                        )
+                        SettingsMenuDivider()
+                        SettingsMenuRow(
+                            icon = Icons.Default.Storage,
+                            accent = SettingsSectionAccent.Cache,
+                            title = "Device cache",
+                            subtitle = "Review storage used on this device",
+                            theme = theme,
+                            onClick = { onNavigate(SettingsRoute.DeviceCache) },
+                            trailing = {
+                                Icon(
+                                    Icons.Default.ChevronRight,
+                                    contentDescription = null,
+                                    tint = PearlColors.heroSecondary(darkTheme),
+                                )
+                            },
+                        )
                     }
                 }
+            }
 
-                item {
-                    SettingsSection(title = "Privacy") {
-                        SettingsNavRow("Privacy & account", onClick = { onNavigate(SettingsRoute.Privacy) })
-                    }
+            item {
+                SettingsSectionHeader(title = "Privacy")
+                SettingsMenuCard(theme = theme) {
+                    SettingsMenuRow(
+                        icon = Icons.Default.Lock,
+                        accent = SettingsSectionAccent.Privacy,
+                        title = "Privacy & account",
+                        subtitle = "Data, permissions, and your choices",
+                        theme = theme,
+                        onClick = { onNavigate(SettingsRoute.Privacy) },
+                        trailing = {
+                            Icon(
+                                Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = PearlColors.heroSecondary(darkTheme),
+                            )
+                        },
+                    )
                 }
+            }
 
-                item {
-                    SettingsSection(title = "About") {
+            item {
+                SettingsSectionHeader(title = "About")
+                SettingsMenuCard(theme = theme) {
+                    Column {
                         AboutCreatorSettingsRow(onClick = { onNavigate(SettingsRoute.AboutCreator) })
-                        Text(
-                            text = "Med Pearls v1.0.0",
-                            color = PearlColors.heroSecondary(darkTheme),
-                            style = MaterialTheme.typography.bodySmall,
+                        SettingsMenuDivider()
+                        SettingsMenuRow(
+                            icon = Icons.Default.Info,
+                            accent = SettingsSectionAccent.About,
+                            title = "Version",
+                            subtitle = "Med Pearls",
+                            theme = theme,
+                            trailing = {
+                                Text(
+                                    text = "1.0.0",
+                                    color = PearlColors.heroSecondary(darkTheme),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                            },
                         )
                         Text(
                             text = "Support: ${SupabaseConfig.SUPPORT_EMAIL}",
                             color = PearlColors.heroSecondary(darkTheme),
                             style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                         )
                     }
                 }
+            }
 
+            item {
+                SettingsMenuCard(theme = theme) {
+                    SettingsMenuRow(
+                        icon = Icons.Default.Policy,
+                        accent = SettingsSectionAccent.Governance,
+                        title = "Information governance",
+                        subtitle = "Avoid patient-identifiable details in pearls, notes, or attachments.",
+                        theme = theme,
+                    )
+                }
+            }
+
+            settingsState.statusMessage?.let { message ->
                 item {
-                    SettingsSection(title = "Governance notice") {
-                        Text(
-                            text = "Community pearls are moderated before publication. " +
-                                "Do not share identifiable patient information. " +
-                                "Content must comply with your local professional guidance.",
-                            color = PearlColors.heroSecondary(darkTheme),
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                    }
+                    Text(text = message, color = theme.primary)
                 }
+            }
+            settingsState.errorMessage?.let { message ->
+                item {
+                    Text(text = message, color = MaterialTheme.colorScheme.error)
+                }
+            }
 
-                settingsState.statusMessage?.let { message ->
-                    item {
-                        Text(text = message, color = theme.primary)
-                    }
-                }
-                settingsState.errorMessage?.let { message ->
-                    item {
-                        Text(text = message, color = MaterialTheme.colorScheme.error)
-                    }
-                }
+            item {
+                Spacer(Modifier.height(PearlLayout.tabBarOverlayInset))
             }
         }
     }
@@ -438,42 +553,40 @@ private fun SettingsSubScreenShell(
     val theme = TabTheme.Settings
     val darkTheme = isPearlDarkTheme()
 
-    Box(Modifier.fillMaxSize()) {
-        LiquidBackground(theme = theme, intensity = 0.55f)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .navigationBarsPadding(),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = PearlColors.heroPrimary(darkTheme))
+            }
+        }
+
+        TabScreenHeader(
+            title = title,
+            subtitle = subtitle,
+            theme = theme,
+            showsSettingsButton = false,
+        )
 
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .navigationBarsPadding(),
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(PearlLayout.screenHorizontalPadding)
+                .padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-            ) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = PearlColors.heroPrimary(darkTheme))
-                }
-            }
-
-            TabScreenHeader(
-                title = title,
-                subtitle = subtitle,
-                theme = theme,
-                showsSettingsButton = false,
-            )
-
-            Column(
-                modifier = Modifier
-                    .verticalScroll(rememberScrollState())
-                    .padding(PearlLayout.screenHorizontalPadding)
-                    .padding(bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                content()
-            }
+            content()
         }
+
+        Spacer(Modifier.height(PearlLayout.tabBarOverlayInset))
     }
 }
 
@@ -487,14 +600,8 @@ private fun SettingsAccountSection(
 ) {
     val darkTheme = isPearlDarkTheme()
     Column {
-        Text(
-            text = "Account",
-            fontWeight = FontWeight.SemiBold,
-            color = PearlColors.heroSecondary(darkTheme),
-            style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier.padding(bottom = 8.dp, start = 4.dp),
-        )
-        GlassSurface(cornerRadius = PearlLayout.cardCornerRadius) {
+        SettingsSectionHeader(title = "Account")
+        SettingsMenuCard(theme = theme) {
             if (accountState.isSignedIn) {
                 Column {
                     Row(
@@ -621,74 +728,6 @@ private fun SettingsAccountSection(
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun SettingsSection(
-    title: String,
-    content: @Composable () -> Unit,
-) {
-    val darkTheme = isPearlDarkTheme()
-    GlassSurface(cornerRadius = PearlLayout.cardCornerRadius) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Text(
-                text = title,
-                fontWeight = FontWeight.Bold,
-                color = PearlColors.heroPrimary(darkTheme),
-                style = MaterialTheme.typography.titleMedium,
-            )
-            content()
-        }
-    }
-}
-
-@Composable
-private fun SettingsNavRow(
-    label: String,
-    detail: String? = null,
-    onClick: () -> Unit,
-) {
-    val darkTheme = isPearlDarkTheme()
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .semantics(mergeDescendants = true) {
-                contentDescription = if (detail != null) "$label, $detail" else label
-            }
-            .clickable(onClick = onClick)
-            .padding(vertical = 8.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(label, color = PearlColors.heroPrimary(darkTheme))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            detail?.let {
-                Text(it, color = PearlColors.heroSecondary(darkTheme), style = MaterialTheme.typography.bodySmall)
-            }
-            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = PearlColors.heroSecondary(darkTheme))
-        }
-    }
-}
-
-@Composable
-private fun SettingsActionButton(
-    label: String,
-    onClick: () -> Unit,
-    outlined: Boolean = false,
-) {
-    if (outlined) {
-        OutlinedButton(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
-            Text(label)
-        }
-    } else {
-        Button(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
-            Text(label)
         }
     }
 }

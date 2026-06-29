@@ -3,8 +3,10 @@ package com.knowledgepearls.app.ui.publicfeed
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -41,98 +43,116 @@ fun PendingSubmissionsScreen(
     onBack: () -> Unit,
     onRefresh: () -> Unit,
     onWithdraw: (PublicPearl) -> Unit,
+    embeddedInSheet: Boolean = false,
 ) {
-    val theme = TabTheme.PublicFeed
+    val theme = if (embeddedInSheet) TabTheme.Settings else TabTheme.PublicFeed
     val darkTheme = isPearlDarkTheme()
 
-    Box(Modifier.fillMaxSize()) {
-        LiquidBackground(theme = theme, intensity = 0.55f)
+    val screenContent: @Composable () -> Unit = {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    tint = PearlColors.heroPrimary(darkTheme),
+                )
+            }
+        }
 
+        TabScreenHeader(
+            title = "Pending submissions",
+            subtitle = "Awaiting moderation",
+            theme = theme,
+            showsSettingsButton = false,
+        )
+
+        when {
+            isLoading && submissions.isEmpty() -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator(color = theme.primary)
+                }
+            }
+            submissions.isEmpty() -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(PearlLayout.screenHorizontalPadding),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Text(
+                            text = "No pending pearls.",
+                            color = PearlColors.heroSecondary(darkTheme),
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                        OutlinedButton(onClick = onRefresh) {
+                            Text("Refresh")
+                        }
+                    }
+                }
+            }
+            else -> {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                        horizontal = PearlLayout.screenHorizontalPadding,
+                        vertical = 12.dp,
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    items(submissions, key = { it.id }) { pearl ->
+                        PendingSubmissionRow(
+                            pearl = pearl,
+                            theme = theme,
+                            isWithdrawing = withdrawingId == pearl.id,
+                            onWithdraw = { onWithdraw(pearl) },
+                        )
+                    }
+                }
+            }
+        }
+
+        errorMessage?.let {
+            Text(
+                text = it,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(PearlLayout.screenHorizontalPadding),
+            )
+        }
+
+        if (embeddedInSheet) {
+            Spacer(Modifier.height(PearlLayout.tabBarOverlayInset))
+        }
+    }
+
+    if (embeddedInSheet) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .statusBarsPadding()
                 .navigationBarsPadding(),
         ) {
-            Box(
+            screenContent()
+        }
+    } else {
+        Box(Modifier.fillMaxSize()) {
+            LiquidBackground(theme = theme, intensity = 0.55f)
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .navigationBarsPadding(),
             ) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        tint = PearlColors.heroPrimary(darkTheme),
-                    )
-                }
-            }
-
-            TabScreenHeader(
-                title = "Pending submissions",
-                subtitle = "Awaiting moderation",
-                theme = theme,
-                showsSettingsButton = false,
-            )
-
-            when {
-                isLoading && submissions.isEmpty() -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularProgressIndicator(color = theme.primary)
-                    }
-                }
-                submissions.isEmpty() -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(PearlLayout.screenHorizontalPadding),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            Text(
-                                text = "No pending pearls.",
-                                color = PearlColors.heroSecondary(darkTheme),
-                                style = MaterialTheme.typography.bodyLarge,
-                            )
-                            OutlinedButton(onClick = onRefresh) {
-                                Text("Refresh")
-                            }
-                        }
-                    }
-                }
-                else -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                            horizontal = PearlLayout.screenHorizontalPadding,
-                            vertical = 12.dp,
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        items(submissions, key = { it.id }) { pearl ->
-                            PendingSubmissionRow(
-                                pearl = pearl,
-                                theme = theme,
-                                isWithdrawing = withdrawingId == pearl.id,
-                                onWithdraw = { onWithdraw(pearl) },
-                            )
-                        }
-                    }
-                }
-            }
-
-            errorMessage?.let {
-                Text(
-                    text = it,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(PearlLayout.screenHorizontalPadding),
-                )
+                screenContent()
             }
         }
     }
