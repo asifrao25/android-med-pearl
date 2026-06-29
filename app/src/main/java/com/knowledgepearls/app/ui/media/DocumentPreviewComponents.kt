@@ -133,7 +133,7 @@ fun PearlDocumentPreviewCard(
             }
         }
 
-        if (interactive && onOpen != null) {
+        if (interactive && onOpen != null && !isPdf) {
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomStart)

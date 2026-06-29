@@ -53,13 +53,15 @@ fun PublicPearlSaveOverlay(
     onSaveToFolder: (FolderWithCount) -> Unit,
     onCreateFolder: (String) -> Unit,
     onDismiss: () -> Unit,
+    bottomInset: androidx.compose.ui.unit.Dp = 0.dp,
+    modifier: Modifier = Modifier,
 ) {
     val darkTheme = isPearlDarkTheme()
     var step by remember { mutableStateOf(PublicPearlSaveStep.Destination) }
     var showCreateDialog by remember { mutableStateOf(false) }
 
     androidx.compose.foundation.layout.Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .background(PearlColors.scrim(darkTheme, 0.42f))
             .clickable(onClick = onDismiss),
@@ -67,7 +69,8 @@ fun PublicPearlSaveOverlay(
     ) {
         GlassSurface(
             modifier = Modifier
-                .padding(horizontal = 20.dp, vertical = 24.dp)
+                .padding(horizontal = 20.dp)
+                .padding(bottom = bottomInset + 16.dp, top = 24.dp)
                 .fillMaxWidth(0.82f)
                 .clickable(enabled = false, onClick = {}),
             cornerRadius = 22.dp,

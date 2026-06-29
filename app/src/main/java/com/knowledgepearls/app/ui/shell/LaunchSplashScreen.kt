@@ -79,7 +79,7 @@ private val AccentAmber = Color(0xFFFF9E38)
 private val AccentViolet = Color(0xFF8C6BF2)
 
 private const val SplashDurationMs = 2000
-private const val PearlCount = 20
+private const val PearlCount = 16
 
 private val MedicalSymbols = listOf(
     Icons.Filled.MedicalServices,
@@ -181,6 +181,11 @@ fun LaunchSplashScreen(onFinished: () -> Unit) {
         ) {
             Spacer(Modifier.weight(1f))
 
+            SplashBrandTitle(
+                opacity = animatedContentOpacity,
+                modifier = Modifier.padding(bottom = 14.dp),
+            )
+
             SplashLoadingBar(
                 progress = animatedProgress,
                 opacity = animatedContentOpacity,
@@ -188,20 +193,16 @@ fun LaunchSplashScreen(onFinished: () -> Unit) {
 
             Spacer(Modifier.height(24.dp))
 
-            Column(
+            Text(
+                text = stringResource(R.string.splash_tagline),
                 modifier = Modifier
                     .alpha(animatedContentOpacity)
                     .padding(bottom = 36.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text(
-                    text = stringResource(R.string.splash_tagline),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
-                    color = PearlColors.heroSecondary(darkTheme),
-                    textAlign = TextAlign.Center,
-                )
-            }
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = PearlColors.heroSecondary(darkTheme),
+                textAlign = TextAlign.Center,
+            )
         }
     }
 }
@@ -216,8 +217,9 @@ private fun PearlIconComplex(
 ) {
     val iconSize = 167.dp
     val ringRadius = 121.dp
-    val pearlSize = 18.dp
-    val containerSize = iconSize + ringRadius * 2 + pearlSize
+    val pearlSize = 27.dp
+    val ringSpan = ringRadius * 2 + pearlSize
+    val containerSize = maxOf(iconSize, ringSpan) + 24.dp
 
     Box(
         modifier = Modifier.size(containerSize),
@@ -225,7 +227,7 @@ private fun PearlIconComplex(
     ) {
         Box(
             modifier = Modifier
-                .size((ringRadius + iconSize * 0.2f) * 2)
+                .size(ringSpan)
                 .scale(glowPulse)
                 .blur(8.dp)
                 .alpha(iconOpacity)
@@ -242,23 +244,22 @@ private fun PearlIconComplex(
                 ),
         )
 
-        PearlRing(
-            litPearls = litPearls,
-            ringRadius = ringRadius,
-            pearlSize = pearlSize,
-            opacity = contentOpacity,
-        )
-
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+        Box(
+            modifier = Modifier.size(ringSpan),
+            contentAlignment = Alignment.Center,
         ) {
+            PearlRing(
+                litPearls = litPearls,
+                ringRadius = ringRadius,
+                pearlSize = pearlSize,
+                opacity = contentOpacity,
+            )
+
             AppLogoMark(
                 iconSize = iconSize,
                 scale = iconScale,
                 opacity = iconOpacity,
             )
-            SplashBrandTitle(opacity = contentOpacity)
         }
     }
 }
@@ -269,15 +270,60 @@ private fun AppLogoMark(
     scale: Float,
     opacity: Float,
 ) {
-    Image(
-        painter = painterResource(R.drawable.app_logo),
-        contentDescription = AppBrand.NAME,
-        modifier = Modifier
-            .size(iconSize)
-            .scale(scale)
-            .alpha(opacity),
-        contentScale = ContentScale.Fit,
-    )
+    val logoSize = iconSize * 0.88f
+    val edgeBlend = Color(0xFF06060A)
+
+    Box(
+        modifier = Modifier.size(iconSize),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(logoSize)
+                .scale(scale)
+                .alpha(opacity * 0.7f)
+                .blur(14.dp)
+                .background(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            AccentCyan.copy(alpha = 0.22f),
+                            AccentViolet.copy(alpha = 0.12f),
+                            Color.Transparent,
+                        ),
+                    ),
+                    shape = CircleShape,
+                ),
+        )
+
+        Image(
+            painter = painterResource(R.drawable.app_logo),
+            contentDescription = AppBrand.NAME,
+            modifier = Modifier
+                .size(logoSize)
+                .scale(scale * 1.08f)
+                .alpha(opacity)
+                .clip(CircleShape),
+            contentScale = ContentScale.Crop,
+        )
+
+        Box(
+            modifier = Modifier
+                .size(logoSize)
+                .scale(scale)
+                .alpha(opacity)
+                .clip(CircleShape)
+                .background(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            Color.Transparent,
+                            edgeBlend.copy(alpha = 0.42f),
+                        ),
+                        radius = logoSize.value * 0.72f,
+                    ),
+                ),
+        )
+    }
 }
 
 @Composable
@@ -371,7 +417,7 @@ private fun SplashRingPearl(
             contentDescription = null,
             tint = if (filled) Color.White else accent.copy(alpha = 0.72f),
             modifier = Modifier
-                .size(size * 0.5f)
+                .size(size * 0.62f)
                 .alpha(if (filled) 1f else 0.65f),
         )
     }

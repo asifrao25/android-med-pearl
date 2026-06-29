@@ -42,6 +42,8 @@ import com.knowledgepearls.app.ui.components.LiquidTabBar
 import com.knowledgepearls.app.navigation.AppNavigationBus
 import com.knowledgepearls.app.navigation.AppNavigationEvent
 import com.knowledgepearls.app.navigation.ShareImportPayload
+import com.knowledgepearls.app.ui.components.PearlActionSuccessToast
+import com.knowledgepearls.app.ui.components.PearlActionOutcome
 import com.knowledgepearls.app.ui.components.PearlShareReceivedToast
 import com.knowledgepearls.app.ui.feed.FeedAuthorContext
 import com.knowledgepearls.app.ui.feed.FeedViewModel
@@ -56,6 +58,7 @@ import com.knowledgepearls.app.ui.tabs.FavouritesTabScreen
 import com.knowledgepearls.app.ui.tabs.FeedTabScreen
 import com.knowledgepearls.app.ui.tabs.PublicFeedTabScreen
 import com.knowledgepearls.app.ui.publicfeed.PublicFeedViewModel
+import com.knowledgepearls.app.ui.publicfeed.PublicPearlSaveOverlay
 import com.knowledgepearls.app.ui.theme.PearlLayout
 import com.knowledgepearls.app.ui.theme.TabTheme
 import dagger.hilt.android.EntryPointAccessors
@@ -80,6 +83,7 @@ fun MainScaffold(
 ) {
     val accountState by accountViewModel.uiState.collectAsStateWithLifecycle()
     val publicFeedState by publicFeedViewModel.uiState.collectAsStateWithLifecycle()
+    val folders by foldersViewModel.foldersWithCounts.collectAsStateWithLifecycle()
     val inboxState by inboxViewModel.inboxState.collectAsStateWithLifecycle()
     val threadState by inboxViewModel.threadState.collectAsStateWithLifecycle()
     val settingsState by settingsViewModel.uiState.collectAsStateWithLifecycle()
@@ -436,6 +440,46 @@ fun MainScaffold(
                 .padding(bottom = PearlLayout.tabBarBottomPadding),
         )
 
+        publicFeedState.savePickerPearl?.let { pearl ->
+            PublicPearlSaveOverlay(
+                folders = folders,
+                theme = TabTheme.PublicFeed,
+                bottomInset = PearlLayout.tabBarOverlayInset,
+                onSaveToMyFeed = {
+                    publicFeedViewModel.dismissSavePicker()
+                    publicFeedViewModel.addToMyFeed(pearl)
+                },
+                onSaveToFolder = { folder ->
+                    publicFeedViewModel.dismissSavePicker()
+                    publicFeedViewModel.saveToFolder(pearl, folder.folder.id, folder.folder.name)
+                },
+                onCreateFolder = { name ->
+                    publicFeedViewModel.dismissSavePicker()
+                    publicFeedViewModel.createFolderAndSavePearl(pearl, name)
+                },
+                onDismiss = publicFeedViewModel::dismissSavePicker,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+
+        when (val outcome = publicFeedState.actionOutcome) {
+            PearlActionOutcome.SavedToMyFeed,
+            PearlActionOutcome.SavedToFolder,
+            PearlActionOutcome.RemovedFromFeed,
+            -> {
+                PearlActionSuccessToast(
+                    outcome = outcome,
+                    theme = TabTheme.PublicFeed,
+                    folderName = publicFeedState.actionSuccessMessage,
+                    onDismiss = publicFeedViewModel::dismissActionSuccess,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = PearlLayout.tabBarOverlayInset),
+                )
+            }
+            else -> Unit
+        }
+
         SettingsScreen(
             visible = settingsOpen,
             route = settingsRoute,
@@ -445,7 +489,10 @@ fun MainScaffold(
             onDismiss = { settingsOpen = false },
             onNavigate = { settingsRoute = it },
             onSignIn = { authOpen = true },
-            onOpenProfile = { accountState.userId?.let(openUserProfile) },
+            onOpenProfile = {
+                settingsOpen = false
+                accountState.userId?.let(openUserProfile)
+            },
             onSignOut = { accountViewModel.signOut() },
             onLoadPending = settingsViewModel::loadPendingSubmissions,
             onWithdrawSubmission = settingsViewModel::withdrawSubmission,

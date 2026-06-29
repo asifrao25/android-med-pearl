@@ -11,9 +11,9 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -179,7 +179,10 @@ fun PublicPearlDetailScreen(
                 DetailDockAction(
                     id = "save",
                     label = if (savedFeedback) "Saved!" else "Save",
-                    icon = if (savedFeedback) Icons.Default.CheckCircle else Icons.Default.Add,
+                    icon = when {
+                        savedFeedback -> Icons.Default.CheckCircle
+                        else -> Icons.Default.BookmarkBorder
+                    },
                     tint = if (savedFeedback) theme.primary else null,
                     isActive = savedFeedback,
                     onClick = onAddToMyFeed,
@@ -187,8 +190,8 @@ fun PublicPearlDetailScreen(
                 DetailDockAction(
                     id = "hide",
                     label = "Hide",
-                    icon = Icons.Default.VisibilityOff,
-                    tint = Color(0xFF8C8C99),
+                    icon = Icons.Default.Block,
+                    tint = Color(0xFF9CA3AF),
                     onClick = onHide,
                 ),
             ),

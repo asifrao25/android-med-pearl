@@ -3,15 +3,15 @@ package com.knowledgepearls.app.ui.publicfeed
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.foundation.Canvas
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,7 +27,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -40,6 +41,39 @@ import com.knowledgepearls.app.ui.theme.isPearlDarkTheme
 import kotlinx.coroutines.delay
 
 private val bubbleShape = RoundedCornerShape(16.dp)
+
+@Composable
+fun PublicFeedSeenFocusScrim(
+    visible: Boolean,
+    theme: TabTheme,
+    modifier: Modifier = Modifier,
+) {
+    val darkTheme = isPearlDarkTheme()
+    val scrimAlpha by animateFloatAsState(
+        targetValue = if (visible) 1f else 0f,
+        animationSpec = tween(durationMillis = if (visible) 340 else 460),
+        label = "seenFocusScrimAlpha",
+    )
+
+    if (scrimAlpha <= 0.001f) return
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .graphicsLayer { alpha = scrimAlpha }
+            .background(
+                Brush.verticalGradient(
+                    colorStops = arrayOf(
+                        0f to theme.primary.copy(alpha = if (darkTheme) 0.24f else 0.18f),
+                        0.22f to Color.Black.copy(alpha = if (darkTheme) 0.72f else 0.56f),
+                        0.55f to Color.Black.copy(alpha = if (darkTheme) 0.68f else 0.52f),
+                        1f to theme.primary.copy(alpha = if (darkTheme) 0.30f else 0.22f),
+                    ),
+                ),
+            )
+            .background(Color.Black.copy(alpha = if (darkTheme) 0.28f else 0.18f)),
+    )
+}
 
 @Composable
 fun MovedToSeenTabToast(
@@ -126,26 +160,6 @@ fun MovedToSeenTabToast(
                     contentDescription = null,
                     tint = theme.primary.copy(alpha = 0.75f),
                     modifier = Modifier.size(20.dp),
-                )
-            }
-
-            Canvas(
-                modifier = Modifier
-                    .align(Alignment.End)
-                    .offset(x = (-42).dp)
-                    .size(width = 20.dp, height = 10.dp),
-            ) {
-                val path = Path().apply {
-                    moveTo(size.width / 2f, size.height)
-                    lineTo(0f, 0f)
-                    lineTo(size.width, 0f)
-                    close()
-                }
-                drawPath(path, surface)
-                drawPath(
-                    path,
-                    borderColor,
-                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.5.dp.toPx()),
                 )
             }
         }

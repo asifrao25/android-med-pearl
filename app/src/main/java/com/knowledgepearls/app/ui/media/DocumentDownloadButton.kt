@@ -188,6 +188,7 @@ fun DocumentAttachmentActions(
 ) {
     val effectiveName = effectiveMediaFilename(filename, url)
     val darkTheme = isPearlDarkTheme()
+    val opensInApp = DocumentOpener.usesInAppPdfViewer(url, effectiveName)
     val hint = DocumentSupport.openActionHint(effectiveName)
 
     Column(
@@ -205,31 +206,38 @@ fun DocumentAttachmentActions(
             )
         }
 
-        if (!DocumentOpener.usesInAppPdfViewer(url, effectiveName)) {
-            Text(
-                text = hint,
-                style = MaterialTheme.typography.bodySmall,
-                color = PearlColors.heroSecondary(darkTheme),
-            )
-        }
+        Text(
+            text = hint,
+            style = MaterialTheme.typography.bodySmall,
+            color = PearlColors.heroSecondary(darkTheme),
+        )
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            DocumentOpenButton(
-                url = url,
-                filename = effectiveName,
-                theme = theme,
-                modifier = Modifier.weight(1f),
-                onOpenPdfInApp = onOpenPdfInApp,
-            )
+        if (opensInApp) {
             DocumentDownloadButton(
                 url = url,
                 filename = effectiveName,
                 theme = theme,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.fillMaxWidth(),
             )
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                DocumentOpenButton(
+                    url = url,
+                    filename = effectiveName,
+                    theme = theme,
+                    modifier = Modifier.weight(1f),
+                    onOpenPdfInApp = onOpenPdfInApp,
+                )
+                DocumentDownloadButton(
+                    url = url,
+                    filename = effectiveName,
+                    theme = theme,
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
     }
 }

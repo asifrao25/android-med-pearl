@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -86,26 +85,36 @@ fun LiquidDetailDock(
                 .height(PearlLayout.detailDockHeight)
                 .clip(capsuleShape)
                 .background(dockFill, capsuleShape)
-                .border(width = 1.dp, color = PearlColors.cardBorder(darkTheme), shape = capsuleShape)
-                .padding(start = 6.dp, end = 10.dp),
+                .background(PearlColors.chromeBarBrush(theme, darkTheme), capsuleShape)
+                .border(width = 1.dp, color = PearlColors.chromeBarBorder(theme, darkTheme), shape = capsuleShape)
+                .padding(horizontal = 6.dp, vertical = 2.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            DetailDockBackButton(theme = theme, onBack = onBack)
+            DetailDockBackButton(
+                theme = theme,
+                onBack = onBack,
+                modifier = Modifier.width(PearlLayout.detailDockActionSlotWidth),
+            )
 
             Box(
                 modifier = Modifier
-                    .padding(horizontal = 4.dp)
+                    .padding(horizontal = 2.dp)
                     .width(1.dp)
-                    .height(38.dp)
-                    .background(Color.White.copy(alpha = 0.10f), CircleShape),
+                    .height(32.dp)
+                    .background(theme.primary.copy(alpha = if (darkTheme) 0.18f else 0.14f), CircleShape),
             )
 
             Row(
                 modifier = Modifier.weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 actions.forEach { action ->
-                    DetailDockActionButton(theme = theme, action = action)
+                    DetailDockActionButton(
+                        theme = theme,
+                        action = action,
+                        modifier = Modifier.width(PearlLayout.detailDockActionSlotWidth),
+                    )
                 }
             }
         }
@@ -116,12 +125,12 @@ fun LiquidDetailDock(
 private fun DetailDockBackButton(
     theme: TabTheme,
     onBack: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-        modifier = Modifier
-            .width(40.dp)
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+        modifier = modifier
             .semantics {
                 contentDescription = "Back"
                 role = Role.Button
@@ -130,11 +139,12 @@ private fun DetailDockBackButton(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClick = onBack,
-            ),
+            )
+            .padding(vertical = 4.dp),
     ) {
         Box(
             modifier = Modifier
-                .size(36.dp)
+                .size(32.dp)
                 .clip(CircleShape)
                 .background(
                     brush = Brush.linearGradient(listOf(theme.primary, theme.secondary)),
@@ -156,14 +166,16 @@ private fun DetailDockBackButton(
             ),
             color = PearlColors.heroSecondary(isPearlDarkTheme()),
             maxLines = 1,
+            textAlign = TextAlign.Center,
         )
     }
 }
 
 @Composable
-private fun RowScope.DetailDockActionButton(
+private fun DetailDockActionButton(
     theme: TabTheme,
     action: DetailDockAction,
+    modifier: Modifier = Modifier,
 ) {
     val darkTheme = isPearlDarkTheme()
     val activeTint = action.tint ?: theme.primary
@@ -182,9 +194,8 @@ private fun RowScope.DetailDockActionButton(
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-        modifier = Modifier
-            .weight(1f)
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+        modifier = modifier
             .semantics {
                 contentDescription = action.label
                 role = Role.Button
@@ -195,18 +206,18 @@ private fun RowScope.DetailDockActionButton(
                 indication = null,
                 onClick = action.onClick,
             )
-            .padding(vertical = 6.dp),
+            .padding(vertical = 4.dp),
     ) {
         Box(
-            modifier = Modifier.height(22.dp),
+            modifier = Modifier.size(32.dp),
             contentAlignment = Alignment.Center,
         ) {
             if (action.isActive) {
                 Box(
                     modifier = Modifier
-                        .size(34.dp)
+                        .size(32.dp)
                         .clip(CircleShape)
-                        .background(activeTint.copy(alpha = 0.16f)),
+                        .background(activeTint.copy(alpha = 0.18f)),
                 )
             }
             if (action.showsProgress) {
@@ -220,7 +231,7 @@ private fun RowScope.DetailDockActionButton(
                     action.icon,
                     contentDescription = null,
                     tint = iconTint,
-                    modifier = Modifier.size(20.dp),
+                    modifier = Modifier.size(22.dp),
                 )
             }
         }

@@ -282,7 +282,6 @@ fun PublicFeedTabScreen(
     feedViewModel: FeedViewModel = hiltViewModel(),
     accountViewModel: AccountViewModel = hiltViewModel(),
     captureViewModel: CaptureViewModel = hiltViewModel(),
-    foldersViewModel: com.knowledgepearls.app.ui.folders.FoldersViewModel = hiltViewModel(),
 ) {
     val activityContext = LocalContext.current
     val navController = rememberNavController()
@@ -292,7 +291,6 @@ fun PublicFeedTabScreen(
     }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val accountState by accountViewModel.uiState.collectAsStateWithLifecycle()
-    val folders by foldersViewModel.foldersWithCounts.collectAsStateWithLifecycle()
     var captureMenuOpen by rememberSaveable { mutableStateOf(false) }
     var showSharedPearlIntro by rememberSaveable { mutableStateOf(false) }
 
@@ -368,7 +366,7 @@ fun PublicFeedTabScreen(
                 onDismissActionSuccess = viewModel::dismissActionSuccess,
                 onDismissError = viewModel::dismissError,
                 onDismissSeenToast = viewModel::dismissSeenToast,
-                folders = folders,
+                onOpenSavePicker = viewModel::openSavePicker,
                 onHidePearl = viewModel::hide,
                 onSaveToMyFeed = viewModel::addToMyFeed,
                 onSaveToFolder = { pearl, folder ->
@@ -473,7 +471,7 @@ fun PublicFeedTabScreen(
                     onDismissActionSuccess = viewModel::dismissActionSuccess,
                     onDismissError = viewModel::dismissError,
                     onDismissSeenToast = viewModel::dismissSeenToast,
-                    folders = folders,
+                    onOpenSavePicker = viewModel::openSavePicker,
                     onHidePearl = viewModel::hide,
                     onSaveToMyFeed = viewModel::addToMyFeed,
                     onSaveToFolder = { pearl, folder ->

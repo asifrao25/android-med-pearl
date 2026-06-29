@@ -33,19 +33,22 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.ui.graphics.Color
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import com.knowledgepearls.app.data.local.model.FolderWithCount
 import com.knowledgepearls.app.data.model.PublicPearl
 import com.knowledgepearls.app.ui.components.PearlSwipeAction
 import com.knowledgepearls.app.ui.components.PearlSwipeRow
 import com.knowledgepearls.app.ui.feed.PearlDeleteConfirmationDialog
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.knowledgepearls.app.ui.components.PearlActionOutcome
 import com.knowledgepearls.app.ui.components.PearlAlreadyInFeedAlert
-import com.knowledgepearls.app.ui.components.PearlActionSuccessAlert
 import com.knowledgepearls.app.ui.components.PublicFeedOfflineState
 import com.knowledgepearls.app.ui.feed.FeedEmptyFilterAlert
 import com.knowledgepearls.app.ui.feed.FeedPearlAuthorInfo
@@ -92,7 +95,7 @@ fun PublicFeedScreen(
     onDismissActionSuccess: () -> Unit,
     onDismissError: () -> Unit,
     onDismissSeenToast: () -> Unit,
-    folders: List<FolderWithCount> = emptyList(),
+    onOpenSavePicker: (PublicPearl) -> Unit = {},
     onHidePearl: (PublicPearl) -> Unit = {},
     onSaveToMyFeed: (PublicPearl) -> Unit = {},
     onSaveToFolder: (PublicPearl, FolderWithCount) -> Unit = { _, _ -> },
@@ -117,7 +120,6 @@ fun PublicFeedScreen(
         PearlLayout.addButtonBottomPadding
     }
     val listState = rememberLazyListState()
-    var saveTarget by remember { mutableStateOf<PublicPearl?>(null) }
     var removeTarget by remember { mutableStateOf<PublicPearl?>(null) }
 
     val shouldLoadMore by remember {
@@ -126,6 +128,13 @@ fun PublicFeedScreen(
             lastVisible >= uiState.filteredPearls.lastIndex - 2
         }
     }
+
+    val seenToastFocus = isSignedIn && isNetworkAvailable && uiState.showSeenToast
+    val feedBlurRadius by animateDpAsState(
+        targetValue = if (seenToastFocus) 22.dp else 0.dp,
+        animationSpec = tween(durationMillis = if (seenToastFocus) 340 else 460),
+        label = "seenFocusBlur",
+    )
 
     LaunchedEffect(isSignedIn) {
         if (isSignedIn && uiState.pearls.isEmpty() && !uiState.isLoading) {
@@ -167,7 +176,17 @@ fun PublicFeedScreen(
                 theme = theme,
             )
 
-            when {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .blur(feedBlurRadius),
+                ) {
+                when {
                 !isSignedIn -> Unit
                 !isNetworkAvailable -> {
                     PublicFeedOfflineState(
@@ -314,7 +333,7 @@ fun PublicFeedScreen(
                                             icon = Icons.Default.CreateNewFolder,
                                             title = "Save",
                                             color = theme.primary,
-                                            onClick = { saveTarget = pearl },
+                                            onClick = { onOpenSavePicker(pearl) },
                                         ),
                                         trailingAction = PearlSwipeAction(
                                             icon = Icons.Default.Delete,
@@ -349,12 +368,20 @@ fun PublicFeedScreen(
                     }
                 }
             }
+            }
+
+                PublicFeedSeenFocusScrim(
+                    visible = seenToastFocus,
+                    theme = theme,
+                )
+            }
         }
 
         if (isSignedIn && isNetworkAvailable) {
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
+                    .zIndex(1f)
                     .padding(
                         start = PearlLayout.screenHorizontalPadding,
                         end = PearlLayout.screenHorizontalPadding,
@@ -428,15 +455,7 @@ fun PublicFeedScreen(
                     onDismiss = onDismissActionSuccess,
                 )
             }
-            null -> Unit
-            else -> {
-                PearlActionSuccessAlert(
-                    outcome = uiState.actionOutcome!!,
-                    theme = theme,
-                    folderName = uiState.actionSuccessMessage,
-                    onDismiss = onDismissActionSuccess,
-                )
-            }
+            else -> Unit
         }
 
         removeTarget?.let { pearl ->
@@ -450,26 +469,6 @@ fun PublicFeedScreen(
                 headline = "Remove pearl?",
                 confirmLabel = "Remove",
                 message = "This pearl will be hidden from your public feed.",
-            )
-        }
-
-        saveTarget?.let { pearl ->
-            PublicPearlSaveOverlay(
-                folders = folders,
-                theme = theme,
-                onSaveToMyFeed = {
-                    saveTarget = null
-                    onSaveToMyFeed(pearl)
-                },
-                onSaveToFolder = { folder ->
-                    saveTarget = null
-                    onSaveToFolder(pearl, folder)
-                },
-                onCreateFolder = { name ->
-                    saveTarget = null
-                    onCreateFolderAndSave(pearl, name)
-                },
-                onDismiss = { saveTarget = null },
             )
         }
 

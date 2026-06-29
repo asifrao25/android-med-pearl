@@ -134,13 +134,6 @@ fun FeedScreen(
                 )
             }
 
-            TagFilterRow(
-                tags = uiState.allTags,
-                selectedTag = uiState.selectedTag,
-                onTagSelected = onTagSelected,
-                theme = theme,
-            )
-
             uiState.actionSuccessMessage?.let { message ->
                 PearlActionSuccessBanner(
                     message = message,

@@ -54,7 +54,7 @@ fun LiquidTabBar(
     modifier: Modifier = Modifier,
 ) {
     val darkTheme = isPearlDarkTheme()
-
+    val chromeTheme = selected.theme
     val capsuleShape = RoundedCornerShape(999.dp)
 
     Box(
@@ -63,13 +63,14 @@ fun LiquidTabBar(
             .padding(horizontal = PearlLayout.screenHorizontalPadding)
             .clip(capsuleShape)
             .background(PearlColors.tabBarFill(darkTheme), capsuleShape)
-            .border(width = 1.dp, color = PearlColors.cardBorder(darkTheme), shape = capsuleShape),
+            .background(PearlColors.chromeBarBrush(chromeTheme, darkTheme), capsuleShape)
+            .border(width = 1.dp, color = PearlColors.chromeBarBorder(chromeTheme, darkTheme), shape = capsuleShape),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(PearlLayout.tabBarHeight)
-                .padding(horizontal = 4.dp, vertical = 4.dp),
+                .padding(horizontal = 4.dp, vertical = 3.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -128,7 +129,7 @@ private fun RowScope.TabChip(
     Box(
         modifier = Modifier
             .then(if (expand) Modifier.weight(1f) else Modifier)
-            .height(PearlLayout.tabBarHeight - 8.dp)
+            .height(PearlLayout.tabBarChipHeight)
             .clip(shape)
             .semantics(mergeDescendants = true) {
                 contentDescription = label
@@ -194,7 +195,7 @@ private fun RowScope.PublicFeedTabChip(
     Box(
         modifier = Modifier
             .then(if (expand) Modifier.weight(1f) else Modifier)
-            .height(PearlLayout.tabBarHeight - 8.dp)
+            .height(PearlLayout.tabBarChipHeight)
             .clip(shape)
             .semantics(mergeDescendants = true) {
                 contentDescription = tabLabel

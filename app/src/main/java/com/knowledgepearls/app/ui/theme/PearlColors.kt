@@ -67,6 +67,19 @@ object PearlColors {
     /** Detail action dock — matches tab bar opacity for consistent chrome. */
     fun detailDockFill(darkTheme: Boolean): Color = tabBarFill(darkTheme)
 
+    /** Subtle tab-tinted wash over floating chrome bars (tab bar, detail dock). */
+    fun chromeBarBrush(theme: TabTheme, darkTheme: Boolean): Brush =
+        Brush.linearGradient(
+            colorStops = arrayOf(
+                0f to theme.primary.copy(alpha = if (darkTheme) 0.20f else 0.14f),
+                0.5f to theme.secondary.copy(alpha = if (darkTheme) 0.11f else 0.08f),
+                1f to theme.primary.copy(alpha = if (darkTheme) 0.16f else 0.11f),
+            ),
+        )
+
+    fun chromeBarBorder(theme: TabTheme, darkTheme: Boolean): Color =
+        theme.primary.copy(alpha = if (darkTheme) 0.28f else 0.22f)
+
     fun sectionHeaderGradient(theme: TabTheme, darkTheme: Boolean): Brush =
         Brush.horizontalGradient(
             colors = listOf(
@@ -81,8 +94,9 @@ object PearlColors {
 /** Layout tokens from iOS `LiquidTabBarLayout` and `TabScreenHeaderMetrics`. */
 object PearlLayout {
     val screenHorizontalPadding = 20.dp
-    val tabBarHeight = 64.dp
+    val tabBarHeight = 50.dp
     val tabBarIconSize = 26.dp
+    val tabBarChipHeight = 44.dp
     /** Small lift from the physical screen bottom — matches iOS `screenBottomPadding`. */
     val tabBarBottomPadding = 8.dp
     /** Space reserved above the floating tab bar for FABs and bottom actions. */
@@ -128,10 +142,11 @@ object PearlLayout {
     val inboxSheetMaxHeight = 560.dp
     val inboxSheetMinHeight = 360.dp
     /** Floating detail dock — matches iOS `LiquidDetailDock` + `LiquidTabBarLayout.actionBarBottomPadding`. */
-    val detailDockHeight = 64.dp
-    val detailDockTopPadding = 6.dp
+    val detailDockHeight = 58.dp
+    val detailDockActionSlotWidth = 56.dp
+    val detailDockTopPadding = 4.dp
     /** Bottom inset so the detail dock sits flush above the floating tab bar. */
-    val detailDockBottomPadding = tabBarHeight + tabBarBottomPadding + 12.dp
+    val detailDockBottomPadding = tabBarHeight + tabBarBottomPadding + 4.dp
     val detailScrollBottomPadding = detailDockHeight + detailDockTopPadding + detailDockBottomPadding + 8.dp
     val cardCornerRadius = 18.dp
     val headerContentHeight = 56.dp

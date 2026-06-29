@@ -36,6 +36,7 @@ data class PublicFeedUiState(
     val actionOutcome: com.knowledgepearls.app.ui.components.PearlActionOutcome? = null,
     val showEmptyFilterAlert: Boolean = false,
     val showSeenToast: Boolean = false,
+    val savePickerPearl: PublicPearl? = null,
     val seenIds: Set<String> = emptySet(),
     val likedPearlIds: Set<String> = emptySet(),
     val commentCounts: Map<String, Int> = emptyMap(),
@@ -329,6 +330,14 @@ class PublicFeedViewModel @Inject constructor(
 
     fun dismissActionSuccess() {
         _uiState.update { it.copy(actionSuccessMessage = null, actionOutcome = null) }
+    }
+
+    fun openSavePicker(pearl: PublicPearl) {
+        _uiState.update { it.copy(savePickerPearl = pearl) }
+    }
+
+    fun dismissSavePicker() {
+        _uiState.update { it.copy(savePickerPearl = null) }
     }
 
     fun dismissError() {

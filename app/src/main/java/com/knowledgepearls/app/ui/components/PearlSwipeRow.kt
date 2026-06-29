@@ -32,9 +32,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
@@ -47,7 +47,9 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import com.knowledgepearls.app.ui.theme.PearlColors
 import com.knowledgepearls.app.ui.theme.PearlLayout
+import com.knowledgepearls.app.ui.theme.isPearlDarkTheme
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
@@ -63,8 +65,6 @@ object SwipeRowLayout {
     val actionWidth = 72.dp
     val cornerRadius = PearlLayout.cardCornerRadius
     val capWidth = actionWidth + cornerRadius
-
-    private val cardMaskColor = Color(0xFF0A0D17)
 
     fun maxSwipeOffsetPx(density: androidx.compose.ui.unit.Density): Float =
         with(density) { actionWidth.toPx() }
@@ -104,8 +104,6 @@ object SwipeRowLayout {
         }
     }
 
-    val cardMaskColorValue: Color get() = cardMaskColor
-
     val settleSpring = spring<Float>(
         dampingRatio = 0.82f,
         stiffness = Spring.StiffnessMedium,
@@ -131,21 +129,26 @@ fun PearlSwipeRow(
     var didReportSwipe by remember { mutableStateOf(false) }
 
     val hintActive = enableSwipeHint && !suppressHint
+    val darkTheme = isPearlDarkTheme()
     val cornerRadiusPx = SwipeRowLayout.cornerRadiusPx(density)
     val cardMaskShape = remember(cornerRadiusPx) { SwipeRowCardMaskShape(cornerRadiusPx) }
+    val cardMaskColor = PearlColors.popupSurface(darkTheme)
     val actionWidthPx = SwipeRowLayout.maxSwipeOffsetPx(density)
 
+    val hintOffsetPx = if (
+        isHorizontalSwipe || settledOffset.value != 0f || !hintActive
+    ) {
+        0f
+    } else {
+        hintOffset.value
+    }
     val displayedOffsetPx = SwipeRowLayout.clampedOffsetPx(
-        settledOffset.value + dragOffset + if (
-            isHorizontalSwipe || settledOffset.value != 0f || !hintActive
-        ) {
-            0f
-        } else {
-            hintOffset.value
-        },
+        settledOffset.value + dragOffset + hintOffsetPx,
         density,
     )
-    val showCornerWrap = SwipeRowLayout.showsCornerWrap(displayedOffsetPx, density)
+    val isHintMode = hintActive && !suppressHint && !isHorizontalSwipe &&
+        dragOffset == 0f && settledOffset.value == 0f
+    val showCornerWrap = !isHintMode && SwipeRowLayout.showsCornerWrap(displayedOffsetPx, density)
 
     LaunchedEffect(enableSwipeHint) {
         if (!enableSwipeHint) {
@@ -277,7 +280,7 @@ fun PearlSwipeRow(
                 Box(
                     modifier = Modifier
                         .matchParentSize()
-                        .background(SwipeRowLayout.cardMaskColorValue, cardMaskShape),
+                        .background(cardMaskColor, cardMaskShape),
                 )
             }
 
@@ -326,6 +329,7 @@ private fun SwipeActionRevealColumn(
 
     val clipWidth = with(density) { clipWidthPx.toDp() }
     val capWidth = SwipeRowLayout.capWidth
+    val actionWidth = SwipeRowLayout.actionWidth
     val backgroundShape = remember(edge, cornerRadiusPx) {
         SwipeActionBackgroundShape(edge, cornerRadiusPx)
     }
@@ -354,7 +358,8 @@ private fun SwipeActionRevealColumn(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(6.dp),
                 modifier = Modifier
-                    .width(SwipeRowLayout.actionWidth)
+                    .width(actionWidth)
+                    .align(if (edge == SwipeActionEdge.Leading) Alignment.CenterStart else Alignment.CenterEnd)
                     .padding(horizontal = 4.dp, vertical = 8.dp),
             ) {
                 Icon(
