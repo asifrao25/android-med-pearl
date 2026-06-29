@@ -83,6 +83,7 @@ fun MainScaffold(
 ) {
     val accountState by accountViewModel.uiState.collectAsStateWithLifecycle()
     val publicFeedState by publicFeedViewModel.uiState.collectAsStateWithLifecycle()
+    val feedState by feedViewModel.uiState.collectAsStateWithLifecycle()
     val folders by foldersViewModel.foldersWithCounts.collectAsStateWithLifecycle()
     val inboxState by inboxViewModel.inboxState.collectAsStateWithLifecycle()
     val threadState by inboxViewModel.threadState.collectAsStateWithLifecycle()
@@ -440,6 +441,101 @@ fun MainScaffold(
                 .padding(bottom = PearlLayout.tabBarBottomPadding),
         )
 
+        val onFeedListScreen = when (selectedTab) {
+            MainTab.Feed -> feedRootVisible
+            MainTab.PublicFeed -> publicFeedRootVisible
+            else -> false
+        }
+
+        val blockingFloatingChromeOverlay =
+            publicFeedState.savePickerPearl != null ||
+                publicFeedState.showEmptyFilterAlert ||
+                publicFeedState.actionOutcome == PearlActionOutcome.AlreadyInMyFeed ||
+                publicFeedState.actionOutcome == PearlActionOutcome.SavedToMyFeed ||
+                publicFeedState.actionOutcome == PearlActionOutcome.SavedToFolder ||
+                publicFeedState.actionOutcome == PearlActionOutcome.RemovedFromFeed ||
+                (selectedTab == MainTab.Feed && feedState.showEmptyFilterAlert) ||
+                settingsState.cacheClearedAlert != null ||
+                pearlShareToast != null
+
+        val showFloatingInboxChrome = !showSplash &&
+            accountState.isSignedIn &&
+            !inboxOpen &&
+            !settingsOpen &&
+            !authOpen &&
+            !editProfileOpen &&
+            !foldersMenuOpen &&
+            openedFolderId == null &&
+            profileUserId == null &&
+            !accountState.needsProfileSetup &&
+            onFeedListScreen &&
+            !blockingFloatingChromeOverlay
+
+        val addFabBottomPadding = when (selectedTab) {
+            MainTab.PublicFeed -> {
+                if (connectivityState.isConnected && !connectivityState.isOfflineMode) {
+                    PearlLayout.publicFeedAddButtonBottomPadding
+                } else {
+                    PearlLayout.addButtonBottomPadding
+                }
+            }
+            else -> PearlLayout.addButtonBottomPadding
+        }
+
+        val hasFloatingAddButton = when (selectedTab) {
+            MainTab.Feed -> true
+            MainTab.PublicFeed -> connectivityState.isConnected && !connectivityState.isOfflineMode
+            else -> false
+        }
+
+        val inboxButtonBottomPadding = if (hasFloatingAddButton) {
+            PearlLayout.inboxButtonBottomPadding(addFabBottomPadding)
+        } else {
+            addFabBottomPadding
+        }
+
+        val floatingChromeTheme = when (selectedTab) {
+            MainTab.PublicFeed -> TabTheme.PublicFeed
+            MainTab.Favourites -> TabTheme.Favourites
+            else -> TabTheme.Feed
+        }
+
+        if (showFloatingInboxChrome) {
+            FloatingInboxButton(
+                badgeCount = inboxBadgeCount,
+                theme = floatingChromeTheme,
+                onClick = {
+                    inboxReminderDismissed = true
+                    inboxOpen = true
+                    inboxViewModel.loadInbox()
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 20.dp, bottom = inboxButtonBottomPadding),
+            )
+        }
+
+        val showInboxReminder = showFloatingInboxChrome &&
+            !inboxReminderDismissed &&
+            inboxBadgeCount > 0
+
+        if (showInboxReminder) {
+            FloatingInboxReminderCallout(
+                visible = showInboxReminder,
+                unreadCount = inboxBadgeCount,
+                theme = floatingChromeTheme,
+                onOpenInbox = {
+                    inboxReminderDismissed = true
+                    inboxOpen = true
+                    inboxViewModel.loadInbox()
+                },
+                onDismiss = { inboxReminderDismissed = true },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(bottom = PearlLayout.inboxReminderBottomPadding(inboxButtonBottomPadding)),
+            )
+        }
+
         publicFeedState.savePickerPearl?.let { pearl ->
             PublicPearlSaveOverlay(
                 folders = folders,
@@ -604,89 +700,6 @@ fun MainScaffold(
 
         if (showSplash) {
             LaunchSplashScreen(onFinished = { showSplash = false })
-        }
-
-        val onFeedListScreen = when (selectedTab) {
-            MainTab.Feed -> feedRootVisible
-            MainTab.PublicFeed -> publicFeedRootVisible
-            else -> false
-        }
-
-        val showFloatingInboxChrome = !showSplash &&
-            accountState.isSignedIn &&
-            !inboxOpen &&
-            !settingsOpen &&
-            !authOpen &&
-            !editProfileOpen &&
-            !foldersMenuOpen &&
-            openedFolderId == null &&
-            profileUserId == null &&
-            !accountState.needsProfileSetup &&
-            onFeedListScreen
-
-        val addFabBottomPadding = when (selectedTab) {
-            MainTab.PublicFeed -> {
-                if (connectivityState.isConnected && !connectivityState.isOfflineMode) {
-                    PearlLayout.publicFeedAddButtonBottomPadding
-                } else {
-                    PearlLayout.addButtonBottomPadding
-                }
-            }
-            else -> PearlLayout.addButtonBottomPadding
-        }
-
-        val hasFloatingAddButton = when (selectedTab) {
-            MainTab.Feed -> true
-            MainTab.PublicFeed -> connectivityState.isConnected && !connectivityState.isOfflineMode
-            else -> false
-        }
-
-        val inboxButtonBottomPadding = if (hasFloatingAddButton) {
-            PearlLayout.inboxButtonBottomPadding(addFabBottomPadding)
-        } else {
-            addFabBottomPadding
-        }
-
-        val floatingChromeTheme = when (selectedTab) {
-            MainTab.PublicFeed -> TabTheme.PublicFeed
-            MainTab.Favourites -> TabTheme.Favourites
-            else -> TabTheme.Feed
-        }
-
-        if (showFloatingInboxChrome) {
-            FloatingInboxButton(
-                badgeCount = inboxBadgeCount,
-                theme = floatingChromeTheme,
-                onClick = {
-                    inboxReminderDismissed = true
-                    inboxOpen = true
-                    inboxViewModel.loadInbox()
-                },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 20.dp, bottom = inboxButtonBottomPadding),
-            )
-        }
-
-        val showInboxReminder = showFloatingInboxChrome &&
-            !inboxReminderDismissed &&
-            inboxBadgeCount > 0
-
-        if (showInboxReminder) {
-            FloatingInboxReminderCallout(
-                visible = showInboxReminder,
-                unreadCount = inboxBadgeCount,
-                theme = floatingChromeTheme,
-                onOpenInbox = {
-                    inboxReminderDismissed = true
-                    inboxOpen = true
-                    inboxViewModel.loadInbox()
-                },
-                onDismiss = { inboxReminderDismissed = true },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(bottom = PearlLayout.inboxReminderBottomPadding(inboxButtonBottomPadding)),
-            )
         }
 
         settingsState.cacheClearedAlert?.let { alert ->

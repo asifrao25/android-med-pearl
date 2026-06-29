@@ -134,6 +134,35 @@ fun PublicPearlCardMediaPreview(
 }
 
 @Composable
+fun PublicPearlTweetCardMediaPreview(
+    pearl: PublicPearl,
+    theme: TabTheme,
+    modifier: Modifier = Modifier,
+) {
+    val slides = publicPearlMediaSlides(pearl)
+    when {
+        slides.size > 1 -> {
+            PublicPearlMediaCarousel(
+                slides = slides,
+                theme = theme,
+                height = previewHeight,
+                interactive = false,
+                modifier = modifier,
+            )
+        }
+        pearl.hasGalleryMedia && slides.size == 1 -> {
+            PublicPearlMediaSlideView(
+                slide = slides.first(),
+                theme = theme,
+                height = previewHeight,
+                interactive = false,
+                modifier = modifier,
+            )
+        }
+    }
+}
+
+@Composable
 fun PublicPearlDetailMediaSection(
     pearl: PublicPearl,
     theme: TabTheme,

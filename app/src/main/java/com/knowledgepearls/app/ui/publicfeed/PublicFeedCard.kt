@@ -28,7 +28,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -64,99 +63,195 @@ fun PublicFeedCard(
             .background(PearlColors.glassOverlay(darkTheme))
             .clickable(onClick = onClick),
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(
-                    brush = Brush.horizontalGradient(
-                        listOf(cardTheme.color.copy(alpha = 0.72f), cardTheme.glowColor.copy(alpha = 0.48f)),
-                    ),
-                )
-                .padding(horizontal = 16.dp, vertical = 9.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Icon(cardTheme.icon, contentDescription = null, tint = Color.White, modifier = Modifier.height(14.dp))
+        PublicFeedCardHeader(cardTheme = cardTheme)
+
+        if (pearl.isFromTwitterScraper) {
+            TweetFeedCardBody(
+                pearl = pearl,
+                theme = theme,
+                darkTheme = darkTheme,
+            )
+            PublicPearlTweetCardMediaPreview(
+                pearl = pearl,
+                theme = theme,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        } else {
+            StandardFeedCardBody(
+                pearl = pearl,
+                theme = theme,
+                darkTheme = darkTheme,
+            )
+        }
+    }
+}
+
+@Composable
+private fun PublicFeedCardHeader(cardTheme: PublicPearlCardTheme) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                brush = Brush.horizontalGradient(
+                    listOf(cardTheme.color.copy(alpha = 0.72f), cardTheme.glowColor.copy(alpha = 0.48f)),
+                ),
+            )
+            .padding(horizontal = 16.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Icon(cardTheme.icon, contentDescription = null, tint = Color.White, modifier = Modifier.height(14.dp))
+        Text(
+            text = cardTheme.label.uppercase(),
+            color = Color.White,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+        )
+    }
+}
+
+@Composable
+private fun TweetFeedCardBody(
+    pearl: PublicPearl,
+    theme: TabTheme,
+    darkTheme: Boolean,
+) {
+    Column(
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        val bodyText = pearl.scraperCardBodyText
+        if (bodyText.isNotBlank()) {
             Text(
-                text = cardTheme.label.uppercase(),
-                color = Color.White,
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold,
+                text = bodyText,
+                style = MaterialTheme.typography.bodyLarge,
+                color = PearlColors.heroPrimary(darkTheme),
+                maxLines = 4,
+                overflow = TextOverflow.Ellipsis,
             )
         }
 
-        Column(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(
-                text = pearl.titleDisplay,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = PearlColors.heroPrimary(darkTheme),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+        val learningPoint = pearl.scraperLearningPoint
+        if (learningPoint.isNotBlank()) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = "LEARNING POINT",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = theme.primary.copy(alpha = 0.85f),
+                )
+                Text(
+                    text = learningPoint,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = PearlColors.heroSecondary(darkTheme),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
 
-            if (pearl.isClinicalCase) {
-                val history = pearl.casePayload?.history.orEmpty()
-                if (history.isNotBlank()) {
-                    Text(
-                        text = history,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = PearlColors.heroSecondary(darkTheme),
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                if (pearl.hasGalleryMedia) {
+        PublicFeedCardTags(pearl = pearl, darkTheme = darkTheme)
+        PublicFeedCardLikeCount(pearl = pearl, theme = theme)
+    }
+}
+
+@Composable
+private fun StandardFeedCardBody(
+    pearl: PublicPearl,
+    theme: TabTheme,
+    darkTheme: Boolean,
+) {
+    Column(
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = pearl.titleDisplay,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = PearlColors.heroPrimary(darkTheme),
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+
+        if (pearl.isClinicalCase) {
+            val history = pearl.casePayload?.history.orEmpty()
+            if (history.isNotBlank()) {
+                Text(
+                    text = history,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = PearlColors.heroSecondary(darkTheme),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (pearl.hasGalleryMedia) {
                 Text(
                     text = "${pearl.resolvedMediaItems.size} attachment${if (pearl.resolvedMediaItems.size == 1) "" else "s"}",
                     style = MaterialTheme.typography.labelMedium,
                     color = PearlColors.heroSecondary(darkTheme),
                 )
-                }
-            } else if (pearl.notes.isNotBlank()) {
-                Text(
-                    text = pearl.notes,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = PearlColors.heroSecondary(darkTheme),
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis,
-                )
             }
-
-            PublicPearlCardMediaPreview(
-                pearl = pearl,
-                theme = theme,
-                modifier = Modifier.fillMaxWidth(),
+        } else if (pearl.notes.isNotBlank()) {
+            Text(
+                text = pearl.notes,
+                style = MaterialTheme.typography.bodyMedium,
+                color = PearlColors.heroSecondary(darkTheme),
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
             )
+        }
 
-            if (pearl.tags.isNotEmpty()) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    pearl.tags.take(4).forEach { tag ->
-                        Text(
-                            text = tag,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(999.dp))
-                                .background(PearlColors.controlFill(darkTheme))
-                                .padding(horizontal = 10.dp, vertical = 4.dp),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = PearlColors.heroSecondary(darkTheme),
-                        )
-                    }
-                }
-            }
+        PublicPearlCardMediaPreview(
+            pearl = pearl,
+            theme = theme,
+            modifier = Modifier.fillMaxWidth(),
+        )
 
-            if (pearl.likeCount > 0) {
-                Text(
-                    text = "${pearl.likeCount} likes",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = theme.primary.copy(alpha = 0.85f),
-                )
-            }
+        PublicFeedCardTags(pearl = pearl, darkTheme = darkTheme)
+        PublicFeedCardLikeCount(pearl = pearl, theme = theme)
+    }
+}
+
+@Composable
+private fun PublicFeedCardTags(
+    pearl: PublicPearl,
+    darkTheme: Boolean,
+) {
+    if (pearl.tags.isEmpty()) return
+
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        pearl.tags.take(4).forEach { tag ->
+            val label = tag.trim()
+            if (label.isEmpty()) return@forEach
+            Text(
+                text = label,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(PearlColors.controlFill(darkTheme))
+                    .padding(horizontal = 10.dp, vertical = 4.dp),
+                style = MaterialTheme.typography.labelSmall,
+                color = PearlColors.heroSecondary(darkTheme),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
+}
+
+@Composable
+private fun PublicFeedCardLikeCount(
+    pearl: PublicPearl,
+    theme: TabTheme,
+) {
+    if (pearl.likeCount <= 0) return
+
+    Text(
+        text = "${pearl.likeCount} likes",
+        style = MaterialTheme.typography.labelSmall,
+        color = theme.primary.copy(alpha = 0.85f),
+    )
 }
 
 private data class PublicPearlCardTheme(
@@ -170,6 +265,7 @@ private fun publicPearlCardTheme(pearl: PublicPearl, tabTheme: TabTheme): Public
     val primary = tabTheme.primary
     val secondary = tabTheme.secondary
     return when {
+        pearl.isFromTwitterScraper -> PublicPearlCardTheme("Tweet", Icons.Default.Link, primary, secondary)
         pearl.isClinicalCase -> PublicPearlCardTheme("Clinical case", Icons.Default.LocalHospital, primary, secondary)
         pearl.isLinkPearl -> PublicPearlCardTheme("Link", Icons.Default.Link, primary, secondary)
         pearl.resolvedMediaItems.size > 1 -> PublicPearlCardTheme("Gallery", Icons.Default.Photo, primary, secondary)

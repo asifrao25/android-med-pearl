@@ -87,6 +87,12 @@ data class PublicPearl(
             return ""
         }
 
+    val scraperCardBodyText: String
+        get() {
+            if (scraperTweetText.isNotBlank()) return scraperTweetText
+            return scraperAISummary
+        }
+
     val scraperExternalLinks: List<ScraperSourceLink>
         get() {
             val links = ingestionMeta?.sourceLinks.orEmpty()
