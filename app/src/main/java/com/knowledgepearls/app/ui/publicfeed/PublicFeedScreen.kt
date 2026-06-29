@@ -131,8 +131,14 @@ fun PublicFeedScreen(
 
     val seenToastFocus = isSignedIn && isNetworkAvailable && uiState.showSeenToast
     val feedBlurRadius by animateDpAsState(
-        targetValue = if (seenToastFocus) 22.dp else 0.dp,
-        animationSpec = tween(durationMillis = if (seenToastFocus) 340 else 460),
+        targetValue = if (seenToastFocus) PublicFeedSeenFocusEffect.blurRadius else 0.dp,
+        animationSpec = tween(
+            durationMillis = if (seenToastFocus) {
+                PublicFeedSeenFocusEffect.blurInMillis
+            } else {
+                PublicFeedSeenFocusEffect.blurOutMillis
+            },
+        ),
         label = "seenFocusBlur",
     )
 
@@ -423,6 +429,7 @@ fun PublicFeedScreen(
                 },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
+                    .blur(feedBlurRadius)
                     .padding(end = 20.dp, bottom = floatingAddButtonBottomPadding),
             )
         }

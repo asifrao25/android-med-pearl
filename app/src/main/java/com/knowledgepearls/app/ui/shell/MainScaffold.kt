@@ -1,6 +1,8 @@
 package com.knowledgepearls.app.ui.shell
 
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,6 +17,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -59,6 +62,7 @@ import com.knowledgepearls.app.ui.tabs.FeedTabScreen
 import com.knowledgepearls.app.ui.tabs.PublicFeedTabScreen
 import com.knowledgepearls.app.ui.publicfeed.PublicFeedViewModel
 import com.knowledgepearls.app.ui.publicfeed.PublicPearlSaveOverlay
+import com.knowledgepearls.app.ui.publicfeed.PublicFeedSeenFocusEffect
 import com.knowledgepearls.app.ui.theme.PearlLayout
 import com.knowledgepearls.app.ui.theme.TabTheme
 import dagger.hilt.android.EntryPointAccessors
@@ -500,6 +504,24 @@ fun MainScaffold(
             else -> TabTheme.Feed
         }
 
+        val publicFeedSeenFocus = selectedTab == MainTab.PublicFeed &&
+            publicFeedRootVisible &&
+            publicFeedState.showSeenToast &&
+            connectivityState.isConnected &&
+            !connectivityState.isOfflineMode
+
+        val floatingChromeBlur by animateDpAsState(
+            targetValue = if (publicFeedSeenFocus) PublicFeedSeenFocusEffect.blurRadius else 0.dp,
+            animationSpec = tween(
+                durationMillis = if (publicFeedSeenFocus) {
+                    PublicFeedSeenFocusEffect.blurInMillis
+                } else {
+                    PublicFeedSeenFocusEffect.blurOutMillis
+                },
+            ),
+            label = "publicFeedSeenChromeBlur",
+        )
+
         if (showFloatingInboxChrome) {
             FloatingInboxButton(
                 badgeCount = inboxBadgeCount,
@@ -511,6 +533,7 @@ fun MainScaffold(
                 },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
+                    .blur(floatingChromeBlur)
                     .padding(end = 20.dp, bottom = inboxButtonBottomPadding),
             )
         }
@@ -532,6 +555,7 @@ fun MainScaffold(
                 onDismiss = { inboxReminderDismissed = true },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
+                    .blur(floatingChromeBlur)
                     .padding(bottom = PearlLayout.inboxReminderBottomPadding(inboxButtonBottomPadding)),
             )
         }

@@ -40,6 +40,12 @@ import com.knowledgepearls.app.ui.theme.TabTheme
 import com.knowledgepearls.app.ui.theme.isPearlDarkTheme
 import kotlinx.coroutines.delay
 
+object PublicFeedSeenFocusEffect {
+    val blurRadius = 22.dp
+    const val blurInMillis = 340
+    const val blurOutMillis = 460
+}
+
 private val bubbleShape = RoundedCornerShape(16.dp)
 
 @Composable
