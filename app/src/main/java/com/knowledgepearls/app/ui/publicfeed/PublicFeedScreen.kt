@@ -33,17 +33,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.tween
 import com.knowledgepearls.app.data.local.model.FolderWithCount
 import com.knowledgepearls.app.data.model.PublicPearl
 import com.knowledgepearls.app.ui.components.PearlSwipeAction
 import com.knowledgepearls.app.ui.components.PearlSwipeRow
 import com.knowledgepearls.app.ui.feed.PearlDeleteConfirmationDialog
-import androidx.compose.ui.zIndex
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -129,19 +125,6 @@ fun PublicFeedScreen(
         }
     }
 
-    val seenToastFocus = isSignedIn && isNetworkAvailable && uiState.showSeenToast
-    val feedBlurRadius by animateDpAsState(
-        targetValue = if (seenToastFocus) PublicFeedSeenFocusEffect.blurRadius else 0.dp,
-        animationSpec = tween(
-            durationMillis = if (seenToastFocus) {
-                PublicFeedSeenFocusEffect.blurInMillis
-            } else {
-                PublicFeedSeenFocusEffect.blurOutMillis
-            },
-        ),
-        label = "seenFocusBlur",
-    )
-
     LaunchedEffect(isSignedIn) {
         if (isSignedIn && uiState.pearls.isEmpty() && !uiState.isLoading) {
             onLoadInitial()
@@ -187,11 +170,6 @@ fun PublicFeedScreen(
                     .weight(1f)
                     .fillMaxWidth(),
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .blur(feedBlurRadius),
-                ) {
                 when {
                 !isSignedIn -> Unit
                 !isNetworkAvailable -> {
@@ -373,41 +351,7 @@ fun PublicFeedScreen(
                         }
                     }
                 }
-            }
-            }
-
-                PublicFeedSeenFocusScrim(
-                    visible = seenToastFocus,
-                    theme = theme,
-                )
-            }
-        }
-
-        if (isSignedIn && isNetworkAvailable) {
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .zIndex(1f)
-                    .padding(
-                        start = PearlLayout.screenHorizontalPadding,
-                        end = PearlLayout.screenHorizontalPadding,
-                        bottom = PearlLayout.publicFeedSectionTabsBottomPadding,
-                    ),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                MovedToSeenTabToast(
-                    visible = uiState.showSeenToast,
-                    theme = theme,
-                    onDismiss = onDismissSeenToast,
-                    modifier = Modifier.padding(bottom = 10.dp),
-                )
-                PublicFeedSectionTabs(
-                    selected = uiState.section,
-                    newCount = uiState.newCount,
-                    seenCount = uiState.seenCount,
-                    theme = theme,
-                    onSelected = onSectionSelected,
-                )
+                }
             }
         }
 
@@ -429,7 +373,6 @@ fun PublicFeedScreen(
                 },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .blur(feedBlurRadius)
                     .padding(end = 20.dp, bottom = floatingAddButtonBottomPadding),
             )
         }

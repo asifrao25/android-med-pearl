@@ -4,6 +4,7 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -19,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -60,6 +62,9 @@ import com.knowledgepearls.app.ui.settings.SettingsViewModel
 import com.knowledgepearls.app.ui.tabs.FavouritesTabScreen
 import com.knowledgepearls.app.ui.tabs.FeedTabScreen
 import com.knowledgepearls.app.ui.tabs.PublicFeedTabScreen
+import com.knowledgepearls.app.ui.publicfeed.MovedToSeenTabToast
+import com.knowledgepearls.app.ui.publicfeed.PublicFeedSectionTabs
+import com.knowledgepearls.app.ui.publicfeed.PublicFeedSeenFocusScrim
 import com.knowledgepearls.app.ui.publicfeed.PublicFeedViewModel
 import com.knowledgepearls.app.ui.publicfeed.PublicPearlSaveOverlay
 import com.knowledgepearls.app.ui.publicfeed.PublicFeedSeenFocusEffect
@@ -328,123 +333,6 @@ fun MainScaffold(
     }
 
     Box(Modifier.fillMaxSize().interactiveKeyboardDismiss()) {
-        Crossfade(targetState = backdropTab, label = "tabBackdrop") { tab ->
-            when (tab) {
-                MainTab.Feed -> FeedTabScreen(
-                    onOpenSettings = { settingsOpen = true },
-                    onSignInRequired = { authOpen = true },
-                    onOpenUserProfile = openUserProfile,
-                    onOpenInbox = {
-                        inboxOpen = true
-                        inboxViewModel.loadInbox()
-                    },
-                    inboxBadgeCount = inboxBadgeCount,
-                    onFeedRootVisibilityChange = { feedRootVisible = it },
-                    onRegisterPopToRoot = { handler -> tabPopHandlers.feed = handler },
-                    shareImport = shareImport,
-                    onShareImportConsumed = {
-                        shareImport = null
-                        onShareImportConsumed()
-                    },
-                )
-                MainTab.Favourites -> FavouritesTabScreen(
-                    onOpenSettings = { settingsOpen = true },
-                    onSignInRequired = { authOpen = true },
-                    onOpenUserProfile = openUserProfile,
-                    onOpenInbox = {
-                        inboxOpen = true
-                        inboxViewModel.loadInbox()
-                    },
-                    inboxBadgeCount = inboxBadgeCount,
-                    onRegisterPopToRoot = { handler -> tabPopHandlers.favourites = handler },
-                )
-                MainTab.PublicFeed -> PublicFeedTabScreen(
-                    onOpenSettings = { settingsOpen = true },
-                    onOpenInbox = {
-                        inboxOpen = true
-                        inboxViewModel.loadInbox()
-                    },
-                    inboxBadgeCount = inboxBadgeCount,
-                    onPublicFeedRootVisibilityChange = { publicFeedRootVisible = it },
-                    onRegisterPopToRoot = { handler -> tabPopHandlers.publicFeed = handler },
-                    connectivityState = connectivityState,
-                    onRetryConnection = connectivityMonitor::retryConnection,
-                    onOpenUserProfile = openUserProfile,
-                    viewModel = publicFeedViewModel,
-                    accountViewModel = accountViewModel,
-                    initialPearlId = pendingPublicPearlId,
-                    onInitialPearlConsumed = { pendingPublicPearlId = null },
-                )
-                MainTab.Folders -> FeedTabScreen(
-                    onOpenSettings = { settingsOpen = true },
-                    onSignInRequired = { authOpen = true },
-                    onOpenUserProfile = openUserProfile,
-                )
-            }
-        }
-
-        FolderMenuOverlay(
-            visible = foldersMenuOpen,
-            viewModel = foldersViewModel,
-            onDismiss = { foldersMenuOpen = false },
-            onSelectFolder = { folder ->
-                openedFolderId = folder.folder.id
-                openedFolderName = folder.folder.name
-                foldersMenuOpen = false
-                selectedTab = MainTab.Folders
-            },
-        )
-
-        openedFolderId?.let { folderId ->
-            openedFolderName?.let { folderName ->
-                FolderContentsScreen(
-                    folderId = folderId,
-                    folderName = folderName,
-                    viewModel = foldersViewModel,
-                    feedAuthorContext = feedAuthorContext,
-                    onResolveAvatarUrl = feedViewModel::fetchAvatarUrl,
-                    onOpenUserProfile = openUserProfile,
-                    onRegisterPopToRoot = { handler -> tabPopHandlers.folder = handler },
-                    onClose = {
-                        openedFolderId = null
-                        openedFolderName = null
-                    },
-                    onSignInRequired = { authOpen = true },
-                )
-            }
-        }
-
-        LiquidTabBar(
-            selected = selectedTab,
-            publicFeedNewCount = publicFeedState.newCount,
-            foldersMenuOpen = foldersMenuOpen,
-            onTabSelected = { tab ->
-                if (tab == selectedTab) {
-                    reselectTab(tab)
-                } else {
-                    foldersMenuOpen = false
-                    if (tab != MainTab.Folders) {
-                        openedFolderId = null
-                        openedFolderName = null
-                    }
-                    selectedTab = tab
-                }
-            },
-            onFoldersTap = {
-                if (selectedTab == MainTab.Folders && (openedFolderId != null || foldersMenuOpen)) {
-                    reselectTab(MainTab.Folders)
-                } else if (foldersMenuOpen) {
-                    foldersMenuOpen = false
-                } else {
-                    openFoldersDrawer()
-                }
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.BottomCenter)
-                .padding(bottom = PearlLayout.tabBarBottomPadding),
-        )
-
         val onFeedListScreen = when (selectedTab) {
             MainTab.Feed -> feedRootVisible
             MainTab.PublicFeed -> publicFeedRootVisible
@@ -504,13 +392,15 @@ fun MainScaffold(
             else -> TabTheme.Feed
         }
 
-        val publicFeedSeenFocus = selectedTab == MainTab.PublicFeed &&
+        val showPublicFeedBottomChrome = selectedTab == MainTab.PublicFeed &&
             publicFeedRootVisible &&
-            publicFeedState.showSeenToast &&
+            accountState.isSignedIn &&
             connectivityState.isConnected &&
             !connectivityState.isOfflineMode
 
-        val floatingChromeBlur by animateDpAsState(
+        val publicFeedSeenFocus = showPublicFeedBottomChrome && publicFeedState.showSeenToast
+
+        val seenFocusBlur by animateDpAsState(
             targetValue = if (publicFeedSeenFocus) PublicFeedSeenFocusEffect.blurRadius else 0.dp,
             animationSpec = tween(
                 durationMillis = if (publicFeedSeenFocus) {
@@ -519,46 +409,203 @@ fun MainScaffold(
                     PublicFeedSeenFocusEffect.blurOutMillis
                 },
             ),
-            label = "publicFeedSeenChromeBlur",
+            label = "publicFeedSeenFocusBlur",
         )
-
-        if (showFloatingInboxChrome) {
-            FloatingInboxButton(
-                badgeCount = inboxBadgeCount,
-                theme = floatingChromeTheme,
-                onClick = {
-                    inboxReminderDismissed = true
-                    inboxOpen = true
-                    inboxViewModel.loadInbox()
-                },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .blur(floatingChromeBlur)
-                    .padding(end = 20.dp, bottom = inboxButtonBottomPadding),
-            )
-        }
 
         val showInboxReminder = showFloatingInboxChrome &&
             !inboxReminderDismissed &&
             inboxBadgeCount > 0
 
-        if (showInboxReminder) {
-            FloatingInboxReminderCallout(
-                visible = showInboxReminder,
-                unreadCount = inboxBadgeCount,
-                theme = floatingChromeTheme,
-                onOpenInbox = {
-                    inboxReminderDismissed = true
-                    inboxOpen = true
-                    inboxViewModel.loadInbox()
-                },
-                onDismiss = { inboxReminderDismissed = true },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .blur(floatingChromeBlur)
-                    .padding(bottom = PearlLayout.inboxReminderBottomPadding(inboxButtonBottomPadding)),
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .then(if (publicFeedSeenFocus) Modifier.blur(seenFocusBlur) else Modifier),
+        ) {
+            Crossfade(targetState = backdropTab, label = "tabBackdrop") { tab ->
+            when (tab) {
+                MainTab.Feed -> FeedTabScreen(
+                    onOpenSettings = { settingsOpen = true },
+                    onSignInRequired = { authOpen = true },
+                    onOpenUserProfile = openUserProfile,
+                    onOpenInbox = {
+                        inboxOpen = true
+                        inboxViewModel.loadInbox()
+                    },
+                    inboxBadgeCount = inboxBadgeCount,
+                    onFeedRootVisibilityChange = { feedRootVisible = it },
+                    onRegisterPopToRoot = { handler -> tabPopHandlers.feed = handler },
+                    shareImport = shareImport,
+                    onShareImportConsumed = {
+                        shareImport = null
+                        onShareImportConsumed()
+                    },
+                )
+                MainTab.Favourites -> FavouritesTabScreen(
+                    onOpenSettings = { settingsOpen = true },
+                    onSignInRequired = { authOpen = true },
+                    onOpenUserProfile = openUserProfile,
+                    onOpenInbox = {
+                        inboxOpen = true
+                        inboxViewModel.loadInbox()
+                    },
+                    inboxBadgeCount = inboxBadgeCount,
+                    onRegisterPopToRoot = { handler -> tabPopHandlers.favourites = handler },
+                )
+                MainTab.PublicFeed -> PublicFeedTabScreen(
+                    onOpenSettings = { settingsOpen = true },
+                    onOpenInbox = {
+                        inboxOpen = true
+                        inboxViewModel.loadInbox()
+                    },
+                    inboxBadgeCount = inboxBadgeCount,
+                    onPublicFeedRootVisibilityChange = { publicFeedRootVisible = it },
+                    onRegisterPopToRoot = { handler -> tabPopHandlers.publicFeed = handler },
+                    connectivityState = connectivityState,
+                    onRetryConnection = connectivityMonitor::retryConnection,
+                    onOpenUserProfile = openUserProfile,
+                    viewModel = publicFeedViewModel,
+                    accountViewModel = accountViewModel,
+                    initialPearlId = pendingPublicPearlId,
+                    onInitialPearlConsumed = { pendingPublicPearlId = null },
+                )
+                MainTab.Folders -> FeedTabScreen(
+                    onOpenSettings = { settingsOpen = true },
+                    onSignInRequired = { authOpen = true },
+                    onOpenUserProfile = openUserProfile,
+                )
+            }
+        }
+
+            if (showFloatingInboxChrome) {
+                FloatingInboxButton(
+                    badgeCount = inboxBadgeCount,
+                    theme = floatingChromeTheme,
+                    onClick = {
+                        inboxReminderDismissed = true
+                        inboxOpen = true
+                        inboxViewModel.loadInbox()
+                    },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 20.dp, bottom = inboxButtonBottomPadding),
+                )
+            }
+
+            if (showInboxReminder) {
+                FloatingInboxReminderCallout(
+                    visible = showInboxReminder,
+                    unreadCount = inboxBadgeCount,
+                    theme = floatingChromeTheme,
+                    onOpenInbox = {
+                        inboxReminderDismissed = true
+                        inboxOpen = true
+                        inboxViewModel.loadInbox()
+                    },
+                    onDismiss = { inboxReminderDismissed = true },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(bottom = PearlLayout.inboxReminderBottomPadding(inboxButtonBottomPadding)),
+                )
+            }
+        }
+
+        FolderMenuOverlay(
+            visible = foldersMenuOpen,
+            viewModel = foldersViewModel,
+            onDismiss = { foldersMenuOpen = false },
+            onSelectFolder = { folder ->
+                openedFolderId = folder.folder.id
+                openedFolderName = folder.folder.name
+                foldersMenuOpen = false
+                selectedTab = MainTab.Folders
+            },
+        )
+
+        openedFolderId?.let { folderId ->
+            openedFolderName?.let { folderName ->
+                FolderContentsScreen(
+                    folderId = folderId,
+                    folderName = folderName,
+                    viewModel = foldersViewModel,
+                    feedAuthorContext = feedAuthorContext,
+                    onResolveAvatarUrl = feedViewModel::fetchAvatarUrl,
+                    onOpenUserProfile = openUserProfile,
+                    onRegisterPopToRoot = { handler -> tabPopHandlers.folder = handler },
+                    onClose = {
+                        openedFolderId = null
+                        openedFolderName = null
+                    },
+                    onSignInRequired = { authOpen = true },
+                )
+            }
+        }
+
+        if (publicFeedSeenFocus) {
+            PublicFeedSeenFocusScrim(
+                visible = true,
+                theme = TabTheme.PublicFeed,
+                modifier = Modifier.fillMaxSize(),
             )
         }
+
+        if (showPublicFeedBottomChrome) {
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .zIndex(2f)
+                    .padding(
+                        start = PearlLayout.screenHorizontalPadding,
+                        end = PearlLayout.screenHorizontalPadding,
+                        bottom = PearlLayout.publicFeedSectionTabsBottomPadding,
+                    ),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                MovedToSeenTabToast(
+                    visible = publicFeedState.showSeenToast,
+                    theme = TabTheme.PublicFeed,
+                    onDismiss = publicFeedViewModel::dismissSeenToast,
+                    modifier = Modifier.padding(bottom = 10.dp),
+                )
+                PublicFeedSectionTabs(
+                    selected = publicFeedState.section,
+                    newCount = publicFeedState.newCount,
+                    seenCount = publicFeedState.seenCount,
+                    theme = TabTheme.PublicFeed,
+                    onSelected = publicFeedViewModel::setSection,
+                )
+            }
+        }
+
+        LiquidTabBar(
+            selected = selectedTab,
+            publicFeedNewCount = publicFeedState.newCount,
+            foldersMenuOpen = foldersMenuOpen,
+            onTabSelected = { tab ->
+                if (tab == selectedTab) {
+                    reselectTab(tab)
+                } else {
+                    foldersMenuOpen = false
+                    if (tab != MainTab.Folders) {
+                        openedFolderId = null
+                        openedFolderName = null
+                    }
+                    selectedTab = tab
+                }
+            },
+            onFoldersTap = {
+                if (selectedTab == MainTab.Folders && (openedFolderId != null || foldersMenuOpen)) {
+                    reselectTab(MainTab.Folders)
+                } else if (foldersMenuOpen) {
+                    foldersMenuOpen = false
+                } else {
+                    openFoldersDrawer()
+                }
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.BottomCenter)
+                .padding(bottom = PearlLayout.tabBarBottomPadding),
+        )
 
         publicFeedState.savePickerPearl?.let { pearl ->
             PublicPearlSaveOverlay(
