@@ -44,14 +44,15 @@ fun PublicFeedSectionTabs(
 ) {
     val darkTheme = isPearlDarkTheme()
     val shape = RoundedCornerShape(999.dp)
+    val trackFill = PearlColors.popupSurface(darkTheme)
 
     Row(
         modifier = modifier
             .fillMaxWidth()
             .height(PearlLayout.publicFeedSectionTabsHeight)
             .clip(shape)
-            .background(PearlColors.glassOverlay(darkTheme))
-            .border(1.dp, PearlColors.cardBorder(darkTheme), shape)
+            .background(trackFill)
+            .border(2.dp, PearlColors.strongBorder(darkTheme), shape)
             .padding(4.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
@@ -66,6 +67,7 @@ fun PublicFeedSectionTabs(
                 selected = selected == section,
                 theme = theme,
                 darkTheme = darkTheme,
+                inactiveFill = trackFill,
                 modifier = Modifier.weight(1f),
                 onClick = { onSelected(section) },
             )
@@ -80,6 +82,7 @@ private fun SectionTab(
     selected: Boolean,
     theme: TabTheme,
     darkTheme: Boolean,
+    inactiveFill: Color,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
@@ -94,17 +97,13 @@ private fun SectionTab(
                 role = Role.Tab
                 this.selected = selected
             }
-            .then(
-                if (selected) {
-                    Modifier.background(
-                        brush = Brush.horizontalGradient(
-                            listOf(theme.primary.copy(alpha = 0.92f), theme.secondary.copy(alpha = 0.72f)),
-                        ),
-                        shape = shape,
-                    )
+            .background(
+                brush = if (selected) {
+                    Brush.horizontalGradient(listOf(theme.primary, theme.secondary))
                 } else {
-                    Modifier
+                    Brush.linearGradient(listOf(inactiveFill, inactiveFill))
                 },
+                shape = shape,
             )
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
@@ -132,9 +131,9 @@ private fun SectionTab(
                         .clip(RoundedCornerShape(999.dp))
                         .background(
                             if (selected) {
-                                PearlColors.selectedPillFill(darkTheme)
+                                if (darkTheme) Color(0xFF0F766E) else Color(0xFFCCFBF1)
                             } else {
-                                theme.primary.copy(alpha = 0.22f)
+                                if (darkTheme) Color(0xFF0F3D38) else Color(0xFFD4F5F0)
                             },
                         )
                         .padding(horizontal = 7.dp, vertical = 2.dp),

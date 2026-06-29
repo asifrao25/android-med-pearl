@@ -11,6 +11,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -56,9 +57,12 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.knowledgepearls.app.AppBrand
 import com.knowledgepearls.app.R
 import com.knowledgepearls.app.ui.theme.LiquidBackground
@@ -191,15 +195,7 @@ fun LaunchSplashScreen(onFinished: () -> Unit) {
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
-                    text = AppBrand.NAME,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = PearlColors.heroPrimary(darkTheme),
-                    textAlign = TextAlign.Center,
-                )
-                Text(
                     text = stringResource(R.string.splash_tagline),
-                    modifier = Modifier.padding(top = 8.dp),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium,
                     color = PearlColors.heroSecondary(darkTheme),
@@ -253,11 +249,17 @@ private fun PearlIconComplex(
             opacity = contentOpacity,
         )
 
-        AppLogoMark(
-            iconSize = iconSize,
-            scale = iconScale,
-            opacity = iconOpacity,
-        )
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            AppLogoMark(
+                iconSize = iconSize,
+                scale = iconScale,
+                opacity = iconOpacity,
+            )
+            SplashBrandTitle(opacity = contentOpacity)
+        }
     }
 }
 
@@ -267,28 +269,35 @@ private fun AppLogoMark(
     scale: Float,
     opacity: Float,
 ) {
-    val cornerRadius = iconSize * 0.225f
-
     Image(
         painter = painterResource(R.drawable.app_logo),
         contentDescription = AppBrand.NAME,
         modifier = Modifier
             .size(iconSize)
             .scale(scale)
-            .alpha(opacity)
-            .clip(RoundedCornerShape(cornerRadius))
-            .border(
-                width = 1.2.dp,
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        AccentViolet.copy(alpha = 0.85f),
-                        Color.White.copy(alpha = 0.35f),
-                        AccentCyan.copy(alpha = 0.75f),
-                    ),
-                ),
-                shape = RoundedCornerShape(cornerRadius),
+            .alpha(opacity),
+        contentScale = ContentScale.Fit,
+    )
+}
+
+@Composable
+private fun SplashBrandTitle(
+    opacity: Float,
+    modifier: Modifier = Modifier,
+) {
+    Text(
+        text = AppBrand.NAME,
+        modifier = modifier.alpha(opacity),
+        style = TextStyle(
+            fontFamily = FontFamily.Serif,
+            fontSize = 34.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.2.sp,
+            brush = Brush.linearGradient(
+                colors = listOf(AccentViolet, AccentCyan, AccentAmber),
             ),
-        contentScale = ContentScale.Crop,
+        ),
+        textAlign = TextAlign.Center,
     )
 }
 
