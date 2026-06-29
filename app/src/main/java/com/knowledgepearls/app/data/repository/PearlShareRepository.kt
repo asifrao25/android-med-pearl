@@ -4,7 +4,6 @@ import com.knowledgepearls.app.data.capture.PickedMedia
 import com.knowledgepearls.app.data.local.entity.KnowledgePearlContentKind
 import com.knowledgepearls.app.data.local.entity.KnowledgePearlEntity
 import com.knowledgepearls.app.data.local.entity.MediaType
-import com.knowledgepearls.app.data.local.entity.PearlMediaEntity
 import com.knowledgepearls.app.data.local.model.PearlWithMedia
 import com.knowledgepearls.app.data.local.model.clinicalCasePayload
 import com.knowledgepearls.app.data.local.model.effectiveSourceReference
@@ -26,12 +25,9 @@ import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
 import io.github.jan.supabase.postgrest.rpc
 import io.github.jan.supabase.storage.storage
-import java.net.URL
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -171,7 +167,12 @@ class PearlShareRepository @Inject constructor(
                 ?: pearl.copy(contentKind = KnowledgePearlContentKind.CLINICAL_CASE)
         }
         pearlRepository.upsertPearl(pearl)
-        importMediaItems(pearl.id, payload.mediaItems)
+        PublicPearlMediaImporter.importMediaItems(
+            pearlRepository = pearlRepository,
+            mediaStorage = mediaStorage,
+            pearlId = pearl.id,
+            items = payload.mediaItems,
+        )
         return pearl
     }
 
@@ -290,32 +291,6 @@ class PearlShareRepository @Inject constructor(
             if (ext in setOf("mp4", "mov", "m4v", "webm")) "video" else "document"
         }
         else -> "photo"
-    }
-
-    private suspend fun importMediaItems(pearlId: String, items: List<PublicPearlMediaItem>) {
-        items.forEach { item ->
-            val remoteUrl = item.loadableUrl ?: return@forEach
-            runCatching {
-                val bytes = withContext(Dispatchers.IO) { URL(remoteUrl).readBytes() }
-                val filename = item.resolvedFilename
-                val extension = filename.substringAfterLast('.', "jpg")
-                val localPath = mediaStorage.saveBytes(bytes, extension)
-                val type = when {
-                    item.isVideo -> MediaType.VIDEO
-                    item.isDocument -> MediaType.DOCUMENT
-                    else -> MediaType.IMAGE
-                }
-                pearlRepository.upsertMedia(
-                    PearlMediaEntity(
-                        pearlId = pearlId,
-                        type = type,
-                        localPath = localPath,
-                        filename = filename,
-                        sectionTag = item.section.orEmpty(),
-                    ),
-                )
-            }
-        }
     }
 
     private suspend fun fetchSenderName(senderId: String): Pair<String, String?> {

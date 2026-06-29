@@ -134,7 +134,7 @@ private fun PearlListContent(
                     enableSwipeHint = showHint,
                     onSwipeHintDismiss = onSwipeHintDismiss,
                 ) {
-                    if (publicPearl != null) {
+                    if (publicPearl != null && pearl.mediaItems.isEmpty()) {
                         PublicFeedCard(
                             pearl = publicPearl,
                             theme = theme,

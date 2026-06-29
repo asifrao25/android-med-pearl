@@ -113,6 +113,8 @@ fun MainScaffold(
     var shareImport by remember { mutableStateOf(initialShareImport) }
     var pearlShareToast by remember { mutableStateOf<Pair<String, String>?>(null) }
     var pendingPublicPearlId by rememberSaveable { mutableStateOf<String?>(null) }
+    var feedRootVisible by rememberSaveable { mutableStateOf(true) }
+    var publicFeedRootVisible by rememberSaveable { mutableStateOf(true) }
 
     LaunchedEffect(initialShareImport) {
         if (initialShareImport != null) {
@@ -290,6 +292,7 @@ fun MainScaffold(
                         inboxViewModel.loadInbox()
                     },
                     inboxBadgeCount = inboxBadgeCount,
+                    onFeedRootVisibilityChange = { feedRootVisible = it },
                     shareImport = shareImport,
                     onShareImportConsumed = {
                         shareImport = null
@@ -313,6 +316,7 @@ fun MainScaffold(
                         inboxViewModel.loadInbox()
                     },
                     inboxBadgeCount = inboxBadgeCount,
+                    onPublicFeedRootVisibilityChange = { publicFeedRootVisible = it },
                     connectivityState = connectivityState,
                     onRetryConnection = connectivityMonitor::retryConnection,
                     onSignIn = { authOpen = true },
@@ -508,12 +512,23 @@ fun MainScaffold(
             LaunchSplashScreen(onFinished = { showSplash = false })
         }
 
+        val onFeedListScreen = when (selectedTab) {
+            MainTab.Feed -> feedRootVisible
+            MainTab.PublicFeed -> publicFeedRootVisible
+            else -> false
+        }
+
         val showFloatingInboxChrome = !showSplash &&
             accountState.isSignedIn &&
             !inboxOpen &&
-            (selectedTab == MainTab.Feed ||
-                selectedTab == MainTab.PublicFeed ||
-                selectedTab == MainTab.Favourites)
+            !settingsOpen &&
+            !authOpen &&
+            !editProfileOpen &&
+            !foldersMenuOpen &&
+            openedFolderId == null &&
+            profileUserId == null &&
+            !accountState.needsProfileSetup &&
+            onFeedListScreen
 
         val addFabBottomPadding = when (selectedTab) {
             MainTab.PublicFeed -> {

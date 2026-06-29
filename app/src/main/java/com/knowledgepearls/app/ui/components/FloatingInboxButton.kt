@@ -58,7 +58,7 @@ fun FloatingInboxButton(
 
     val fabSize = PearlLayout.inboxButtonSize
     // Extra space only when pulsing so the FAB itself stays bottom-end aligned.
-    val outerSize = if (hasUnread) fabSize + 14.dp else fabSize
+    val outerSize = if (hasUnread) fabSize + 12.dp else fabSize
 
     val pulseTransition = rememberInfiniteTransition(label = "inboxFabPulse")
     val pulseScale by pulseTransition.animateFloat(
@@ -87,7 +87,7 @@ fun FloatingInboxButton(
         if (hasUnread) {
             Box(
                 modifier = Modifier
-                    .size(fabSize + 10.dp)
+                    .size(fabSize + 9.dp)
                     .graphicsLayer {
                         scaleX = pulseScale
                         scaleY = pulseScale
@@ -115,7 +115,7 @@ fun FloatingInboxButton(
                 imageVector = Icons.Default.Email,
                 contentDescription = null,
                 tint = Color.White,
-                modifier = Modifier.size(24.dp),
+                modifier = Modifier.size(22.dp),
             )
 
             badgeLabel?.let { label ->

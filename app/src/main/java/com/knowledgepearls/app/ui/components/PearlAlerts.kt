@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Storage
@@ -30,9 +31,29 @@ import com.knowledgepearls.app.ui.theme.TabTheme
 enum class PearlActionOutcome {
     SavedToMyFeed,
     SavedToFolder,
+    AlreadyInMyFeed,
     PearlDeleted,
     RemovedFromFeed,
     FoldersUpdated,
+}
+
+@Composable
+fun PearlAlreadyInFeedAlert(
+    pearlTitle: String,
+    theme: TabTheme,
+    onDismiss: () -> Unit,
+) {
+    PearlAlertScrim(onDismiss = onDismiss) {
+        PearlAlertCard {
+            PearlAlertIcon(icon = Icons.Default.Info, tint = theme.primary)
+            PearlAlertTitle("Already in My Feed")
+            PearlAlertMessage(
+                "\"${pearlTitle.ifBlank { "Untitled pearl" }}\" is already saved on this device. " +
+                    "Open My Feed to view it — saving again won't create a duplicate.",
+            )
+            PearlAlertPrimaryButton(text = "Got it", theme = theme, onClick = onDismiss)
+        }
+    }
 }
 
 @Composable
@@ -67,6 +88,11 @@ fun PearlActionSuccessAlert(
             Icons.Default.Folder,
             "Folders Updated",
             "Your folder selections were saved.",
+        )
+        PearlActionOutcome.AlreadyInMyFeed -> Triple(
+            Icons.Default.Info,
+            "Already in My Feed",
+            "This pearl is already saved on this device.",
         )
     }
 

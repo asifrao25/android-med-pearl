@@ -154,71 +154,71 @@ fun PublicPearlDetailMediaSection(
     }
 
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        when {
-            includeLinkTunnel && linkUrl != null -> {
-                LinkPearlPreviewSection(
-                    url = linkUrl,
-                    theme = theme,
-                    onOpenExternal = onOpenUrl,
-                    onOpenBrowser = {
-                        parseOpenableUrl(linkUrl)?.let(onOpenUrl)
-                    },
-                )
-            }
-            gallerySlides.isNotEmpty() -> {
-                if (gallerySlides.size > 1) {
-                    Text(
-                        text = "Attachments",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = PearlColors.heroPrimary(darkTheme),
-                    )
-                    PublicPearlMediaCarousel(
-                        slides = gallerySlides,
-                        theme = theme,
-                        height = detailHeight,
-                        interactive = true,
-                        onOpenAtIndex = { index ->
-                            onOpenMedia(PublicPearlMediaViewerRequest(gallerySlides, index))
-                        },
-                    )
-                } else {
-                    PublicPearlMediaSlideView(
-                        slide = gallerySlides.first(),
-                        theme = theme,
-                        height = detailHeight,
-                        interactive = true,
-                        onOpen = { openSlide(gallerySlides.first()) },
-                    )
-                }
+        if (includeLinkTunnel && linkUrl != null) {
+            LinkPearlPreviewSection(
+                url = linkUrl,
+                theme = theme,
+                onOpenExternal = onOpenUrl,
+                onOpenBrowser = {
+                    parseOpenableUrl(linkUrl)?.let(onOpenUrl)
+                },
+            )
+        }
 
-                documents.forEach { document ->
-                    val url = document.loadableUrl ?: return@forEach
-                    val slide = PublicPearlMediaSlide.Document(url, document.resolvedFilename)
-                    PublicPearlMediaSlideView(
-                        slide = slide,
-                        theme = theme,
-                        height = detailHeight,
-                        interactive = true,
-                        onOpen = {
-                            onOpenMedia(PublicPearlMediaViewerRequest(listOf(slide), 0))
-                        },
-                    )
-                }
-            }
-            pearl.resolvedLinkPreviewImageUrl != null -> {
-                PublicPearlImagePreview(
-                    url = pearl.resolvedLinkPreviewImageUrl!!,
+        if (gallerySlides.isNotEmpty()) {
+            if (gallerySlides.size > 1) {
+                Text(
+                    text = "Attachments",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = PearlColors.heroPrimary(darkTheme),
+                )
+                PublicPearlMediaCarousel(
+                    slides = gallerySlides,
+                    theme = theme,
                     height = detailHeight,
-                    onClick = {
-                        onOpenMedia(
-                            PublicPearlMediaViewerRequest(
-                                slides = listOf(PublicPearlMediaSlide.Image(pearl.resolvedLinkPreviewImageUrl!!)),
-                            ),
-                        )
+                    interactive = true,
+                    onOpenAtIndex = { index ->
+                        onOpenMedia(PublicPearlMediaViewerRequest(gallerySlides, index))
                     },
                 )
+            } else {
+                PublicPearlMediaSlideView(
+                    slide = gallerySlides.first(),
+                    theme = theme,
+                    height = detailHeight,
+                    interactive = true,
+                    onOpen = { openSlide(gallerySlides.first()) },
+                )
             }
+        }
+
+        documents.forEach { document ->
+            val url = document.loadableUrl ?: return@forEach
+            val slide = PublicPearlMediaSlide.Document(url, document.resolvedFilename)
+            PublicPearlMediaSlideView(
+                slide = slide,
+                theme = theme,
+                height = detailHeight,
+                interactive = true,
+                onOpen = {
+                    onOpenMedia(PublicPearlMediaViewerRequest(listOf(slide), 0))
+                },
+            )
+        }
+
+        if (gallerySlides.isEmpty() && documents.isEmpty() && pearl.resolvedLinkPreviewImageUrl != null) {
+            PublicPearlImagePreview(
+                url = pearl.resolvedLinkPreviewImageUrl!!,
+                height = detailHeight,
+                onClick = {
+                    onOpenMedia(
+                        PublicPearlMediaViewerRequest(
+                            slides = listOf(PublicPearlMediaSlide.Image(pearl.resolvedLinkPreviewImageUrl!!)),
+                        ),
+                    )
+                },
+            )
         }
     }
 }

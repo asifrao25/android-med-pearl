@@ -85,7 +85,7 @@ object PearlLayout {
     val tabBarBottomPadding = 10.dp
     /** Space reserved above the floating tab bar for FABs and bottom actions. */
     val tabBarOverlayInset = tabBarHeight + tabBarBottomPadding + 20.dp
-    val addButtonSize = 58.dp
+    val addButtonSize = 52.dp
     val floatingActionStackSpacing = 10.dp
     /** Matches [addButtonSize] — inbox FAB is the same diameter as the add button. */
     val inboxButtonSize = addButtonSize

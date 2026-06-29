@@ -15,11 +15,11 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface KnowledgePearlDao {
     @Transaction
-    @Query("SELECT * FROM knowledge_pearls ORDER BY createdAt DESC")
+    @Query("SELECT * FROM knowledge_pearls ORDER BY updatedAt DESC")
     fun observeAllWithMedia(): Flow<List<PearlWithMedia>>
 
     @Transaction
-    @Query("SELECT * FROM knowledge_pearls WHERE isFavourite = 1 ORDER BY createdAt DESC")
+    @Query("SELECT * FROM knowledge_pearls WHERE isFavourite = 1 ORDER BY updatedAt DESC")
     fun observeFavouritesWithMedia(): Flow<List<PearlWithMedia>>
 
     @Transaction
@@ -33,7 +33,7 @@ interface KnowledgePearlDao {
         WHERE id IN (
             SELECT pearlId FROM pearl_folder_cross_ref WHERE folderId = :folderId
         )
-        ORDER BY createdAt DESC
+        ORDER BY updatedAt DESC
         """,
     )
     fun observePearlsInFolderWithMedia(folderId: String): Flow<List<PearlWithMedia>>
@@ -46,6 +46,9 @@ interface KnowledgePearlDao {
 
     @Query("SELECT * FROM knowledge_pearls WHERE id = :id LIMIT 1")
     suspend fun getById(id: String): KnowledgePearlEntity?
+
+    @Query("SELECT * FROM knowledge_pearls WHERE publicPearlID = :publicPearlId LIMIT 1")
+    suspend fun getByPublicPearlId(publicPearlId: String): KnowledgePearlEntity?
 
     @Query("SELECT * FROM knowledge_pearls")
     suspend fun getAll(): List<KnowledgePearlEntity>
@@ -76,7 +79,7 @@ interface KnowledgePearlDao {
         SELECT p.* FROM knowledge_pearls p
         INNER JOIN pearl_folder_cross_ref ref ON ref.pearlId = p.id
         WHERE ref.folderId = :folderId
-        ORDER BY p.createdAt DESC
+        ORDER BY p.updatedAt DESC
         """,
     )
     suspend fun getPearlsInFolder(folderId: String): List<KnowledgePearlEntity>

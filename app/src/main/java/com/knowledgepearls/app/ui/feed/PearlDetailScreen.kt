@@ -11,6 +11,9 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Folder
@@ -26,17 +29,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.knowledgepearls.app.data.local.model.PearlWithMedia
+import com.knowledgepearls.app.data.local.model.ClinicalCasePayload
 import com.knowledgepearls.app.data.local.model.clinicalCasePayload
+import com.knowledgepearls.app.data.local.model.decodedPublicPearl
 import com.knowledgepearls.app.data.local.model.effectiveSourceReference
 import com.knowledgepearls.app.data.local.model.isClinicalCase
-import com.knowledgepearls.app.data.local.model.decodedPublicPearl
 import com.knowledgepearls.app.data.local.model.isSharedToPublicFeed
+import com.knowledgepearls.app.data.local.model.isUserEditable
 import com.knowledgepearls.app.ui.components.DetailDockAction
 import com.knowledgepearls.app.ui.components.LiquidDetailDock
 import com.knowledgepearls.app.ui.components.SharedPearlSubmissionSuccessAlert
@@ -76,6 +81,14 @@ fun PearlDetailScreen(
     var showShareSubmitAlert by remember { mutableStateOf(false) }
     var showShareSuccessAlert by remember { mutableStateOf(false) }
     var showSourceReferenceRequired by remember { mutableStateOf(false) }
+    var isEditing by remember { mutableStateOf(false) }
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
+    var editErrorMessage by remember { mutableStateOf<String?>(null) }
+    var editTitle by remember { mutableStateOf("") }
+    var editNotes by remember { mutableStateOf("") }
+    var editSourceReference by remember { mutableStateOf("") }
+    var editTags by remember { mutableStateOf("") }
+    var editClinicalPayload by remember { mutableStateOf(ClinicalCasePayload()) }
     val theme = TabTheme.Feed
     val darkTheme = isPearlDarkTheme()
 
@@ -91,6 +104,7 @@ fun PearlDetailScreen(
             val entity = item.pearl
             val publicPearl = entity.decodedPublicPearl()
             val isSharedToPublic = entity.isSharedToPublicFeed()
+            val canEdit = entity.isUserEditable()
             val author = FeedPearlAuthorInfo.resolve(item, feedAuthorContext, publicPearl)
             val profileUserId = author.userId ?: feedAuthorContext.userId
 
@@ -119,26 +133,49 @@ fun PearlDetailScreen(
                         .padding(top = 12.dp, bottom = PearlLayout.detailScrollBottomPadding),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    PearlDetailTitleBar(title = entity.title.ifBlank { "Pearl" })
+                    if (!isEditing) {
+                        PearlDetailTitleBar(title = entity.title.ifBlank { "Pearl" })
+                    }
 
-                    if (publicPearl != null) {
-                        SavedPublicPearlDetailContent(
-                            publicPearl = publicPearl,
-                            theme = theme,
-                            onOpenMedia = { mediaViewerRequest = it },
-                        )
-                    } else if (item.pearl.isClinicalCase()) {
-                        LocalClinicalCaseDetailContent(
-                            pearl = item,
-                            theme = theme,
-                            onOpenMedia = { mediaViewerRequest = it },
-                        )
-                    } else {
-                        StandardLocalPearlDetailContent(
-                            pearl = item,
-                            theme = theme,
-                            onOpenMedia = { mediaViewerRequest = it },
-                        )
+                    when {
+                        isEditing && canEdit -> {
+                            PearlEditableDetailContent(
+                                pearl = item,
+                                theme = theme,
+                                title = editTitle,
+                                onTitleChange = { editTitle = it },
+                                notes = editNotes,
+                                onNotesChange = { editNotes = it },
+                                sourceReference = editSourceReference,
+                                onSourceReferenceChange = { editSourceReference = it },
+                                tags = editTags,
+                                onTagsChange = { editTags = it },
+                                clinicalPayload = editClinicalPayload,
+                                onClinicalPayloadChange = { editClinicalPayload = it },
+                                onOpenMedia = { mediaViewerRequest = it },
+                            )
+                        }
+                        publicPearl != null && item.mediaItems.isEmpty() -> {
+                            SavedPublicPearlDetailContent(
+                                publicPearl = publicPearl,
+                                theme = theme,
+                                onOpenMedia = { mediaViewerRequest = it },
+                            )
+                        }
+                        item.pearl.isClinicalCase() -> {
+                            LocalClinicalCaseDetailContent(
+                                pearl = item,
+                                theme = theme,
+                                onOpenMedia = { mediaViewerRequest = it },
+                            )
+                        }
+                        else -> {
+                            StandardLocalPearlDetailContent(
+                                pearl = item,
+                                theme = theme,
+                                onOpenMedia = { mediaViewerRequest = it },
+                            )
+                        }
                     }
                 }
             }
@@ -146,38 +183,88 @@ fun PearlDetailScreen(
             LiquidDetailDock(
                 theme = theme,
                 onBack = onBack,
-                actions = listOf(
-                    DetailDockAction(
-                        id = "folder",
-                        label = "Folder",
-                        icon = Icons.Default.Folder,
-                        onClick = { showFolderPicker = true },
-                    ),
-                    DetailDockAction(
-                        id = "favourite",
-                        label = if (entity.isFavourite) "Favourited" else "Favourite",
-                        icon = if (entity.isFavourite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                        tint = if (entity.isFavourite) TabTheme.Favourites.primary else null,
-                        isActive = entity.isFavourite,
-                        onClick = { viewModel.toggleFavourite(entity.id) },
-                    ),
-                    DetailDockAction(
-                        id = "share",
-                        label = if (isSharedToPublic) "Shared" else "Share",
-                        icon = Icons.Default.Share,
-                        tint = if (isSharedToPublic) TabTheme.PublicFeed.primary else null,
-                        isActive = isSharedToPublic,
-                        showsProgress = uiState.isSharingPearl,
-                        disabled = uiState.isSharingPearl,
-                        onClick = {
-                            when {
-                                !isSignedIn -> onSignInRequired()
-                                entity.effectiveSourceReference().isBlank() -> showSourceReferenceRequired = true
-                                else -> showShareMenu = true
-                            }
-                        },
-                    ),
-                ),
+                actions = buildList {
+                    if (canEdit) {
+                        add(
+                            DetailDockAction(
+                                id = "edit",
+                                label = if (isEditing) "Done" else "Edit",
+                                icon = if (isEditing) Icons.Default.Check else Icons.Default.Edit,
+                                tint = if (isEditing) theme.primary else null,
+                                isActive = isEditing,
+                                onClick = {
+                                    if (isEditing) {
+                                        viewModel.savePearlEdits(
+                                            pearl = item,
+                                            title = editTitle,
+                                            notes = editNotes,
+                                            sourceReference = editSourceReference,
+                                            tagsRaw = editTags,
+                                            clinicalPayload = if (entity.isClinicalCase()) editClinicalPayload else null,
+                                            onSuccess = { isEditing = false },
+                                            onError = { editErrorMessage = it },
+                                        )
+                                    } else {
+                                        editTitle = entity.title
+                                        editNotes = entity.notes
+                                        editSourceReference = entity.effectiveSourceReference()
+                                        editTags = entity.tags.joinToString(", ")
+                                        editClinicalPayload = entity.clinicalCasePayload()
+                                        isEditing = true
+                                    }
+                                },
+                            ),
+                        )
+                    }
+                    add(
+                        DetailDockAction(
+                            id = "folder",
+                            label = "Folder",
+                            icon = Icons.Default.Folder,
+                            onClick = { showFolderPicker = true },
+                        ),
+                    )
+                    add(
+                        DetailDockAction(
+                            id = "favourite",
+                            label = if (entity.isFavourite) "Favourited" else "Favourite",
+                            icon = if (entity.isFavourite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                            tint = if (entity.isFavourite) TabTheme.Favourites.primary else null,
+                            isActive = entity.isFavourite,
+                            onClick = { viewModel.toggleFavourite(entity.id) },
+                        ),
+                    )
+                    if (isEditing && canEdit) {
+                        add(
+                            DetailDockAction(
+                                id = "delete",
+                                label = "Delete",
+                                icon = Icons.Default.Delete,
+                                tint = Color(0xFFFF3B30),
+                                onClick = { showDeleteConfirmation = true },
+                            ),
+                        )
+                    } else {
+                        add(
+                            DetailDockAction(
+                                id = "share",
+                                label = if (isSharedToPublic) "Shared" else "Share",
+                                icon = Icons.Default.Share,
+                                tint = if (isSharedToPublic) TabTheme.PublicFeed.primary else null,
+                                isActive = isSharedToPublic,
+                                showsProgress = uiState.isSharingPearl,
+                                disabled = uiState.isSharingPearl,
+                                onClick = {
+                                    when {
+                                        !isSignedIn -> onSignInRequired()
+                                        entity.effectiveSourceReference().isBlank() -> showSourceReferenceRequired = true
+                                        else -> showShareMenu = true
+                                    }
+                                },
+                            ),
+                        )
+                    }
+                },
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
         }
@@ -247,6 +334,30 @@ fun PearlDetailScreen(
             SharedPearlSubmissionSuccessAlert(
                 theme = TabTheme.PublicFeed,
                 onDismiss = { showShareSuccessAlert = false },
+            )
+        }
+
+        if (showDeleteConfirmation && pearl != null) {
+            PearlDeleteConfirmationDialog(
+                pearlTitle = pearl!!.pearl.title,
+                onConfirm = {
+                    showDeleteConfirmation = false
+                    isEditing = false
+                    viewModel.confirmDeleteForPearl(pearlId)
+                    onBack()
+                },
+                onDismiss = { showDeleteConfirmation = false },
+            )
+        }
+
+        editErrorMessage?.let { message ->
+            PearlMaterialAlertDialog(
+                onDismissRequest = { editErrorMessage = null },
+                confirmButton = {
+                    Button(onClick = { editErrorMessage = null }) { Text("OK") }
+                },
+                title = { Text("Couldn't Save") },
+                text = { Text(message) },
             )
         }
 

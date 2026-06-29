@@ -11,6 +11,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.knowledgepearls.app.data.capture.CaptureSheet
 import com.knowledgepearls.app.navigation.ShareImportPayload
@@ -37,6 +38,7 @@ fun FeedTabScreen(
     onOpenUserProfile: (String) -> Unit = {},
     onOpenInbox: () -> Unit = {},
     inboxBadgeCount: Int = 0,
+    onFeedRootVisibilityChange: (Boolean) -> Unit = {},
     shareImport: ShareImportPayload? = null,
     onShareImportConsumed: () -> Unit = {},
     feedViewModel: FeedViewModel = hiltViewModel(),
@@ -44,6 +46,10 @@ fun FeedTabScreen(
     accountViewModel: AccountViewModel = hiltViewModel(),
 ) {
     val navController = rememberNavController()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    LaunchedEffect(navBackStackEntry) {
+        onFeedRootVisibilityChange(navBackStackEntry?.destination?.route == "feed")
+    }
     val uiState by feedViewModel.uiState.collectAsStateWithLifecycle()
     val accountState by accountViewModel.uiState.collectAsStateWithLifecycle()
     var captureMenuOpen by rememberSaveable { mutableStateOf(false) }
@@ -247,6 +253,7 @@ fun PublicFeedTabScreen(
     onSignIn: () -> Unit,
     onOpenUserProfile: (String) -> Unit = {},
     inboxBadgeCount: Int = 0,
+    onPublicFeedRootVisibilityChange: (Boolean) -> Unit = {},
     connectivityState: ConnectivityState = ConnectivityState(),
     onRetryConnection: () -> Unit = {},
     initialPearlId: String? = null,
@@ -258,6 +265,10 @@ fun PublicFeedTabScreen(
     foldersViewModel: com.knowledgepearls.app.ui.folders.FoldersViewModel = hiltViewModel(),
 ) {
     val navController = rememberNavController()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    LaunchedEffect(navBackStackEntry) {
+        onPublicFeedRootVisibilityChange(navBackStackEntry?.destination?.route == "public_feed")
+    }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val accountState by accountViewModel.uiState.collectAsStateWithLifecycle()
     val folders by foldersViewModel.foldersWithCounts.collectAsStateWithLifecycle()
@@ -451,6 +462,9 @@ fun PublicFeedTabScreen(
                 onBack = { navController.popBackStack() },
                 onOpenUserProfile = onOpenUserProfile,
                 onAddToMyFeed = { viewModel.addToMyFeed(pearl) },
+                saveOutcome = uiState.actionOutcome,
+                saveOutcomePearlTitle = uiState.actionSuccessMessage,
+                onDismissSaveOutcome = viewModel::dismissActionSuccess,
                 onHide = {
                     viewModel.hide(pearl)
                     navController.popBackStack()

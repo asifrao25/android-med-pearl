@@ -26,6 +26,9 @@ interface PearlMediaDao {
     @Delete
     suspend fun delete(media: PearlMediaEntity)
 
+    @Query("SELECT COUNT(*) FROM pearl_media WHERE pearlId = :pearlId")
+    suspend fun countForPearl(pearlId: String): Int
+
     @Query("DELETE FROM pearl_media WHERE pearlId = :pearlId")
     suspend fun deleteForPearl(pearlId: String)
 }

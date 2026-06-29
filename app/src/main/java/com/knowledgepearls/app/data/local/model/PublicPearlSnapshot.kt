@@ -13,3 +13,7 @@ fun KnowledgePearlEntity.decodedPublicPearl(): PublicPearl? {
 }
 
 fun KnowledgePearlEntity.isSavedFromPublicFeed(): Boolean = decodedPublicPearl() != null
+
+/** Locally captured pearls the user can edit — not friend shares or public-feed saves. */
+fun KnowledgePearlEntity.isUserEditable(): Boolean =
+    !isSharedFromFriend && !isSavedFromPublicFeed()

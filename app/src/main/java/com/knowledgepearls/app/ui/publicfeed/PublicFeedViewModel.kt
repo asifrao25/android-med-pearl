@@ -8,6 +8,7 @@ import com.knowledgepearls.app.data.model.PearlComment
 import com.knowledgepearls.app.data.model.normalizeUserId
 import com.knowledgepearls.app.data.repository.AccountRepository
 import com.knowledgepearls.app.data.repository.PublicFeedEngagementRepository
+import com.knowledgepearls.app.data.repository.AddToMyFeedResult
 import com.knowledgepearls.app.data.repository.PublicFeedRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -261,10 +262,19 @@ class PublicFeedViewModel @Inject constructor(
 
     fun addToMyFeed(pearl: PublicPearl) {
         viewModelScope.launch {
-            runCatching { repository.addToMyFeed(pearl) }
-                .onSuccess {
+            val userId = accountRepository.currentUserId()
+            runCatching { repository.addToMyFeed(pearl, userId) }
+                .onSuccess { result ->
                     _uiState.update {
-                        it.copy(actionOutcome = com.knowledgepearls.app.ui.components.PearlActionOutcome.SavedToMyFeed)
+                        it.copy(
+                            actionOutcome = when (result) {
+                                is AddToMyFeedResult.Saved ->
+                                    com.knowledgepearls.app.ui.components.PearlActionOutcome.SavedToMyFeed
+                                is AddToMyFeedResult.AlreadyInFeed ->
+                                    com.knowledgepearls.app.ui.components.PearlActionOutcome.AlreadyInMyFeed
+                            },
+                            actionSuccessMessage = pearl.titleDisplay,
+                        )
                     }
                 }
                 .onFailure { error ->
@@ -277,7 +287,8 @@ class PublicFeedViewModel @Inject constructor(
 
     fun saveToFolder(pearl: PublicPearl, folderId: String, folderName: String) {
         viewModelScope.launch {
-            runCatching { repository.saveToFolder(pearl, folderId) }
+            val userId = accountRepository.currentUserId()
+            runCatching { repository.saveToFolder(pearl, folderId, userId) }
                 .onSuccess {
                     _uiState.update {
                         it.copy(
@@ -296,9 +307,10 @@ class PublicFeedViewModel @Inject constructor(
 
     fun createFolderAndSavePearl(pearl: PublicPearl, folderName: String) {
         viewModelScope.launch {
+            val userId = accountRepository.currentUserId()
             runCatching {
                 val folder = repository.createFolder(folderName)
-                repository.saveToFolder(pearl, folder.id)
+                repository.saveToFolder(pearl, folder.id, userId)
                 folder.name
             }.onSuccess { name ->
                 _uiState.update {

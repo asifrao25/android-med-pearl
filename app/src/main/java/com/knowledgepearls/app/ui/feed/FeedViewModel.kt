@@ -3,8 +3,10 @@ package com.knowledgepearls.app.ui.feed
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.knowledgepearls.app.data.local.model.PearlWithMedia
+import com.knowledgepearls.app.data.capture.CaptureRepository
+import com.knowledgepearls.app.data.capture.parseTags
+import com.knowledgepearls.app.data.local.model.ClinicalCasePayload
 import com.knowledgepearls.app.data.local.model.clinicalCasePayload
-import com.knowledgepearls.app.data.local.model.decodedPublicPearl
 import com.knowledgepearls.app.data.local.model.effectiveSourceReference
 import com.knowledgepearls.app.data.local.model.belongsInMyFeed
 import com.knowledgepearls.app.data.local.model.isClinicalCase
@@ -47,6 +49,7 @@ class FeedViewModel @Inject constructor(
     private val accountRepository: AccountRepository,
     private val publicFeedSharingRepository: PublicFeedSharingRepository,
     private val pearlShareRepository: PearlShareRepository,
+    private val captureRepository: CaptureRepository,
 ) : ViewModel() {
     private val searchQuery = MutableStateFlow("")
     private val selectedTag = MutableStateFlow<String?>(null)
@@ -251,6 +254,45 @@ class FeedViewModel @Inject constructor(
     fun toggleFavourite(pearlId: String) {
         viewModelScope.launch {
             pearlRepository.toggleFavourite(pearlId)
+        }
+    }
+
+    fun savePearlEdits(
+        pearl: PearlWithMedia,
+        title: String,
+        notes: String,
+        sourceReference: String,
+        tagsRaw: String,
+        clinicalPayload: ClinicalCasePayload? = null,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit,
+    ) {
+        viewModelScope.launch {
+            runCatching {
+                val entity = pearl.pearl
+                val tags = parseTags(tagsRaw)
+                if (entity.isClinicalCase() && clinicalPayload != null) {
+                    captureRepository.updateClinicalCasePearl(
+                        existing = entity,
+                        title = title,
+                        payload = clinicalPayload,
+                        tags = tags,
+                    )
+                } else {
+                    captureRepository.updateStandardPearl(
+                        existing = entity,
+                        title = title,
+                        notes = notes,
+                        sourceReference = sourceReference,
+                        tags = tags,
+                    )
+                }
+            }.onSuccess {
+                actionSuccessMessage.value = "Pearl updated"
+                onSuccess()
+            }.onFailure { error ->
+                onError(error.message ?: "Could not save changes")
+            }
         }
     }
 

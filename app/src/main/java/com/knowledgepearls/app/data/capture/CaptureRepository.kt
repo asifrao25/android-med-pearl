@@ -111,6 +111,40 @@ class CaptureRepository @Inject constructor(
         return pearlId
     }
 
+    suspend fun updateStandardPearl(
+        existing: KnowledgePearlEntity,
+        title: String,
+        notes: String,
+        sourceReference: String,
+        tags: List<String>,
+    ) {
+        pearlRepository.updatePearl(
+            existing.copy(
+                title = title.trim(),
+                notes = notes.trim(),
+                sourceReference = sourceReference.trim(),
+                tags = tags,
+                updatedAt = System.currentTimeMillis(),
+            ),
+        )
+    }
+
+    suspend fun updateClinicalCasePearl(
+        existing: KnowledgePearlEntity,
+        title: String,
+        payload: ClinicalCasePayload,
+        tags: List<String>,
+    ) {
+        pearlRepository.updatePearl(
+            existing.withClinicalCasePayload(payload).copy(
+                title = title.trim(),
+                notes = payload.history.trim(),
+                tags = tags,
+                updatedAt = System.currentTimeMillis(),
+            ),
+        )
+    }
+
     private suspend fun saveStandardPearl(
         title: String,
         notes: String,

@@ -45,6 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.knowledgepearls.app.ui.components.PearlActionOutcome
+import com.knowledgepearls.app.ui.components.PearlAlreadyInFeedAlert
 import com.knowledgepearls.app.ui.components.PearlActionSuccessAlert
 import com.knowledgepearls.app.ui.components.PublicFeedOfflineState
 import com.knowledgepearls.app.ui.feed.FeedEmptyFilterAlert
@@ -391,13 +392,23 @@ fun PublicFeedScreen(
             PublicFeedAuthGate(onSignIn = onSignIn)
         }
 
-        uiState.actionOutcome?.let { outcome ->
-            PearlActionSuccessAlert(
-                outcome = outcome,
-                theme = theme,
-                folderName = uiState.actionSuccessMessage,
-                onDismiss = onDismissActionSuccess,
-            )
+        when (uiState.actionOutcome) {
+            PearlActionOutcome.AlreadyInMyFeed -> {
+                PearlAlreadyInFeedAlert(
+                    pearlTitle = uiState.actionSuccessMessage.orEmpty(),
+                    theme = theme,
+                    onDismiss = onDismissActionSuccess,
+                )
+            }
+            null -> Unit
+            else -> {
+                PearlActionSuccessAlert(
+                    outcome = uiState.actionOutcome!!,
+                    theme = theme,
+                    folderName = uiState.actionSuccessMessage,
+                    onDismiss = onDismissActionSuccess,
+                )
+            }
         }
 
         removeTarget?.let { pearl ->

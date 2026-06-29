@@ -60,6 +60,12 @@ class KnowledgePearlRepository @Inject constructor(
 
     suspend fun getAllPearls(): List<KnowledgePearlEntity> = pearlDao.getAll()
 
+    suspend fun findByPublicPearlId(publicPearlId: String): KnowledgePearlEntity? {
+        val trimmed = publicPearlId.trim()
+        return pearlDao.getByPublicPearlId(trimmed)
+            ?: pearlDao.getByPublicPearlId(trimmed.lowercase())
+    }
+
     suspend fun getExistingPublicPearlIds(): Set<String> =
         pearlDao.getExistingPublicPearlIds().toSet()
 
@@ -79,6 +85,8 @@ class KnowledgePearlRepository @Inject constructor(
     suspend fun upsertMedia(media: PearlMediaEntity) {
         mediaDao.insert(media)
     }
+
+    suspend fun mediaCountForPearl(pearlId: String): Int = mediaDao.countForPearl(pearlId)
 
     suspend fun upsertMediaItems(items: List<PearlMediaEntity>) {
         mediaDao.insertAll(items)

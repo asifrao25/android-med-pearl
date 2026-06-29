@@ -27,6 +27,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.knowledgepearls.app.data.model.PublicPearl
 import com.knowledgepearls.app.ui.components.DetailDockAction
+import com.knowledgepearls.app.ui.components.PearlActionOutcome
+import com.knowledgepearls.app.ui.components.PearlAlreadyInFeedAlert
 import com.knowledgepearls.app.ui.components.LiquidDetailDock
 import com.knowledgepearls.app.ui.feed.PearlDetailAuthorBar
 import com.knowledgepearls.app.ui.feed.PearlDetailTitleBar
@@ -53,6 +55,9 @@ fun PublicPearlDetailScreen(
     onOpenUserProfile: (String) -> Unit = {},
     onAddToMyFeed: () -> Unit,
     onHide: () -> Unit,
+    saveOutcome: PearlActionOutcome? = null,
+    saveOutcomePearlTitle: String? = null,
+    onDismissSaveOutcome: () -> Unit = {},
     onToggleLike: () -> Unit,
     onOpenComments: () -> Unit,
     onCloseComments: () -> Unit,
@@ -64,11 +69,26 @@ fun PublicPearlDetailScreen(
     var commentsSheetOpen by remember(commentsVisible) { mutableStateOf(commentsVisible) }
     var savedFeedback by remember(pearl.id) { mutableStateOf(false) }
 
-    LaunchedEffect(savedFeedback) {
-        if (savedFeedback) {
+    LaunchedEffect(saveOutcome) {
+        if (saveOutcome == PearlActionOutcome.SavedToMyFeed) {
+            savedFeedback = true
             delay(1500)
             savedFeedback = false
+            onDismissSaveOutcome()
         }
+    }
+
+    when (saveOutcome) {
+        PearlActionOutcome.AlreadyInMyFeed -> {
+            PearlAlreadyInFeedAlert(
+                pearlTitle = saveOutcomePearlTitle ?: pearl.titleDisplay,
+                theme = theme,
+                onDismiss = onDismissSaveOutcome,
+            )
+        }
+        PearlActionOutcome.SavedToMyFeed -> Unit
+        null -> Unit
+        else -> Unit
     }
 
     PublicPearlMediaViewerOverlay(
@@ -162,10 +182,7 @@ fun PublicPearlDetailScreen(
                     icon = if (savedFeedback) Icons.Default.CheckCircle else Icons.Default.Add,
                     tint = if (savedFeedback) theme.primary else null,
                     isActive = savedFeedback,
-                    onClick = {
-                        onAddToMyFeed()
-                        savedFeedback = true
-                    },
+                    onClick = onAddToMyFeed,
                 ),
                 DetailDockAction(
                     id = "hide",

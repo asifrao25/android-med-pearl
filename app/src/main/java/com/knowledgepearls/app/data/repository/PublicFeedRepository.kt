@@ -3,7 +3,9 @@ package com.knowledgepearls.app.data.repository
 import android.content.Context
 import com.knowledgepearls.app.data.local.entity.KnowledgePearlContentKind
 import com.knowledgepearls.app.data.local.entity.KnowledgePearlEntity
+import com.knowledgepearls.app.data.local.model.isClinicalCase
 import com.knowledgepearls.app.data.local.model.withClinicalCasePayload
+import com.knowledgepearls.app.data.media.MediaStorage
 import com.knowledgepearls.app.data.model.PublicPearl
 import com.knowledgepearls.app.data.model.normalizeUserId
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -24,6 +26,7 @@ class PublicFeedRepository @Inject constructor(
     @ApplicationContext context: Context,
     private val supabase: SupabaseClient,
     private val pearlRepository: KnowledgePearlRepository,
+    private val mediaStorage: MediaStorage,
 ) {
     private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     private val json = Json { ignoreUnknownKeys = true }
@@ -92,24 +95,121 @@ class PublicFeedRepository @Inject constructor(
         prefs.edit().putStringSet(KEY_HIDDEN, ids).apply()
     }
 
-    suspend fun addToMyFeed(pearl: PublicPearl): KnowledgePearlEntity {
-        val existing = pearlRepository.getAllPearls().firstOrNull { it.publicPearlID == pearl.id }
-        if (existing != null) return existing
+    suspend fun addToMyFeed(pearl: PublicPearl, currentUserId: String?): AddToMyFeedResult {
+        val existing = pearlRepository.findByPublicPearlId(pearl.id)
+        if (existing != null) {
+            backfillMediaIfNeeded(existing.id, pearl)
+            syncLocalCopy(
+                existing = existing,
+                pearl = pearl,
+                ownedByCurrentUser = isOwnPublicPearl(pearl, currentUserId),
+                bumpFeedPosition = false,
+            )
+            return AddToMyFeedResult.AlreadyInFeed(existing)
+        }
 
         val now = System.currentTimeMillis()
+        val ownedByUser = isOwnPublicPearl(pearl, currentUserId)
+        var entity = buildLocalPearlEntity(
+            pearl = pearl,
+            now = now,
+            ownedByUser = ownedByUser,
+        )
+
+        pearlRepository.upsertPearl(entity)
+        PublicPearlMediaImporter.importFromPublicPearl(
+            pearlRepository = pearlRepository,
+            mediaStorage = mediaStorage,
+            pearlId = entity.id,
+            pearl = pearl,
+        )
+        return AddToMyFeedResult.Saved(entity)
+    }
+
+    suspend fun saveToFolder(
+        pearl: PublicPearl,
+        folderId: String,
+        currentUserId: String?,
+    ): AddToMyFeedResult {
+        return when (val result = addToMyFeed(pearl, currentUserId)) {
+            is AddToMyFeedResult.Saved -> {
+                pearlRepository.addPearlToFolder(result.pearl.id, folderId)
+                result
+            }
+            is AddToMyFeedResult.AlreadyInFeed -> {
+                pearlRepository.addPearlToFolder(result.pearl.id, folderId)
+                result
+            }
+        }
+    }
+
+    suspend fun createFolder(name: String) = pearlRepository.createFolder(name.trim())
+
+    private suspend fun backfillMediaIfNeeded(pearlId: String, pearl: PublicPearl) {
+        if (pearl.resolvedMediaItems.isNotEmpty() && pearlRepository.mediaCountForPearl(pearlId) == 0) {
+            PublicPearlMediaImporter.importFromPublicPearl(
+                pearlRepository = pearlRepository,
+                mediaStorage = mediaStorage,
+                pearlId = pearlId,
+                pearl = pearl,
+            )
+        }
+    }
+
+    private suspend fun syncLocalCopy(
+        existing: KnowledgePearlEntity,
+        pearl: PublicPearl,
+        ownedByCurrentUser: Boolean,
+        bumpFeedPosition: Boolean,
+    ) {
+        val now = System.currentTimeMillis()
+        val updated = existing.copy(
+            title = pearl.titleDisplay,
+            notes = if (existing.isClinicalCase()) existing.notes else pearl.notes,
+            tags = pearl.tags,
+            sourceReference = pearl.effectiveSourceReference,
+            sourceURL = pearl.sourceUrl ?: existing.sourceURL,
+            linkPreviewDescription = pearl.linkPreviewDescription ?: existing.linkPreviewDescription,
+            publicPearlStatus = pearl.status,
+            updatedAt = if (bumpFeedPosition) now else existing.updatedAt,
+            publicFeedSnapshot = if (ownedByCurrentUser) {
+                ""
+            } else {
+                runCatching { json.encodeToString(pearl) }.getOrDefault(existing.publicFeedSnapshot)
+            },
+        )
+        val synced = when {
+            pearl.isClinicalCase && pearl.casePayload != null ->
+                updated.withClinicalCasePayload(pearl.casePayload)
+            pearl.isClinicalCase ->
+                updated.copy(contentKind = KnowledgePearlContentKind.CLINICAL_CASE)
+            else -> updated
+        }
+        pearlRepository.updatePearl(synced)
+    }
+
+    private fun buildLocalPearlEntity(
+        pearl: PublicPearl,
+        now: Long,
+        ownedByUser: Boolean,
+    ): KnowledgePearlEntity {
         var entity = KnowledgePearlEntity(
             title = pearl.titleDisplay,
             notes = pearl.notes,
             sourceURL = pearl.sourceUrl,
             linkPreviewDescription = pearl.linkPreviewDescription.orEmpty(),
             sourceReference = pearl.effectiveSourceReference,
-            createdAt = pearl.createdAtMillis ?: now,
+            createdAt = now,
             updatedAt = now,
             tags = pearl.tags,
             publicPearlID = pearl.id,
             publicPearlStatus = pearl.status,
-            isSharedPublicly = false,
-            publicFeedSnapshot = runCatching { json.encodeToString(pearl) }.getOrDefault(""),
+            isSharedPublicly = ownedByUser,
+            publicFeedSnapshot = if (ownedByUser) {
+                ""
+            } else {
+                runCatching { json.encodeToString(pearl) }.getOrDefault("")
+            },
         )
 
         entity = when {
@@ -120,18 +220,14 @@ class PublicFeedRepository @Inject constructor(
             pearl.isQuickPearl -> entity.copy(contentKind = KnowledgePearlContentKind.QUICK)
             else -> entity.copy(contentKind = KnowledgePearlContentKind.STANDARD)
         }
-
-        pearlRepository.upsertPearl(entity)
         return entity
     }
 
-    suspend fun saveToFolder(pearl: PublicPearl, folderId: String): KnowledgePearlEntity {
-        val local = addToMyFeed(pearl)
-        pearlRepository.addPearlToFolder(local.id, folderId)
-        return local
+    private fun isOwnPublicPearl(pearl: PublicPearl, currentUserId: String?): Boolean {
+        val userId = currentUserId?.trim().orEmpty()
+        if (userId.isEmpty()) return false
+        return normalizeUserId(pearl.userId) == normalizeUserId(userId)
     }
-
-    suspend fun createFolder(name: String) = pearlRepository.createFolder(name.trim())
 
     companion object {
         const val PAGE_SIZE = 20
