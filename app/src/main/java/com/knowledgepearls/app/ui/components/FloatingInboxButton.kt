@@ -10,7 +10,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.defaultMinSize
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -57,13 +56,17 @@ fun FloatingInboxButton(
     }
 
     val fabSize = PearlLayout.inboxButtonSize
-    // Extra space only when pulsing so the FAB itself stays bottom-end aligned.
-    val outerSize = if (hasUnread) fabSize + 12.dp else fabSize
+    val pulseRingSize = fabSize + 8.dp
+    // Room above/right of the FAB so the badge clears the pulse ring.
+    val badgeClearanceTop = 10.dp
+    val badgeClearanceEnd = 8.dp
+    val containerWidth = fabSize + badgeClearanceEnd
+    val containerHeight = fabSize + badgeClearanceTop
 
     val pulseTransition = rememberInfiniteTransition(label = "inboxFabPulse")
     val pulseScale by pulseTransition.animateFloat(
         initialValue = 1f,
-        targetValue = 1.18f,
+        targetValue = 1.14f,
         animationSpec = infiniteRepeatable(
             animation = tween(durationMillis = 950),
             repeatMode = RepeatMode.Reverse,
@@ -71,8 +74,8 @@ fun FloatingInboxButton(
         label = "inboxFabPulseScale",
     )
     val pulseAlpha by pulseTransition.animateFloat(
-        initialValue = 0.28f,
-        targetValue = 0.72f,
+        initialValue = 0.24f,
+        targetValue = 0.62f,
         animationSpec = infiniteRepeatable(
             animation = tween(durationMillis = 950),
             repeatMode = RepeatMode.Reverse,
@@ -81,60 +84,79 @@ fun FloatingInboxButton(
     )
 
     Box(
-        modifier = modifier.size(outerSize),
+        modifier = modifier.size(width = containerWidth, height = containerHeight),
         contentAlignment = Alignment.BottomEnd,
     ) {
-        if (hasUnread) {
-            Box(
-                modifier = Modifier
-                    .size(fabSize + 9.dp)
-                    .graphicsLayer {
-                        scaleX = pulseScale
-                        scaleY = pulseScale
-                    }
-                    .border(2.5.dp, theme.primary.copy(alpha = pulseAlpha), CircleShape),
-            )
-        }
-
         Box(
             modifier = Modifier
                 .size(fabSize)
-                .semantics { contentDescription = description }
-                .shadow(10.dp, CircleShape, clip = false)
-                .clip(CircleShape)
-                .background(
-                    brush = Brush.linearGradient(
-                        listOf(theme.primary, theme.secondary),
-                    ),
-                )
-                .border(2.5.dp, Color.White.copy(alpha = 0.35f), CircleShape)
-                .clickable(onClick = onClick),
+                .align(Alignment.BottomEnd),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(
-                imageVector = Icons.Default.Email,
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(22.dp),
-            )
-
-            badgeLabel?.let { label ->
-                Text(
-                    text = label,
-                    color = Color.White,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
+            if (hasUnread) {
+                Box(
                     modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .offset(x = 4.dp, y = (-2).dp)
-                        .zIndex(1f)
-                        .defaultMinSize(minWidth = 20.dp, minHeight = 20.dp)
-                        .background(Color(0xFFFF3B30), CircleShape)
-                        .border(1.5.dp, Color.White, CircleShape)
-                        .padding(horizontal = 5.dp, vertical = 2.dp),
+                        .size(pulseRingSize)
+                        .graphicsLayer {
+                            scaleX = pulseScale
+                            scaleY = pulseScale
+                        }
+                        .border(2.dp, theme.primary.copy(alpha = pulseAlpha), CircleShape),
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .size(fabSize)
+                    .semantics { contentDescription = description }
+                    .shadow(10.dp, CircleShape, clip = false)
+                    .clip(CircleShape)
+                    .background(
+                        brush = Brush.linearGradient(
+                            listOf(theme.primary, theme.secondary),
+                        ),
+                    )
+                    .border(2.dp, Color.White.copy(alpha = 0.35f), CircleShape)
+                    .clickable(onClick = onClick),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Email,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp),
                 )
             }
         }
+
+        badgeLabel?.let { label ->
+            FloatingInboxBadge(
+                label = label,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .zIndex(2f),
+            )
+        }
     }
+}
+
+@Composable
+private fun FloatingInboxBadge(
+    label: String,
+    modifier: Modifier = Modifier,
+) {
+    Text(
+        text = label,
+        color = Color.White,
+        fontSize = 10.sp,
+        fontWeight = FontWeight.Bold,
+        textAlign = TextAlign.Center,
+        lineHeight = 11.sp,
+        modifier = modifier
+            .defaultMinSize(minWidth = 20.dp, minHeight = 20.dp)
+            .shadow(4.dp, CircleShape, clip = false)
+            .background(Color(0xFFFF3B30), CircleShape)
+            .border(2.dp, Color.White, CircleShape)
+            .padding(horizontal = 5.dp, vertical = 2.dp),
+    )
 }

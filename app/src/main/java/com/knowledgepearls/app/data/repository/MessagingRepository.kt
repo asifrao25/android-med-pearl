@@ -3,6 +3,7 @@ package com.knowledgepearls.app.data.repository
 import com.knowledgepearls.app.data.model.Conversation
 import com.knowledgepearls.app.data.model.ConversationRow
 import com.knowledgepearls.app.data.model.DirectMessage
+import com.knowledgepearls.app.data.model.MessageProfileResult
 import com.knowledgepearls.app.data.model.isFrom
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.from
@@ -101,6 +102,36 @@ class MessagingRepository @Inject constructor(
         }
     }
 
+    suspend fun searchProfilesForMessage(query: String, currentUserId: String): List<MessageProfileResult> {
+        val trimmed = query.trim()
+        if (trimmed.length < 2) return emptyList()
+        val normalizedUserId = currentUserId.lowercase()
+        return runCatching {
+            supabase.postgrest.rpc(
+                "search_profiles_for_message",
+                MessageSearchParams(pQuery = trimmed),
+            ).decodeList<MessageProfileRow>()
+        }.getOrElse {
+            supabase.from("profiles").select {
+                filter {
+                    neq("id", normalizedUserId)
+                    eq("allow_messages", true)
+                    or {
+                        ilike("name", "%$trimmed%")
+                        ilike("display_name", "%$trimmed%")
+                    }
+                }
+                limit(count = 20)
+            }.decodeList<MessageProfileRow>()
+        }.map { row ->
+            MessageProfileResult(
+                id = row.id,
+                name = row.resolvedName,
+                avatarUrl = row.avatarUrl,
+            )
+        }
+    }
+
     private suspend fun fetchProfileSummary(userId: String): ProfileSummary {
         return runCatching {
             supabase.from("profiles").select {
@@ -130,4 +161,18 @@ class MessagingRepository @Inject constructor(
         val name: String? = null,
         @SerialName("avatar_url") val avatarUrl: String? = null,
     )
+
+    @Serializable
+    private data class MessageSearchParams(@SerialName("p_query") val pQuery: String)
+
+    @Serializable
+    private data class MessageProfileRow(
+        val id: String,
+        val name: String? = null,
+        @SerialName("display_name") val displayName: String? = null,
+        @SerialName("avatar_url") val avatarUrl: String? = null,
+    ) {
+        val resolvedName: String
+            get() = name.orEmpty().ifBlank { displayName.orEmpty() }.ifBlank { "Unknown" }
+    }
 }

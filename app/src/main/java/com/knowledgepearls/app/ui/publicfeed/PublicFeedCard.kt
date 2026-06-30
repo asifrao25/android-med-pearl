@@ -4,20 +4,22 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.LocalHospital
 import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -50,11 +52,14 @@ fun PublicFeedCard(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
     likeCount: Int = pearl.likeCount,
+    commentCount: Int = 0,
     isLiked: Boolean = false,
     onToggleLike: (() -> Unit)? = null,
+    onOpenComments: (() -> Unit)? = null,
 ) {
     val darkTheme = isPearlDarkTheme()
     val cardTheme = publicPearlCardTheme(pearl, theme)
+    val showEngagementBar = onToggleLike != null || onOpenComments != null || likeCount > 0 || commentCount > 0
 
     val cardLabel = pearl.titleDisplay.ifBlank { "Community pearl" }
 
@@ -62,44 +67,54 @@ fun PublicFeedCard(
         modifier = modifier
             .fillMaxWidth()
             .clip(cardShape)
+            .background(PearlColors.glassOverlay(darkTheme))
             .border(
                 width = 1.dp,
                 brush = Brush.linearGradient(
                     listOf(cardTheme.color.copy(alpha = 0.55f), cardTheme.glowColor.copy(alpha = 0.22f)),
                 ),
                 shape = cardShape,
-            )
-            .background(PearlColors.glassOverlay(darkTheme))
-            .semantics {
-                contentDescription = "$cardLabel. Community pearl."
-                role = Role.Button
-            }
-            .clickable(onClick = onClick),
+            ),
     ) {
-        PublicFeedCardHeader(cardTheme = cardTheme)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics {
+                    contentDescription = "$cardLabel. Community pearl."
+                    role = Role.Button
+                }
+                .clickable(onClick = onClick),
+        ) {
+            PublicFeedCardHeader(cardTheme = cardTheme)
 
-        if (pearl.isFromTwitterScraper) {
-            TweetFeedCardBody(
-                pearl = pearl,
-                theme = theme,
-                darkTheme = darkTheme,
+            if (pearl.isFromTwitterScraper) {
+                TweetFeedCardBody(
+                    pearl = pearl,
+                    theme = theme,
+                    darkTheme = darkTheme,
+                )
+                PublicPearlTweetCardMediaPreview(
+                    pearl = pearl,
+                    theme = theme,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            } else {
+                StandardFeedCardBody(
+                    pearl = pearl,
+                    theme = theme,
+                    darkTheme = darkTheme,
+                )
+            }
+        }
+
+        if (showEngagementBar) {
+            PublicFeedCardEngagementBar(
                 likeCount = likeCount,
+                commentCount = commentCount,
                 isLiked = isLiked,
-                onToggleLike = onToggleLike,
-            )
-            PublicPearlTweetCardMediaPreview(
-                pearl = pearl,
                 theme = theme,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        } else {
-            StandardFeedCardBody(
-                pearl = pearl,
-                theme = theme,
-                darkTheme = darkTheme,
-                likeCount = likeCount,
-                isLiked = isLiked,
                 onToggleLike = onToggleLike,
+                onOpenComments = onOpenComments,
             )
         }
     }
@@ -134,9 +149,6 @@ private fun TweetFeedCardBody(
     pearl: PublicPearl,
     theme: TabTheme,
     darkTheme: Boolean,
-    likeCount: Int,
-    isLiked: Boolean,
-    onToggleLike: (() -> Unit)?,
 ) {
     Column(
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
@@ -172,13 +184,6 @@ private fun TweetFeedCardBody(
                 )
             }
         }
-
-        PublicFeedCardEngagementRow(
-            likeCount = likeCount,
-            isLiked = isLiked,
-            theme = theme,
-            onToggleLike = onToggleLike,
-        )
     }
 }
 
@@ -187,9 +192,6 @@ private fun StandardFeedCardBody(
     pearl: PublicPearl,
     theme: TabTheme,
     darkTheme: Boolean,
-    likeCount: Int,
-    isLiked: Boolean,
-    onToggleLike: (() -> Unit)?,
 ) {
     Column(
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
@@ -237,44 +239,75 @@ private fun StandardFeedCardBody(
             theme = theme,
             modifier = Modifier.fillMaxWidth(),
         )
-
-        PublicFeedCardEngagementRow(
-            likeCount = likeCount,
-            isLiked = isLiked,
-            theme = theme,
-            onToggleLike = onToggleLike,
-        )
     }
 }
 
 @Composable
-private fun PublicFeedCardEngagementRow(
+fun PublicFeedCardEngagementBar(
     likeCount: Int,
+    commentCount: Int,
     isLiked: Boolean,
     theme: TabTheme,
-    onToggleLike: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+    onToggleLike: (() -> Unit)? = null,
+    onOpenComments: (() -> Unit)? = null,
 ) {
-    if (onToggleLike == null) {
-        if (likeCount <= 0) return
-        Text(
-            text = "$likeCount ${if (likeCount == 1) "like" else "likes"}",
-            style = MaterialTheme.typography.labelSmall,
-            color = theme.primary.copy(alpha = 0.85f),
-        )
-        return
-    }
+    val darkTheme = isPearlDarkTheme()
 
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.End,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        PublicPearlLikeButton(
-            likeCount = likeCount,
-            isLiked = isLiked,
-            theme = theme,
-            onToggleLike = onToggleLike,
+    Column(modifier = modifier.fillMaxWidth()) {
+        HorizontalDivider(
+            color = PearlColors.heroSecondary(darkTheme).copy(alpha = 0.18f),
         )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp, vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start,
+        ) {
+            if (onToggleLike != null) {
+                PublicPearlLikeButton(
+                    likeCount = likeCount,
+                    isLiked = isLiked,
+                    theme = theme,
+                    onToggleLike = onToggleLike,
+                )
+            } else if (likeCount > 0) {
+                Text(
+                    text = "$likeCount ${if (likeCount == 1) "like" else "likes"}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = theme.primary.copy(alpha = 0.85f),
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                )
+            }
+
+            if (onOpenComments != null) {
+                PublicPearlCommentButton(
+                    commentCount = commentCount,
+                    theme = theme,
+                    onClick = onOpenComments,
+                )
+            } else if (commentCount > 0) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ChatBubbleOutline,
+                        contentDescription = null,
+                        tint = theme.secondary,
+                        modifier = Modifier.size(20.dp),
+                    )
+                    Text(
+                        text = commentCount.toString(),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = PearlColors.heroPrimary(darkTheme),
+                    )
+                }
+            }
+        }
     }
 }
 

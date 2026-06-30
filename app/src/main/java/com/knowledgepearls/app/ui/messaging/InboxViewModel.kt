@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.knowledgepearls.app.data.model.ConversationRow
 import com.knowledgepearls.app.data.model.DirectMessage
 import com.knowledgepearls.app.data.model.PearlShareInboxRow
+import com.knowledgepearls.app.data.model.MessageProfileResult
 import com.knowledgepearls.app.data.repository.AccountRepository
 import com.knowledgepearls.app.data.repository.InboxCountsRepository
 import com.knowledgepearls.app.data.repository.MessagingRepository
@@ -269,6 +270,11 @@ class InboxViewModel @Inject constructor(
                 _inboxState.update { it.copy(isLoading = false) }
             }
         }
+    }
+
+    suspend fun searchUsersForMessage(query: String): List<MessageProfileResult> {
+        val userId = accountRepository.currentUserId() ?: return emptyList()
+        return messagingRepository.searchProfilesForMessage(query, userId)
     }
 
     private data class ViewerContext(

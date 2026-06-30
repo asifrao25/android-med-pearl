@@ -9,6 +9,7 @@ import com.knowledgepearls.app.data.local.model.clinicalCasePayload
 import com.knowledgepearls.app.data.local.model.effectiveSourceReference
 import com.knowledgepearls.app.data.share.PearlContentIdentity
 import com.knowledgepearls.app.data.local.model.isClinicalCase
+import com.knowledgepearls.app.data.local.model.decodedPublicPearl
 import com.knowledgepearls.app.data.local.model.toPickedMedia
 import com.knowledgepearls.app.data.local.model.withClinicalCasePayload
 import com.knowledgepearls.app.data.media.MediaStorage
@@ -54,12 +55,17 @@ class PearlShareRepository @Inject constructor(
         val userId = requireUserId()
         val batchShareId = UUID.randomUUID().toString().lowercase()
         val pickedMedia = pearl.mediaItems.toPickedMedia()
-        val uploaded = uploadShareMedia(
-            userId = userId,
-            batchShareId = batchShareId,
-            items = pickedMedia,
-            includeSection = entity.isClinicalCase(),
-        )
+        val snapshotMedia = entity.decodedPublicPearl()?.resolvedMediaItems.orEmpty()
+        val uploaded = when {
+            pickedMedia.isNotEmpty() -> uploadShareMedia(
+                userId = userId,
+                batchShareId = batchShareId,
+                items = pickedMedia,
+                includeSection = entity.isClinicalCase(),
+            )
+            snapshotMedia.isNotEmpty() -> snapshotMedia
+            else -> emptyList()
+        }
         val payload = buildSharePayload(entity, uploaded)
         val fingerprint = buildFingerprint(entity)
         val contentIdentity = PearlContentIdentity.forPearl(entity, pickedMedia)
@@ -185,7 +191,6 @@ class PearlShareRepository @Inject constructor(
             sharedByAvatarURL = sender.second,
             friendShareID = share.id,
             friendShareContentIdentityAtImport = PearlContentIdentity.forPayload(payload),
-            publicFeedSnapshot = payload.publicFeedSnapshot.orEmpty(),
             contentKind = payload.contentKind.ifBlank { KnowledgePearlContentKind.STANDARD },
         )
         if (payload.contentType == "clinical_case" || payload.contentKind == KnowledgePearlContentKind.CLINICAL_CASE) {
@@ -198,6 +203,7 @@ class PearlShareRepository @Inject constructor(
             mediaStorage = mediaStorage,
             pearlId = pearl.id,
             items = payload.mediaItems,
+            supabase = supabase,
         )
         return pearl
     }
@@ -217,7 +223,6 @@ class PearlShareRepository @Inject constructor(
                 sourceReference = pearl.effectiveSourceReference(),
                 casePayload = payload,
                 mediaItems = uploadedMedia,
-                publicFeedSnapshot = pearl.publicFeedSnapshot.takeIf { it.isNotBlank() },
             )
         }
 
@@ -231,7 +236,6 @@ class PearlShareRepository @Inject constructor(
             linkPreviewDescription = pearl.linkPreviewDescription,
             sourceReference = pearl.effectiveSourceReference(),
             mediaItems = uploadedMedia,
-            publicFeedSnapshot = pearl.publicFeedSnapshot.takeIf { it.isNotBlank() },
         )
     }
 

@@ -15,7 +15,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Public
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.layout.height
+import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -132,6 +133,7 @@ fun PublicFeedEmptyState(
     modifier: Modifier = Modifier,
 ) {
     val darkTheme = isPearlDarkTheme()
+    val theme = TabTheme.PublicFeed
 
     Column(
         modifier = modifier
@@ -150,7 +152,25 @@ fun PublicFeedEmptyState(
                 Text("Try again")
             }
         } else {
-            CircularProgressIndicator(color = TabTheme.PublicFeed.primary)
+            Icon(
+                imageVector = Icons.Default.Inbox,
+                contentDescription = null,
+                tint = theme.primary.copy(alpha = 0.55f),
+                modifier = Modifier.height(40.dp),
+            )
+            Text(
+                text = "No shared public pearls yet",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = PearlColors.heroPrimary(darkTheme),
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = "Community pearls from other clinicians will appear here when they're approved.",
+                color = PearlColors.heroSecondary(darkTheme),
+                style = MaterialTheme.typography.bodySmall,
+                textAlign = TextAlign.Center,
+            )
         }
     }
 }

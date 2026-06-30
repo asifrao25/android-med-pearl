@@ -35,7 +35,9 @@ fun PublicFeedSearchResultsList(
     onHidePearl: (PublicPearl) -> Unit,
     isPearlLiked: (String) -> Boolean = { false },
     pearlLikeCount: (PublicPearl) -> Int = { it.likeCount },
+    pearlCommentCount: (PublicPearl) -> Int = { 0 },
     onTogglePearlLike: (PublicPearl) -> Unit = {},
+    onOpenPearlComments: (PublicPearl) -> Unit = {},
     isSignedIn: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
@@ -80,9 +82,15 @@ fun PublicFeedSearchResultsList(
                         pearl = pearl,
                         theme = theme,
                         likeCount = pearlLikeCount(pearl),
+                        commentCount = pearlCommentCount(pearl),
                         isLiked = isPearlLiked(pearl.id),
                         onToggleLike = if (isSignedIn) {
                             { onTogglePearlLike(pearl) }
+                        } else {
+                            null
+                        },
+                        onOpenComments = if (isSignedIn) {
+                            { onOpenPearlComments(pearl) }
                         } else {
                             null
                         },

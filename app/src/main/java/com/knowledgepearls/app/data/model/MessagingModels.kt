@@ -33,5 +33,11 @@ data class ConversationRow(
     val unreadCount: Int,
 )
 
+data class MessageProfileResult(
+    val id: String,
+    val name: String,
+    val avatarUrl: String? = null,
+)
+
 fun DirectMessage.isFrom(userId: String): Boolean =
     userId.isNotBlank() && senderId.equals(userId, ignoreCase = true)

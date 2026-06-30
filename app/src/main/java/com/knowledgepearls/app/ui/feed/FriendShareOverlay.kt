@@ -58,20 +58,30 @@ fun FriendShareOverlay(
     visible: Boolean,
     theme: TabTheme,
     onDismiss: () -> Unit,
+    onLoadRecent: suspend () -> List<ShareProfileResult>,
     onSearch: suspend (String) -> List<ShareProfileResult>,
-    onSend: (List<String>) -> Unit,
+    onSend: (List<ShareProfileResult>) -> Unit,
 ) {
     if (!visible) return
 
     val scope = rememberCoroutineScope()
     var query by remember { mutableStateOf("") }
+    var recentRecipients by remember { mutableStateOf<List<ShareProfileResult>>(emptyList()) }
     var results by remember { mutableStateOf<List<ShareProfileResult>>(emptyList()) }
-    var selectedIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var selectedProfiles by remember { mutableStateOf<Map<String, ShareProfileResult>>(emptyMap()) }
     var isSearching by remember { mutableStateOf(false) }
     var isSending by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showSentToast by remember { mutableStateOf(false) }
     var sentCount by remember { mutableStateOf(0) }
+
+    LaunchedEffect(visible) {
+        if (visible) {
+            query = ""
+            selectedProfiles = emptyMap()
+            recentRecipients = runCatching { onLoadRecent() }.getOrDefault(emptyList())
+        }
+    }
 
     LaunchedEffect(query) {
         val trimmed = query.trim()
@@ -96,6 +106,9 @@ fun FriendShareOverlay(
             onDismiss()
         }
     }
+
+    val isQuerying = query.trim().length >= 2
+    val listProfiles = if (isQuerying) results else recentRecipients
 
     Box(Modifier.fillMaxSize()) {
         LiquidBackground(theme = theme, intensity = 0.9f)
@@ -147,7 +160,7 @@ fun FriendShareOverlay(
                             color = theme.primary,
                         )
                     }
-                    results.isEmpty() -> {
+                    listProfiles.isEmpty() -> {
                         Column(
                             modifier = Modifier
                                 .align(Alignment.Center)
@@ -156,13 +169,17 @@ fun FriendShareOverlay(
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             Text(
-                                text = if (query.trim().length < 2) "Type a name to search" else "No users found",
+                                text = if (isQuerying) "No users found" else "Type a name to search",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 color = PearlColors.heroPrimary(isPearlDarkTheme()),
                             )
                             Text(
-                                text = "Search matches display names of users who allow pearl shares.",
+                                text = if (isQuerying) {
+                                    "Try a different name or check that the user allows pearl shares."
+                                } else {
+                                    "People you've shared with recently will appear here."
+                                },
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = PearlColors.heroSecondary(isPearlDarkTheme()),
                                 textAlign = TextAlign.Center,
@@ -178,52 +195,40 @@ fun FriendShareOverlay(
                             ),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            items(results, key = { it.id }) { profile ->
-                                val selected = profile.id in selectedIds
-                                GlassSurface(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable {
-                                            selectedIds = if (selected) {
-                                                selectedIds - profile.id
-                                            } else {
-                                                selectedIds + profile.id
-                                            }
-                                        },
-                                    cornerRadius = 14.dp,
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(14.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(40.dp)
-                                                .clip(CircleShape)
-                                                .background(theme.primary.copy(alpha = 0.18f)),
-                                            contentAlignment = Alignment.Center,
-                                        ) {
-                                            Text(
-                                                text = profile.name.firstOrNull()?.uppercase()?.toString() ?: "?",
-                                                fontWeight = FontWeight.Bold,
-                                                color = theme.primary,
-                                            )
+                            if (!isQuerying && recentRecipients.isNotEmpty()) {
+                                item {
+                                    Text(
+                                        text = "Recent",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = PearlColors.heroSecondary(isPearlDarkTheme()),
+                                        modifier = Modifier.padding(bottom = 4.dp),
+                                    )
+                                }
+                            }
+                            items(listProfiles, key = { it.id }) { profile ->
+                                FriendShareProfileRow(
+                                    profile = profile,
+                                    selected = profile.id in selectedProfiles,
+                                    theme = theme,
+                                    onToggle = {
+                                        selectedProfiles = if (profile.id in selectedProfiles) {
+                                            selectedProfiles - profile.id
+                                        } else {
+                                            selectedProfiles + (profile.id to profile)
                                         }
-                                        Text(
-                                            text = profile.name.ifBlank { "Unknown" },
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = PearlColors.heroPrimary(isPearlDarkTheme()),
-                                            modifier = Modifier.weight(1f),
-                                        )
-                                        if (selected) {
-                                            Icon(
-                                                Icons.Default.CheckCircle,
-                                                contentDescription = "Selected",
-                                                tint = theme.primary,
-                                            )
-                                        }
-                                    }
+                                    },
+                                )
+                            }
+                            if (!isQuerying && recentRecipients.isNotEmpty()) {
+                                item {
+                                    Text(
+                                        text = "Or search by name above",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = PearlColors.heroSecondary(isPearlDarkTheme()),
+                                        modifier = Modifier.padding(top = 8.dp),
+                                        textAlign = TextAlign.Center,
+                                    )
                                 }
                             }
                         }
@@ -233,19 +238,19 @@ fun FriendShareOverlay(
 
             Button(
                 onClick = {
-                    if (selectedIds.isEmpty() || isSending) return@Button
+                    if (selectedProfiles.isEmpty() || isSending) return@Button
                     isSending = true
                     scope.launch {
-                        runCatching { onSend(selectedIds.toList()) }
+                        runCatching { onSend(selectedProfiles.values.toList()) }
                             .onSuccess {
-                                sentCount = selectedIds.size
+                                sentCount = selectedProfiles.size
                                 showSentToast = true
                             }
                             .onFailure { errorMessage = it.message ?: "Share failed" }
                         isSending = false
                     }
                 },
-                enabled = selectedIds.isNotEmpty() && !isSending,
+                enabled = selectedProfiles.isNotEmpty() && !isSending,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = PearlLayout.screenHorizontalPadding)
@@ -295,5 +300,53 @@ fun FriendShareOverlay(
             title = { Text("Couldn't Share") },
             text = { Text(message) },
         )
+    }
+}
+
+@Composable
+private fun FriendShareProfileRow(
+    profile: ShareProfileResult,
+    selected: Boolean,
+    theme: TabTheme,
+    onToggle: () -> Unit,
+) {
+    GlassSurface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onToggle),
+        cornerRadius = 14.dp,
+    ) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(theme.primary.copy(alpha = 0.18f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = profile.name.firstOrNull()?.uppercase()?.toString() ?: "?",
+                    fontWeight = FontWeight.Bold,
+                    color = theme.primary,
+                )
+            }
+            Text(
+                text = profile.name.ifBlank { "Unknown" },
+                fontWeight = FontWeight.SemiBold,
+                color = PearlColors.heroPrimary(isPearlDarkTheme()),
+                modifier = Modifier.weight(1f),
+            )
+            if (selected) {
+                Icon(
+                    Icons.Default.CheckCircle,
+                    contentDescription = "Selected",
+                    tint = theme.primary,
+                )
+            }
+        }
     }
 }

@@ -117,7 +117,9 @@ fun PublicFeedScreen(
     onSearchActiveChange: (Boolean) -> Unit = {},
     isPearlLiked: (String) -> Boolean = { false },
     pearlLikeCount: (PublicPearl) -> Int = { it.likeCount },
+    pearlCommentCount: (PublicPearl) -> Int = { 0 },
     onTogglePearlLike: (PublicPearl) -> Unit = {},
+    onOpenPearlComments: (PublicPearl) -> Unit = {},
     showSharedPearlIntro: Boolean = false,
     onRequestSharedPearlIntro: () -> Unit = {},
     onSharedPearlIntroContinue: () -> Unit = {},
@@ -396,9 +398,15 @@ fun PublicFeedScreen(
                                             pearl = pearl,
                                             theme = theme,
                                             likeCount = pearlLikeCount(pearl),
+                                            commentCount = pearlCommentCount(pearl),
                                             isLiked = isPearlLiked(pearl.id),
                                             onToggleLike = if (isSignedIn) {
                                                 { onTogglePearlLike(pearl) }
+                                            } else {
+                                                null
+                                            },
+                                            onOpenComments = if (isSignedIn) {
+                                                { onOpenPearlComments(pearl) }
                                             } else {
                                                 null
                                             },
@@ -456,7 +464,9 @@ fun PublicFeedScreen(
                             onHidePearl = { removeTarget = it },
                             isPearlLiked = isPearlLiked,
                             pearlLikeCount = pearlLikeCount,
+                            pearlCommentCount = pearlCommentCount,
                             onTogglePearlLike = onTogglePearlLike,
+                            onOpenPearlComments = onOpenPearlComments,
                             isSignedIn = isSignedIn,
                             modifier = Modifier.weight(1f),
                         )

@@ -446,7 +446,12 @@ fun PublicFeedTabScreen(
                 onSearchActiveChange = viewModel::setSearchActive,
                 isPearlLiked = viewModel::isLiked,
                 pearlLikeCount = viewModel::likeCount,
+                pearlCommentCount = { pearl -> viewModel.commentCount(pearl.id) },
                 onTogglePearlLike = viewModel::toggleLike,
+                onOpenPearlComments = { pearl ->
+                    viewModel.openComments(pearl.id)
+                    navController.navigate("public_pearl/${pearl.id}")
+                },
             )
         }
 

@@ -22,6 +22,8 @@ import com.knowledgepearls.app.data.repository.PearlShareRepository
 import com.knowledgepearls.app.data.repository.PublicFeedRepository
 import com.knowledgepearls.app.data.repository.PublicFeedSharingRepository
 import com.knowledgepearls.app.data.repository.PublicFeedWithdrawal
+import com.knowledgepearls.app.data.prefs.RecentShareRecipient
+import com.knowledgepearls.app.data.prefs.RecentShareRecipientsStore
 import com.knowledgepearls.app.data.repository.PublicPearlEngagementManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -59,6 +61,7 @@ class FeedViewModel @Inject constructor(
     private val publicFeedWithdrawal: PublicFeedWithdrawal,
     private val publicFeedRepository: PublicFeedRepository,
     private val pearlShareRepository: PearlShareRepository,
+    private val recentShareRecipientsStore: RecentShareRecipientsStore,
     private val captureRepository: CaptureRepository,
     private val engagementManager: PublicPearlEngagementManager,
 ) : ViewModel() {
@@ -185,11 +188,21 @@ class FeedViewModel @Inject constructor(
     suspend fun searchShareProfiles(query: String): List<ShareProfileResult> =
         pearlShareRepository.searchProfiles(query)
 
+    suspend fun loadRecentShareRecipients(): List<ShareProfileResult> =
+        recentShareRecipientsStore.getRecent().map { recipient ->
+            ShareProfileResult(
+                id = recipient.id,
+                name = recipient.name,
+                allowPearlShares = true,
+            )
+        }
+
     fun sendFriendShare(
         pearl: PearlWithMedia,
-        recipientIds: List<String>,
+        recipients: List<ShareProfileResult>,
         onSuccess: () -> Unit,
     ) {
+        val recipientIds = recipients.map { it.id }
         viewModelScope.launch {
             isSharingPearl.value = true
             runCatching {
@@ -202,8 +215,17 @@ class FeedViewModel @Inject constructor(
                     pearl = pearl,
                     recipientIds = recipientIds,
                 )
-            }.onSuccess { onSuccess() }
-                .onFailure { shareErrorMessage.value = it.message ?: "Share failed" }
+            }.onSuccess {
+                recentShareRecipientsStore.recordShares(
+                    recipients.map { recipient ->
+                        RecentShareRecipient(
+                            id = recipient.id,
+                            name = recipient.name,
+                        )
+                    },
+                )
+                onSuccess()
+            }.onFailure { shareErrorMessage.value = it.message ?: "Share failed" }
             isSharingPearl.value = false
         }
     }

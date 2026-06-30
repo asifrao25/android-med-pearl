@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -62,6 +63,7 @@ import androidx.compose.ui.graphics.Color
 import com.knowledgepearls.app.data.model.ConversationRow
 import com.knowledgepearls.app.data.model.DirectMessage
 import com.knowledgepearls.app.data.model.isFrom
+import com.knowledgepearls.app.data.model.MessageProfileResult
 import com.knowledgepearls.app.data.model.PearlShareInboxRow
 import com.knowledgepearls.app.ui.components.AvatarView
 import com.knowledgepearls.app.ui.components.FloatingInboxSheet
@@ -95,36 +97,53 @@ fun InboxScreen(
     onSendMessage: (String) -> Unit,
     onAcceptShare: (String) -> Unit,
     onDeclineShare: (String) -> Unit,
+    onSearchUsers: suspend (String) -> List<MessageProfileResult>,
+    onStartChat: (MessageProfileResult) -> Unit,
 ) {
     val theme = TabTheme.PublicFeed
     val inboxListState = rememberLazyListState()
     val inThread = threadState.conversationId.isNotBlank()
+    var showNewChatSearch by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { onLoad() }
 
-    FloatingInboxSheet(
-        onDismiss = onDismiss,
-        listState = if (inThread) null else inboxListState,
-    ) {
-        if (inThread) {
-            MessageThreadScreen(
-                state = threadState,
-                theme = theme,
-                onBack = onCloseThread,
-                onSendMessage = onSendMessage,
-            )
-        } else {
-            InboxListContent(
-                inboxState = inboxState,
-                theme = theme,
-                listState = inboxListState,
-                onDismiss = onDismiss,
-                onTabSelected = onTabSelected,
-                onConversationClick = onConversationClick,
-                onAcceptShare = onAcceptShare,
-                onDeclineShare = onDeclineShare,
-            )
+    Box(Modifier.fillMaxSize()) {
+        FloatingInboxSheet(
+            onDismiss = onDismiss,
+            listState = if (inThread) null else inboxListState,
+        ) {
+            if (inThread) {
+                MessageThreadScreen(
+                    state = threadState,
+                    theme = theme,
+                    onBack = onCloseThread,
+                    onSendMessage = onSendMessage,
+                )
+            } else {
+                InboxListContent(
+                    inboxState = inboxState,
+                    theme = theme,
+                    listState = inboxListState,
+                    onDismiss = onDismiss,
+                    onTabSelected = onTabSelected,
+                    onConversationClick = onConversationClick,
+                    onAcceptShare = onAcceptShare,
+                    onDeclineShare = onDeclineShare,
+                    onComposeMessage = { showNewChatSearch = true },
+                )
+            }
         }
+
+        NewChatSearchOverlay(
+            visible = showNewChatSearch && !inThread,
+            theme = theme,
+            onDismiss = { showNewChatSearch = false },
+            onSearch = onSearchUsers,
+            onSelectUser = { profile ->
+                showNewChatSearch = false
+                onStartChat(profile)
+            },
+        )
     }
 }
 
@@ -138,6 +157,7 @@ private fun InboxListContent(
     onConversationClick: (ConversationRow) -> Unit,
     onAcceptShare: (String) -> Unit,
     onDeclineShare: (String) -> Unit,
+    onComposeMessage: () -> Unit,
 ) {
     val darkTheme = isPearlDarkTheme()
 
@@ -150,6 +170,8 @@ private fun InboxListContent(
         item {
             InboxSheetHeader(
                 theme = theme,
+                showComposeButton = inboxState.selectedTab == InboxTab.Messages,
+                onComposeMessage = onComposeMessage,
                 onDismiss = onDismiss,
             )
         }
@@ -158,6 +180,8 @@ private fun InboxListContent(
             InboxTabRow(
                 selected = inboxState.selectedTab,
                 theme = theme,
+                messagesUnreadCount = inboxState.conversations.sumOf { it.unreadCount },
+                pendingShareCount = inboxState.pendingShares.size,
                 onSelected = onTabSelected,
             )
         }
@@ -225,6 +249,8 @@ private fun InboxListContent(
 @Composable
 private fun InboxSheetHeader(
     theme: TabTheme,
+    showComposeButton: Boolean,
+    onComposeMessage: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val darkTheme = isPearlDarkTheme()
@@ -251,6 +277,18 @@ private fun InboxSheetHeader(
                     style = MaterialTheme.typography.bodySmall,
                     color = PearlColors.heroSecondary(darkTheme),
                 )
+            }
+            if (showComposeButton) {
+                IconButton(
+                    onClick = onComposeMessage,
+                    modifier = Modifier.size(40.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "New message",
+                        tint = theme.primary,
+                    )
+                }
             }
             Box(
                 modifier = Modifier
@@ -398,9 +436,12 @@ fun MessageThreadScreen(
 private fun InboxTabRow(
     selected: InboxTab,
     theme: TabTheme,
+    messagesUnreadCount: Int,
+    pendingShareCount: Int,
     onSelected: (InboxTab) -> Unit,
 ) {
     val darkTheme = isPearlDarkTheme()
+    val sharedHighlightAmber = Color(0xFFFFB847)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -409,13 +450,24 @@ private fun InboxTabRow(
     ) {
         InboxTab.entries.forEach { tab ->
             val isSelected = tab == selected
+            val badgeCount = when (tab) {
+                InboxTab.Messages -> messagesUnreadCount
+                InboxTab.Shared -> pendingShareCount
+            }
+            val shouldHighlightShared =
+                tab == InboxTab.Shared && pendingShareCount > 0 && !isSelected
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .heightIn(min = 42.dp)
                     .clip(RoundedCornerShape(999.dp))
                     .semantics(mergeDescendants = true) {
-                        contentDescription = if (tab == InboxTab.Messages) "Messages" else "Shared pearls"
+                        val label = if (tab == InboxTab.Messages) "Messages" else "Shared pearls"
+                        contentDescription = if (badgeCount > 0) {
+                            "$label, $badgeCount new"
+                        } else {
+                            label
+                        }
                         role = Role.Tab
                         this.selected = isSelected
                     }
@@ -431,8 +483,12 @@ private fun InboxTabRow(
                         },
                     )
                     .border(
-                        width = 1.dp,
-                        color = if (isSelected) theme.primary.copy(alpha = 0.45f) else PearlColors.cardBorder(darkTheme),
+                        width = if (shouldHighlightShared) 1.5.dp else 1.dp,
+                        color = when {
+                            shouldHighlightShared -> sharedHighlightAmber.copy(alpha = 0.85f)
+                            isSelected -> theme.primary.copy(alpha = 0.45f)
+                            else -> PearlColors.cardBorder(darkTheme)
+                        },
                         shape = RoundedCornerShape(999.dp),
                     )
                     .clickable(
@@ -443,15 +499,42 @@ private fun InboxTabRow(
                     .padding(horizontal = 16.dp, vertical = 10.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    text = if (tab == InboxTab.Messages) "Messages" else "Shared",
-                    color = if (isSelected) theme.primary else PearlColors.heroSecondary(darkTheme),
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                    textAlign = TextAlign.Center,
-                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = if (tab == InboxTab.Messages) "Messages" else "Shared",
+                        color = if (isSelected) theme.primary else PearlColors.heroSecondary(darkTheme),
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                        textAlign = TextAlign.Center,
+                    )
+                    if (badgeCount > 0) {
+                        InboxTabBadge(
+                            count = badgeCount,
+                            background = if (tab == InboxTab.Shared) sharedHighlightAmber else theme.primary,
+                        )
+                    }
+                }
             }
         }
     }
+}
+
+@Composable
+private fun InboxTabBadge(
+    count: Int,
+    background: Color,
+) {
+    Text(
+        text = if (count > 99) "99+" else count.toString(),
+        color = Color.White,
+        fontWeight = FontWeight.Bold,
+        fontSize = MaterialTheme.typography.labelSmall.fontSize,
+        modifier = Modifier
+            .background(background, RoundedCornerShape(999.dp))
+            .padding(horizontal = 6.dp, vertical = 3.dp),
+    )
 }
 
 @Composable

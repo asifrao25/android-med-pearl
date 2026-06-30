@@ -196,7 +196,7 @@ fun PearlDetailScreen(
                                 onOpenMedia = { mediaViewerRequest = it },
                             )
                         }
-                        entity.decodedPublicPearl() != null -> {
+                        entity.decodedPublicPearl() != null && !entity.isSharedFromFriend -> {
                             val publicPearl = entity.decodedPublicPearl()!!
                             SavedPublicPearlDetailContent(
                                 publicPearl = publicPearl,
@@ -365,10 +365,11 @@ fun PearlDetailScreen(
             visible = showFriendShare,
             theme = TabTheme.PublicFeed,
             onDismiss = { showFriendShare = false },
+            onLoadRecent = viewModel::loadRecentShareRecipients,
             onSearch = viewModel::searchShareProfiles,
-            onSend = { recipientIds ->
+            onSend = { recipients ->
                 pearl?.let { current ->
-                    viewModel.sendFriendShare(current, recipientIds) {}
+                    viewModel.sendFriendShare(current, recipients) {}
                 }
             },
         )

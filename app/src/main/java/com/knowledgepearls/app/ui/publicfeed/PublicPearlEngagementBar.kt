@@ -71,6 +71,45 @@ fun PublicPearlLikeButton(
 }
 
 @Composable
+fun PublicPearlCommentButton(
+    commentCount: Int,
+    theme: TabTheme,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val darkTheme = isPearlDarkTheme()
+    val description = when (commentCount) {
+        0 -> "Comments. No comments yet"
+        1 -> "Comments. 1 comment"
+        else -> "Comments. $commentCount comments"
+    }
+    Row(
+        modifier = modifier
+            .semantics { contentDescription = description },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        IconButton(
+            onClick = onClick,
+            modifier = Modifier.size(36.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Filled.ChatBubbleOutline,
+                contentDescription = null,
+                tint = theme.secondary,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        Text(
+            text = commentCount.toString(),
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = PearlColors.heroPrimary(darkTheme),
+        )
+    }
+}
+
+@Composable
 fun PublicPearlEngagementBar(
     likeCount: Int,
     commentCount: Int,
@@ -80,8 +119,6 @@ fun PublicPearlEngagementBar(
     onToggleLike: () -> Unit,
     onOpenComments: () -> Unit,
 ) {
-    val darkTheme = isPearlDarkTheme()
-
     GlassSurface(
         modifier = modifier,
         cornerRadius = PearlLayout.cardCornerRadius,
@@ -97,20 +134,10 @@ fun PublicPearlEngagementBar(
                 theme = theme,
                 onToggleLike = onToggleLike,
             )
-
-            IconButton(onClick = onOpenComments) {
-                Icon(
-                    imageVector = Icons.Filled.ChatBubbleOutline,
-                    contentDescription = "Comments",
-                    tint = theme.secondary,
-                    modifier = Modifier.size(22.dp),
-                )
-            }
-            Text(
-                text = commentCount.toString(),
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = PearlColors.heroPrimary(darkTheme),
+            PublicPearlCommentButton(
+                commentCount = commentCount,
+                theme = theme,
+                onClick = onOpenComments,
             )
         }
     }

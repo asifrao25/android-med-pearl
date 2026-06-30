@@ -16,8 +16,16 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -55,6 +63,7 @@ import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CaptureAttachmentSection(
     attachments: MutableList<PickedMedia>,
@@ -64,6 +73,7 @@ fun CaptureAttachmentSection(
 ) {
     val context = LocalContext.current
     var viewerRequest by remember { mutableStateOf<PublicPearlMediaViewerRequest?>(null) }
+    var showSourcePicker by remember { mutableStateOf(false) }
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text("Attachments", color = accent, fontWeight = FontWeight.SemiBold)
@@ -73,15 +83,28 @@ fun CaptureAttachmentSection(
             cacheDir = context.cacheDir,
             accent = accent,
             theme = theme,
-            onAddClick = pickers.pickDocument,
+            onAddClick = { showSourcePicker = true },
             onOpenViewer = { viewerRequest = it },
         )
+    }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TextButton(onClick = pickers.pickGallery) { Text("Gallery") }
-            TextButton(onClick = pickers.takePhoto) { Text("Camera") }
-            TextButton(onClick = pickers.pickDocument) { Text("Files") }
-        }
+    if (showSourcePicker) {
+        AttachmentSourcePickerSheet(
+            onDismiss = { showSourcePicker = false },
+            onCamera = {
+                showSourcePicker = false
+                pickers.takePhoto()
+            },
+            onGallery = {
+                showSourcePicker = false
+                pickers.pickGallery()
+            },
+            onFiles = {
+                showSourcePicker = false
+                pickers.pickDocument()
+            },
+            accent = accent,
+        )
     }
 
     PublicPearlMediaViewerOverlay(
@@ -89,6 +112,110 @@ fun CaptureAttachmentSection(
         theme = theme,
         onDismiss = { viewerRequest = null },
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AttachmentSourcePickerSheet(
+    onDismiss: () -> Unit,
+    onCamera: () -> Unit,
+    onGallery: () -> Unit,
+    onFiles: () -> Unit,
+    accent: Color,
+) {
+    val darkTheme = isPearlDarkTheme()
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = PearlColors.popupSurface(darkTheme),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 24.dp),
+        ) {
+            Text(
+                text = "Add attachment",
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
+                fontWeight = FontWeight.SemiBold,
+                color = PearlColors.heroPrimary(darkTheme),
+            )
+            Text(
+                text = "Choose how to add media to this section",
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
+                style = MaterialTheme.typography.bodySmall,
+                color = PearlColors.heroSecondary(darkTheme),
+            )
+            HorizontalDivider(
+                modifier = Modifier.padding(top = 12.dp),
+                color = PearlColors.heroSecondary(darkTheme).copy(alpha = 0.15f),
+            )
+            AttachmentSourceOption(
+                icon = Icons.Default.CameraAlt,
+                label = "Take photo",
+                subtitle = "Use the camera",
+                accent = accent,
+                onClick = onCamera,
+            )
+            AttachmentSourceOption(
+                icon = Icons.Default.PhotoLibrary,
+                label = "Photo library",
+                subtitle = "Choose photos or videos",
+                accent = accent,
+                onClick = onGallery,
+            )
+            AttachmentSourceOption(
+                icon = Icons.Default.Description,
+                label = "Choose file",
+                subtitle = "PDFs and other documents",
+                accent = accent,
+                onClick = onFiles,
+            )
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
+            ) {
+                Text("Cancel", color = PearlColors.heroSecondary(darkTheme))
+            }
+        }
+    }
+}
+
+@Composable
+private fun AttachmentSourceOption(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    subtitle: String,
+    accent: Color,
+    onClick: () -> Unit,
+) {
+    val darkTheme = isPearlDarkTheme()
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 20.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(24.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                fontWeight = FontWeight.SemiBold,
+                color = PearlColors.heroPrimary(darkTheme),
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = PearlColors.heroSecondary(darkTheme),
+            )
+        }
+    }
 }
 
 @Composable
@@ -287,7 +414,7 @@ private fun CaptureAddAttachmentTile(
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Icon(Icons.Default.Add, contentDescription = "Add attachment", tint = accent)
-            Text("Add", color = accent, style = androidx.compose.material3.MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+            Text("Add", color = accent, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
         }
     }
 }
