@@ -53,6 +53,9 @@ interface KnowledgePearlDao {
     @Query("SELECT * FROM knowledge_pearls")
     suspend fun getAll(): List<KnowledgePearlEntity>
 
+    @Query("SELECT * FROM pearl_folder_cross_ref")
+    suspend fun getAllFolderCrossRefs(): List<PearlFolderCrossRef>
+
     @Query("SELECT publicPearlID FROM knowledge_pearls WHERE publicPearlID IS NOT NULL")
     suspend fun getExistingPublicPearlIds(): List<String>
 

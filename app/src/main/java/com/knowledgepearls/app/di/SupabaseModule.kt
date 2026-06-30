@@ -1,5 +1,6 @@
 package com.knowledgepearls.app.di
 
+import com.knowledgepearls.app.data.auth.EncryptedSupabaseSessionManager
 import com.knowledgepearls.app.data.remote.SupabaseConfig
 import dagger.Module
 import dagger.Provides
@@ -27,7 +28,7 @@ object SupabaseModule {
 
     @Provides
     @Singleton
-    fun provideSupabaseClient(): SupabaseClient =
+    fun provideSupabaseClient(sessionManager: EncryptedSupabaseSessionManager): SupabaseClient =
         createSupabaseClient(
             supabaseUrl = SupabaseConfig.URL,
             supabaseKey = SupabaseConfig.ANON_KEY,
@@ -37,6 +38,7 @@ object SupabaseModule {
                 scheme = SupabaseConfig.AUTH_SCHEME
                 host = SupabaseConfig.AUTH_HOST
                 flowType = FlowType.PKCE
+                this.sessionManager = sessionManager
             }
             install(Postgrest)
             install(Storage)

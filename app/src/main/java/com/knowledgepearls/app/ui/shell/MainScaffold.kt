@@ -691,6 +691,8 @@ fun MainScaffold(
             onLoadBackups = settingsViewModel::loadBackups,
             onCreateBackup = settingsViewModel::createBackup,
             onRestoreBackup = settingsViewModel::restoreBackup,
+            onImportBackup = settingsViewModel::importBackup,
+            onSaveBackupToUri = settingsViewModel::saveBackupToUri,
             onMeasureCache = settingsViewModel::measureCache,
             onClearCache = settingsViewModel::clearCache,
             onDeleteAccount = {

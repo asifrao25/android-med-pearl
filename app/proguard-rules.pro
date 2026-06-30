@@ -57,6 +57,10 @@
 -keep class com.google.android.libraries.identity.googleid.** { *; }
 -keep class androidx.credentials.** { *; }
 
+# --- SQLCipher / encrypted Room ---
+-keep class net.zetetic.** { *; }
+-keep class androidx.security.crypto.** { *; }
+
 # --- Media3 (in-app video) ---
 -keep class androidx.media3.** { *; }
 

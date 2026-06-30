@@ -8,6 +8,8 @@ import com.knowledgepearls.app.data.local.model.withClinicalCasePayload
 import com.knowledgepearls.app.data.media.MediaStorage
 import com.knowledgepearls.app.data.model.PublicPearl
 import com.knowledgepearls.app.data.model.normalizeUserId
+import com.knowledgepearls.app.data.security.LegacyPreferencesMigration
+import com.knowledgepearls.app.data.security.SecurePreferences
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.from
@@ -30,7 +32,9 @@ class PublicFeedRepository @Inject constructor(
     private val pearlRepository: KnowledgePearlRepository,
     private val mediaStorage: MediaStorage,
 ) {
-    private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    private val prefs = SecurePreferences.create(context, PREFS_NAME).also { encrypted ->
+        LegacyPreferencesMigration.migrateStringSetPreferences(context, LEGACY_PREFS_NAME, encrypted)
+    }
     private val json = Json { ignoreUnknownKeys = true }
     private val addToMyFeedMutex = Mutex()
 
@@ -243,7 +247,8 @@ class PublicFeedRepository @Inject constructor(
 
     companion object {
         const val PAGE_SIZE = 20
-        private const val PREFS_NAME = "public_feed_prefs"
+        private const val PREFS_NAME = "public_feed_secure_prefs"
+        private const val LEGACY_PREFS_NAME = "public_feed_prefs"
         private const val KEY_SEEN = "publicFeedSeenIDs"
         private const val KEY_HIDDEN = "publicFeedHiddenIDs"
         private const val KEY_BLOCKED_USERS = "publicFeedBlockedUserIDs"

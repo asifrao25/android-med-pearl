@@ -11,6 +11,9 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface PearlMediaDao {
+    @Query("SELECT * FROM pearl_media")
+    suspend fun getAll(): List<PearlMediaEntity>
+
     @Query("SELECT * FROM pearl_media WHERE pearlId = :pearlId ORDER BY createdAt ASC")
     fun observeForPearl(pearlId: String): Flow<List<PearlMediaEntity>>
 

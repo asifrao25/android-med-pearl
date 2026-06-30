@@ -2,7 +2,9 @@ package com.knowledgepearls.app.ui.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.net.Uri
 import com.knowledgepearls.app.data.backup.BackupRepository
+import com.knowledgepearls.app.data.backup.BackupRestoreSummary
 import com.knowledgepearls.app.data.cache.DeviceCacheRepository
 import com.knowledgepearls.app.data.model.PublicPearl
 import com.knowledgepearls.app.data.prefs.AppearancePreferences
@@ -131,13 +133,18 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun createBackup() {
+    fun createBackup(onCreated: ((BackupRepository.BackupFileInfo) -> Unit)? = null) {
         viewModelScope.launch {
             _uiState.update { it.copy(isBackupBusy = true, errorMessage = null) }
             runCatching {
-                backupRepository.createBackup()
+                val backup = backupRepository.createBackup()
                 loadBackups()
-                _uiState.update { it.copy(statusMessage = "Backup created.") }
+                _uiState.update {
+                    it.copy(
+                        statusMessage = "Backup created with ${backup.pearlCount} pearls and ${backup.mediaCount} attachments. Export it to move to another phone.",
+                    )
+                }
+                onCreated?.invoke(backup)
             }.onFailure { error ->
                 _uiState.update { it.copy(errorMessage = error.message ?: "Backup failed.") }
             }
@@ -149,13 +156,50 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isBackupBusy = true, errorMessage = null) }
             runCatching {
-                val count = backupRepository.restoreBackup(path)
-                _uiState.update { it.copy(statusMessage = "Restored $count pearls.") }
+                val summary = backupRepository.restoreBackup(path)
+                _uiState.update { it.copy(statusMessage = summary.toUserMessage()) }
             }.onFailure { error ->
                 _uiState.update { it.copy(errorMessage = error.message ?: "Restore failed.") }
             }
             _uiState.update { it.copy(isBackupBusy = false) }
         }
+    }
+
+    fun importBackup(uri: Uri) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isBackupBusy = true, errorMessage = null) }
+            runCatching {
+                val summary = backupRepository.restoreBackupFromUri(uri)
+                loadBackups()
+                _uiState.update { it.copy(statusMessage = summary.toUserMessage(prefix = "Import complete.")) }
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(errorMessage = error.message ?: "This file isn't a valid Med Pearls backup.")
+                }
+            }
+            _uiState.update { it.copy(isBackupBusy = false) }
+        }
+    }
+
+    fun saveBackupToUri(sourcePath: String, destinationUri: Uri) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isBackupBusy = true, errorMessage = null) }
+            runCatching {
+                backupRepository.copyBackupToUri(sourcePath, destinationUri)
+                _uiState.update { it.copy(statusMessage = "Backup saved to your chosen location.") }
+            }.onFailure { error ->
+                _uiState.update { it.copy(errorMessage = error.message ?: "Could not save backup.") }
+            }
+            _uiState.update { it.copy(isBackupBusy = false) }
+        }
+    }
+
+    private fun BackupRestoreSummary.toUserMessage(prefix: String = "Restore complete."): String {
+        val mediaNote = when {
+            mediaSkipped > 0 -> " $mediaSkipped attachment(s) could not be restored."
+            else -> ""
+        }
+        return "$prefix ${pearlsRestored} pearls, ${foldersRestored} folders, and $mediaRestored attachments.$mediaNote"
     }
 
     fun measureCache() {

@@ -60,6 +60,14 @@ class KnowledgePearlRepository @Inject constructor(
 
     suspend fun getAllPearls(): List<KnowledgePearlEntity> = pearlDao.getAll()
 
+    suspend fun getAllFolderCrossRefs(): List<PearlFolderCrossRef> = pearlDao.getAllFolderCrossRefs()
+
+    suspend fun getAllMedia(): List<PearlMediaEntity> = mediaDao.getAll()
+
+    suspend fun deleteMediaForPearl(pearlId: String) {
+        mediaDao.deleteForPearl(pearlId)
+    }
+
     suspend fun findByPublicPearlId(publicPearlId: String): KnowledgePearlEntity? {
         val trimmed = publicPearlId.trim()
         return pearlDao.getByPublicPearlId(trimmed)

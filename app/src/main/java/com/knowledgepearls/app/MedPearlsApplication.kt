@@ -9,6 +9,7 @@ import dagger.hilt.android.HiltAndroidApp
 class MedPearlsApplication : Application() {
     override fun onCreate() {
         super.onCreate()
+        System.loadLibrary("sqlcipher")
         PushNotificationDisplay.ensureChannels(this)
         ScheduledBackupWorker.schedule(this)
     }

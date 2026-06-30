@@ -44,6 +44,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -58,6 +62,20 @@ import com.knowledgepearls.app.ui.account.profileSubtitle
 import com.knowledgepearls.app.ui.components.GlassSurface
 import com.knowledgepearls.app.ui.components.SheetDragHandle
 import com.knowledgepearls.app.ui.components.TabScreenHeader
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.UploadFile
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.FileProvider
+import com.knowledgepearls.app.data.backup.BackupFormat
+import com.knowledgepearls.app.data.backup.BackupRepository
+import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import com.knowledgepearls.app.ui.profile.SettingsProfileAvatar
 import com.knowledgepearls.app.ui.publicfeed.PendingSubmissionsScreen
 import com.knowledgepearls.app.ui.theme.AppearanceMode
@@ -96,8 +114,10 @@ fun SettingsScreen(
     onSetAppearance: (AppearanceMode) -> Unit,
     onSetAppFontChoice: (AppFontChoice) -> Unit,
     onLoadBackups: () -> Unit,
-    onCreateBackup: () -> Unit,
+    onCreateBackup: (onCreated: ((BackupRepository.BackupFileInfo) -> Unit)?) -> Unit,
     onRestoreBackup: (String) -> Unit,
+    onImportBackup: (Uri) -> Unit,
+    onSaveBackupToUri: (String, Uri) -> Unit,
     onMeasureCache: () -> Unit,
     onClearCache: () -> Unit,
     onDeleteAccount: () -> Unit,
@@ -161,6 +181,8 @@ fun SettingsScreen(
                     onLoad = onLoadBackups,
                     onCreate = onCreateBackup,
                     onRestore = onRestoreBackup,
+                    onImport = onImportBackup,
+                    onSaveToUri = onSaveBackupToUri,
                 )
                 SettingsRoute.DeviceCache -> DeviceCacheScreen(
                     settingsState = settingsState,
@@ -324,7 +346,7 @@ private fun SettingsMainScreen(
                             icon = Icons.Default.CloudUpload,
                             accent = SettingsSectionAccent.Backup,
                             title = "Backup & restore",
-                            subtitle = "Export and import your pearls locally",
+                            subtitle = "Move pearls and attachments to another phone",
                             theme = theme,
                             onClick = { onNavigate(SettingsRoute.BackupRestore) },
                             trailing = {
@@ -442,44 +464,252 @@ private fun BackupRestoreScreen(
     settingsState: SettingsUiState,
     onBack: () -> Unit,
     onLoad: () -> Unit,
-    onCreate: () -> Unit,
+    onCreate: (onCreated: ((BackupRepository.BackupFileInfo) -> Unit)?) -> Unit,
     onRestore: (String) -> Unit,
+    onImport: (Uri) -> Unit,
+    onSaveToUri: (String, Uri) -> Unit,
 ) {
     val theme = TabTheme.Settings
     val darkTheme = isPearlDarkTheme()
+    val context = LocalContext.current
+    var pendingRestorePath by remember { mutableStateOf<String?>(null) }
+    var pendingSavePath by remember { mutableStateOf<String?>(null) }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri != null) onImport(uri)
+    }
+
+    val saveLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument(BackupFormat.MIME_TYPE),
+    ) { uri ->
+        val sourcePath = pendingSavePath
+        if (uri != null && sourcePath != null) {
+            onSaveToUri(sourcePath, uri)
+        }
+        pendingSavePath = null
+    }
 
     LaunchedEffect(Unit) { onLoad() }
 
-    SettingsSubScreenShell(title = "Backup & restore", subtitle = "Local JSON export", onBack = onBack) {
-        Button(onClick = onCreate, enabled = !settingsState.isBackupBusy, modifier = Modifier.fillMaxWidth()) {
-            if (settingsState.isBackupBusy) {
-                CircularProgressIndicator(strokeWidth = 2.dp)
-            } else {
-                Text("Create backup")
-            }
+    fun shareBackup(path: String, fileName: String) {
+        val file = java.io.File(path)
+        val uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file,
+        )
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = BackupFormat.MIME_TYPE
+            putExtra(Intent.EXTRA_STREAM, uri)
+            putExtra(Intent.EXTRA_SUBJECT, fileName)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
+        context.startActivity(Intent.createChooser(intent, "Export backup"))
+    }
 
-        if (settingsState.backups.isEmpty()) {
-            Text("No backups yet.", color = PearlColors.heroSecondary(darkTheme))
-        } else {
-            settingsState.backups.forEach { backup ->
+    pendingRestorePath?.let { path ->
+        AlertDialog(
+            onDismissRequest = { pendingRestorePath = null },
+            title = { Text("Restore this backup?") },
+            text = {
+                Text(
+                    "Pearls and attachments from this backup will be added or updated on this device. " +
+                        "Existing pearls with the same ID will be replaced. This cannot be undone.",
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onRestore(path)
+                        pendingRestorePath = null
+                    },
+                ) {
+                    Text("Restore")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingRestorePath = null }) {
+                    Text("Cancel")
+                }
+            },
+        )
+    }
+
+    SettingsSubScreenShell(
+        title = "Backup & restore",
+        subtitle = "Move your library to another phone",
+        onBack = onBack,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            BackupInstructionCard(
+                title = "Why use this?",
+                body = "Automatic phone backup is turned off to protect clinical content. " +
+                    "Use a backup file when you change phones or want a copy you control.",
+                darkTheme = darkTheme,
+            )
+
+            BackupInstructionCard(
+                title = "Move to another phone",
+                body = "1. On this phone: tap Back Up Now.\n" +
+                    "2. Tap Export / Share and send the file to Drive, email, or Files.\n" +
+                    "3. On the new phone: install Med Pearls, open Settings → Backup & restore.\n" +
+                    "4. Tap Import backup file and choose the file you saved.",
+                darkTheme = darkTheme,
+            )
+
+            BackupInstructionCard(
+                title = "What is included",
+                body = "Pearls, folders, favourites, clinical case text, attachments (photos, videos, documents), " +
+                    "and folder organisation. Sign in on the new phone to get public feed and messages back from the server.",
+                darkTheme = darkTheme,
+            )
+
+            Text(
+                text = "Back up",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = PearlColors.heroPrimary(darkTheme),
+            )
+
+            Button(
+                onClick = { onCreate(null) },
+                enabled = !settingsState.isBackupBusy,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                if (settingsState.isBackupBusy) {
+                    CircularProgressIndicator(strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                } else {
+                    Text("Back Up Now")
+                }
+            }
+
+            OutlinedButton(
+                onClick = { importLauncher.launch(arrayOf(BackupFormat.MIME_TYPE, "application/*")) },
+                enabled = !settingsState.isBackupBusy,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(Icons.Default.UploadFile, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
+                Text("Import backup file…")
+            }
+
+            settingsState.statusMessage?.let { message ->
+                Text(text = message, color = theme.primary, style = MaterialTheme.typography.bodySmall)
+            }
+            settingsState.errorMessage?.let { message ->
+                Text(text = message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            }
+
+            HorizontalDivider(color = PearlColors.heroSecondary(darkTheme).copy(alpha = 0.2f))
+
+            Text(
+                text = "Backups on this device",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = PearlColors.heroPrimary(darkTheme),
+            )
+            Text(
+                text = if (settingsState.backups.isEmpty()) {
+                    "No backups on this phone yet. Create one, then export it before switching devices."
+                } else {
+                    "${settingsState.backups.size} backup(s) saved on this device"
+                },
+                color = PearlColors.heroSecondary(darkTheme),
+                style = MaterialTheme.typography.bodySmall,
+            )
+
+            if (settingsState.backups.isEmpty()) {
                 GlassSurface(cornerRadius = PearlLayout.cardCornerRadius) {
-                    Column(
+                    Row(
                         modifier = Modifier.padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(backup.id, fontWeight = FontWeight.SemiBold, color = PearlColors.heroPrimary(darkTheme))
+                        Icon(Icons.Default.Info, contentDescription = null, tint = theme.primary)
                         Text(
-                            "${backup.pearlCount} pearls · ${backup.folderCount} folders",
+                            "Backups stay inside the app until you export them.",
                             color = PearlColors.heroSecondary(darkTheme),
                             style = MaterialTheme.typography.bodySmall,
                         )
-                        OutlinedButton(onClick = { onRestore(backup.path) }, enabled = !settingsState.isBackupBusy) {
-                            Text("Restore")
+                    }
+                }
+            } else {
+                settingsState.backups.forEach { backup ->
+                    GlassSurface(cornerRadius = PearlLayout.cardCornerRadius) {
+                        Column(
+                            modifier = Modifier.padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text(
+                                backup.id,
+                                fontWeight = FontWeight.SemiBold,
+                                color = PearlColors.heroPrimary(darkTheme),
+                            )
+                            Text(
+                                "${backup.pearlCount} pearls · ${backup.folderCount} folders · ${backup.mediaCount} attachments · ${formatBytes(backup.fileSizeBytes)}",
+                                color = PearlColors.heroSecondary(darkTheme),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedButton(
+                                    onClick = { shareBackup(backup.path, backup.id) },
+                                    enabled = !settingsState.isBackupBusy,
+                                ) {
+                                    Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Text("Export", modifier = Modifier.padding(start = 6.dp))
+                                }
+                                OutlinedButton(
+                                    onClick = {
+                                        pendingSavePath = backup.path
+                                        saveLauncher.launch(backup.id)
+                                    },
+                                    enabled = !settingsState.isBackupBusy,
+                                ) {
+                                    Text("Save to Files")
+                                }
+                            }
+                            OutlinedButton(
+                                onClick = { pendingRestorePath = backup.path },
+                                enabled = !settingsState.isBackupBusy,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text("Restore on this device")
+                            }
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun BackupInstructionCard(
+    title: String,
+    body: String,
+    darkTheme: Boolean,
+) {
+    GlassSurface(cornerRadius = PearlLayout.cardCornerRadius) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                text = title,
+                fontWeight = FontWeight.SemiBold,
+                color = PearlColors.heroPrimary(darkTheme),
+            )
+            Text(
+                text = body,
+                color = PearlColors.heroSecondary(darkTheme),
+                style = MaterialTheme.typography.bodySmall,
+            )
         }
     }
 }
