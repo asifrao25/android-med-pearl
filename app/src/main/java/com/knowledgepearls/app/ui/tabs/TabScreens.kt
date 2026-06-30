@@ -107,6 +107,8 @@ fun FeedTabScreen(
         startDestination = "feed",
     ) {
         composable("feed") {
+            val likedPearlIds by feedViewModel.likedPearlIds.collectAsStateWithLifecycle()
+            val likeCountOverrides by feedViewModel.likeCountOverrides.collectAsStateWithLifecycle()
             FeedScreen(
                 uiState = uiState,
                 feedAuthorContext = feedAuthorContext,
@@ -140,6 +142,18 @@ fun FeedTabScreen(
                     }
                 },
                 onFetchPublicPearl = feedViewModel::fetchPublicPearlForCard,
+                isPublicPearlLiked = { id -> id.lowercase() in likedPearlIds },
+                publicPearlLikeCount = { pearl ->
+                    likeCountOverrides[pearl.id.lowercase()] ?: pearl.likeCount
+                },
+                onTogglePublicPearlLike = { pearl ->
+                    if (accountState.isSignedIn) {
+                        feedViewModel.togglePublicPearlLike(pearl)
+                    } else {
+                        onSignInRequired()
+                    }
+                },
+                onSyncPublicPearlEngagement = feedViewModel::syncPublicPearlEngagement,
             )
         }
         composable("pearl/{pearlId}") { entry ->
@@ -428,6 +442,9 @@ fun PublicFeedTabScreen(
                 showsSectionTabs = showsSectionTabs,
                 onSearchQueryChange = viewModel::setSearchQuery,
                 onSearchActiveChange = viewModel::setSearchActive,
+                isPearlLiked = viewModel::isLiked,
+                pearlLikeCount = viewModel::likeCount,
+                onTogglePearlLike = viewModel::toggleLike,
             )
         }
 
@@ -520,7 +537,7 @@ fun PublicFeedTabScreen(
                     PublicPearlDetailScreen(
                         pearl = pearl,
                         tabHeader = TabTheme.PublicFeed.tabHeaderContext(),
-                        likeCount = pearl.likeCount,
+                        likeCount = viewModel.likeCount(pearl),
                         commentCount = viewModel.commentCount(pearl.id),
                         isLiked = viewModel.isLiked(pearl.id),
                         commentsVisible = uiState.commentsPearlId == pearl.id,

@@ -22,6 +22,7 @@ import com.knowledgepearls.app.data.repository.PearlShareRepository
 import com.knowledgepearls.app.data.repository.PublicFeedRepository
 import com.knowledgepearls.app.data.repository.PublicFeedSharingRepository
 import com.knowledgepearls.app.data.repository.PublicFeedWithdrawal
+import com.knowledgepearls.app.data.repository.PublicPearlEngagementManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -59,7 +60,11 @@ class FeedViewModel @Inject constructor(
     private val publicFeedRepository: PublicFeedRepository,
     private val pearlShareRepository: PearlShareRepository,
     private val captureRepository: CaptureRepository,
+    private val engagementManager: PublicPearlEngagementManager,
 ) : ViewModel() {
+    val likedPearlIds = engagementManager.likedPearlIds
+    val likeCountOverrides = engagementManager.likeCountOverrides
+
     private val searchQuery = MutableStateFlow("")
     private val selectedTag = MutableStateFlow<String?>(null)
     private val contentTypeFilter = MutableStateFlow(ContentTypeFilter.ALL)
@@ -327,6 +332,25 @@ class FeedViewModel @Inject constructor(
             }.onFailure { error ->
                 onError(error.message ?: "Could not save changes")
             }
+        }
+    }
+
+    fun isPublicPearlLiked(pearlId: String): Boolean = engagementManager.isLiked(pearlId)
+
+    fun publicPearlLikeCount(pearl: PublicPearl): Int = engagementManager.likeCount(pearl)
+
+    fun togglePublicPearlLike(pearl: PublicPearl) {
+        viewModelScope.launch {
+            engagementManager.toggleLike(pearl).onFailure { error ->
+                shareErrorMessage.value = error.message ?: "Could not update like."
+            }
+        }
+    }
+
+    fun syncPublicPearlEngagement(pearls: List<PublicPearl>) {
+        viewModelScope.launch {
+            engagementManager.mergeServerPearls(pearls)
+            engagementManager.syncLikedState(pearls.map { it.id })
         }
     }
 

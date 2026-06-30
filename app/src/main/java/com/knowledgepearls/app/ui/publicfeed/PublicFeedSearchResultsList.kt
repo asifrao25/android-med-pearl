@@ -33,6 +33,10 @@ fun PublicFeedSearchResultsList(
     onPearlClick: (String) -> Unit,
     onOpenSavePicker: (PublicPearl) -> Unit,
     onHidePearl: (PublicPearl) -> Unit,
+    isPearlLiked: (String) -> Boolean = { false },
+    pearlLikeCount: (PublicPearl) -> Int = { it.likeCount },
+    onTogglePearlLike: (PublicPearl) -> Unit = {},
+    isSignedIn: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -75,6 +79,13 @@ fun PublicFeedSearchResultsList(
                     PublicFeedCard(
                         pearl = pearl,
                         theme = theme,
+                        likeCount = pearlLikeCount(pearl),
+                        isLiked = isPearlLiked(pearl.id),
+                        onToggleLike = if (isSignedIn) {
+                            { onTogglePearlLike(pearl) }
+                        } else {
+                            null
+                        },
                         onClick = { onPearlClick(pearl.id) },
                     )
                 }

@@ -9,6 +9,7 @@ import com.knowledgepearls.app.data.model.normalizeUserId
 import com.knowledgepearls.app.data.repository.AccountRepository
 import com.knowledgepearls.app.data.repository.PublicFeedEngagementRepository
 import com.knowledgepearls.app.data.repository.PublicFeedRepository
+import com.knowledgepearls.app.data.repository.PublicPearlEngagementManager
 import com.knowledgepearls.app.data.repository.AddToMyFeedResult
 import com.knowledgepearls.app.data.repository.MediaImportResult
 import com.knowledgepearls.app.data.search.PublicPearlSearchIndex
@@ -68,6 +69,7 @@ data class PublicFeedUiState(
 class PublicFeedViewModel @Inject constructor(
     private val repository: PublicFeedRepository,
     private val engagementRepository: PublicFeedEngagementRepository,
+    private val engagementManager: PublicPearlEngagementManager,
     private val accountRepository: AccountRepository,
 ) : ViewModel() {
     private var currentOffset = 0
@@ -87,6 +89,25 @@ class PublicFeedViewModel @Inject constructor(
         ),
     )
     val uiState: StateFlow<PublicFeedUiState> = _uiState.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            engagementManager.likedPearlIds.collect { liked ->
+                _uiState.update { it.copy(likedPearlIds = liked) }
+            }
+        }
+        viewModelScope.launch {
+            engagementManager.likeCountOverrides.collect { counts ->
+                publish { state ->
+                    state.copy(
+                        pearls = state.pearls.map { pearl ->
+                            counts[pearl.id.lowercase()]?.let { pearl.replacing(likeCount = it) } ?: pearl
+                        },
+                    )
+                }
+            }
+        }
+    }
 
     /** Called when the Public Feed tab becomes active — always fetches latest page-0 pearls. */
     fun onTabEntered() {
@@ -412,33 +433,7 @@ class PublicFeedViewModel @Inject constructor(
 
     fun toggleLike(pearl: PublicPearl) {
         viewModelScope.launch {
-            val userId = accountRepository.currentUserId() ?: return@launch
-            if (userId.isBlank()) return@launch
-            val pearlId = pearl.id.lowercase()
-            val currentlyLiked = pearlId in _uiState.value.likedPearlIds.map { it.lowercase() }.toSet()
-            runCatching {
-                if (currentlyLiked) {
-                    engagementRepository.unlike(pearl.id)
-                } else {
-                    engagementRepository.like(pearl.id)
-                }
-            }.onSuccess {
-                val liked = _uiState.value.likedPearlIds.toMutableSet()
-                if (currentlyLiked) liked.remove(pearlId) else liked.add(pearlId)
-                val delta = if (currentlyLiked) -1 else 1
-                publish { state ->
-                    state.copy(
-                        likedPearlIds = liked,
-                        pearls = state.pearls.map { item ->
-                            if (item.id == pearl.id) {
-                                item.replacing(likeCount = (item.likeCount + delta).coerceAtLeast(0))
-                            } else {
-                                item
-                            }
-                        },
-                    )
-                }
-            }.onFailure { error ->
+            engagementManager.toggleLike(pearl).onFailure { error ->
                 _uiState.update {
                     it.copy(errorMessage = error.message ?: "Could not update like.")
                 }
@@ -446,8 +441,9 @@ class PublicFeedViewModel @Inject constructor(
         }
     }
 
-    fun isLiked(pearlId: String): Boolean =
-        pearlId.lowercase() in _uiState.value.likedPearlIds.map { it.lowercase() }.toSet()
+    fun isLiked(pearlId: String): Boolean = engagementManager.isLiked(pearlId)
+
+    fun likeCount(pearl: PublicPearl): Int = engagementManager.likeCount(pearl)
 
     fun commentCount(pearlId: String): Int =
         _uiState.value.commentCounts[pearlId.lowercase()] ?: 0
@@ -514,12 +510,13 @@ class PublicFeedViewModel @Inject constructor(
     }
 
     private suspend fun syncEngagement(pearlIds: List<String>) {
-        val userId = accountRepository.currentUserId() ?: return
         if (pearlIds.isEmpty()) return
+        val pearls = _uiState.value.pearls.filter { it.id in pearlIds }
+        engagementManager.mergeServerPearls(pearls)
+        engagementManager.syncLikedState(pearlIds)
         runCatching {
-            val liked = engagementRepository.fetchLikedPearlIds(userId, pearlIds)
             val counts = engagementRepository.fetchCommentCounts(pearlIds)
-            _uiState.update { it.copy(likedPearlIds = liked, commentCounts = it.commentCounts + counts) }
+            _uiState.update { it.copy(commentCounts = it.commentCounts + counts) }
         }
     }
 

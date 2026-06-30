@@ -9,8 +9,12 @@ import com.knowledgepearls.app.data.local.entity.PearlFolderCrossRef
 import com.knowledgepearls.app.data.local.entity.PearlMediaEntity
 import com.knowledgepearls.app.data.local.model.FolderWithCount
 import com.knowledgepearls.app.data.local.model.PearlWithMedia
+import com.knowledgepearls.app.data.local.model.decodedPublicPearl
+import com.knowledgepearls.app.data.model.PublicPearl
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -151,5 +155,27 @@ class KnowledgePearlRepository @Inject constructor(
                 updatedAt = System.currentTimeMillis(),
             ),
         )
+    }
+
+    suspend fun updatePublicFeedSnapshotEngagement(publicPearlId: String, likeCount: Int) {
+        val normalized = publicPearlId.trim()
+        if (normalized.isEmpty()) return
+        val matches = pearlDao.getAll().filter { entity ->
+            entity.publicPearlID?.equals(normalized, ignoreCase = true) == true
+        }
+        matches.forEach { entity ->
+            val snapshotPearl = entity.decodedPublicPearl() ?: return@forEach
+            val updatedSnapshot = snapshotPearl.copy(likeCount = likeCount)
+            pearlDao.update(
+                entity.copy(
+                    publicFeedSnapshot = snapshotJson.encodeToString(PublicPearl.serializer(), updatedSnapshot),
+                    updatedAt = System.currentTimeMillis(),
+                ),
+            )
+        }
+    }
+
+    private companion object {
+        private val snapshotJson = Json { ignoreUnknownKeys = true; encodeDefaults = true }
     }
 }

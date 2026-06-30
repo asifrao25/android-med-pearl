@@ -17,6 +17,8 @@ data class UserProfile(
     @SerialName("public_email") val publicEmail: String? = null,
     @SerialName("allow_pearl_shares") val allowPearlShares: Boolean = true,
     @SerialName("notify_pearl_shares_email") val notifyPearlSharesEmail: Boolean = true,
+    @SerialName("approved_pearl_count") val approvedPearlCount: Int = 0,
+    @SerialName("total_likes_received") val totalLikesReceived: Int = 0,
     @SerialName("created_at") val createdAt: String? = null,
 ) {
     val displayName: String get() = name?.takeIf { it.isNotBlank() } ?: "Unknown"

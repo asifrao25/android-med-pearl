@@ -110,12 +110,20 @@ fun UserProfileScreen(
                 isOpeningMessage = uiState.isOpeningMessage,
                 messageError = uiState.messageError,
                 isBlocked = uiState.isBlocked,
+                likedPearlIds = uiState.likedPearlIds,
                 onDismiss = onDismiss,
                 onEditProfile = onEditProfile,
                 onDeleteAccount = { showDeleteConfirm = true },
                 onSignInRequired = onSignInRequired,
                 onMessage = { viewModel.openMessage(uiState.profile!!, onOpenMessage) },
                 onBlock = { showBlockConfirm = true },
+                onTogglePearlLike = { pearl ->
+                    if (isSignedIn) {
+                        viewModel.togglePearlLike(pearl)
+                    } else {
+                        onSignInRequired()
+                    }
+                },
             )
         }
     }
@@ -205,12 +213,14 @@ private fun UserProfileContent(
     isOpeningMessage: Boolean,
     messageError: String?,
     isBlocked: Boolean,
+    likedPearlIds: Set<String>,
     onDismiss: () -> Unit,
     onEditProfile: () -> Unit,
     onDeleteAccount: () -> Unit,
     onSignInRequired: () -> Unit,
     onMessage: () -> Unit,
     onBlock: () -> Unit,
+    onTogglePearlLike: (com.knowledgepearls.app.data.model.PublicPearl) -> Unit,
 ) {
     val theme = TabTheme.PublicFeed
     val context = LocalContext.current
@@ -379,6 +389,13 @@ private fun UserProfileContent(
                             PublicFeedCard(
                                 pearl = pearl,
                                 theme = theme,
+                                likeCount = pearl.likeCount,
+                                isLiked = pearl.id.lowercase() in likedPearlIds,
+                                onToggleLike = if (isSignedIn) {
+                                    { onTogglePearlLike(pearl) }
+                                } else {
+                                    null
+                                },
                                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
                                 onClick = {},
                             )

@@ -45,6 +45,9 @@ fun PublicFeedCard(
     theme: TabTheme,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
+    likeCount: Int = pearl.likeCount,
+    isLiked: Boolean = false,
+    onToggleLike: (() -> Unit)? = null,
 ) {
     val darkTheme = isPearlDarkTheme()
     val cardTheme = publicPearlCardTheme(pearl, theme)
@@ -70,6 +73,9 @@ fun PublicFeedCard(
                 pearl = pearl,
                 theme = theme,
                 darkTheme = darkTheme,
+                likeCount = likeCount,
+                isLiked = isLiked,
+                onToggleLike = onToggleLike,
             )
             PublicPearlTweetCardMediaPreview(
                 pearl = pearl,
@@ -81,6 +87,9 @@ fun PublicFeedCard(
                 pearl = pearl,
                 theme = theme,
                 darkTheme = darkTheme,
+                likeCount = likeCount,
+                isLiked = isLiked,
+                onToggleLike = onToggleLike,
             )
         }
     }
@@ -115,6 +124,9 @@ private fun TweetFeedCardBody(
     pearl: PublicPearl,
     theme: TabTheme,
     darkTheme: Boolean,
+    likeCount: Int,
+    isLiked: Boolean,
+    onToggleLike: (() -> Unit)?,
 ) {
     Column(
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
@@ -151,7 +163,12 @@ private fun TweetFeedCardBody(
             }
         }
 
-        PublicFeedCardLikeCount(pearl = pearl, theme = theme)
+        PublicFeedCardEngagementRow(
+            likeCount = likeCount,
+            isLiked = isLiked,
+            theme = theme,
+            onToggleLike = onToggleLike,
+        )
     }
 }
 
@@ -160,6 +177,9 @@ private fun StandardFeedCardBody(
     pearl: PublicPearl,
     theme: TabTheme,
     darkTheme: Boolean,
+    likeCount: Int,
+    isLiked: Boolean,
+    onToggleLike: (() -> Unit)?,
 ) {
     Column(
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
@@ -208,22 +228,44 @@ private fun StandardFeedCardBody(
             modifier = Modifier.fillMaxWidth(),
         )
 
-        PublicFeedCardLikeCount(pearl = pearl, theme = theme)
+        PublicFeedCardEngagementRow(
+            likeCount = likeCount,
+            isLiked = isLiked,
+            theme = theme,
+            onToggleLike = onToggleLike,
+        )
     }
 }
 
 @Composable
-private fun PublicFeedCardLikeCount(
-    pearl: PublicPearl,
+private fun PublicFeedCardEngagementRow(
+    likeCount: Int,
+    isLiked: Boolean,
     theme: TabTheme,
+    onToggleLike: (() -> Unit)?,
 ) {
-    if (pearl.likeCount <= 0) return
+    if (onToggleLike == null) {
+        if (likeCount <= 0) return
+        Text(
+            text = "$likeCount ${if (likeCount == 1) "like" else "likes"}",
+            style = MaterialTheme.typography.labelSmall,
+            color = theme.primary.copy(alpha = 0.85f),
+        )
+        return
+    }
 
-    Text(
-        text = "${pearl.likeCount} likes",
-        style = MaterialTheme.typography.labelSmall,
-        color = theme.primary.copy(alpha = 0.85f),
-    )
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.End,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        PublicPearlLikeButton(
+            likeCount = likeCount,
+            isLiked = isLiked,
+            theme = theme,
+            onToggleLike = onToggleLike,
+        )
+    }
 }
 
 private data class PublicPearlCardTheme(

@@ -23,6 +23,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -76,6 +77,8 @@ fun PearlDetailScreen(
 ) {
     val pearl by viewModel.observePearl(pearlId).collectAsStateWithLifecycle(initialValue = null)
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val likedPearlIds by viewModel.likedPearlIds.collectAsStateWithLifecycle()
+    val likeCountOverrides by viewModel.likeCountOverrides.collectAsStateWithLifecycle()
     val folders by foldersViewModel.foldersWithCounts.collectAsStateWithLifecycle()
     val memberFolderIds by foldersViewModel.observePearlFolderIds(pearlId)
         .collectAsStateWithLifecycle(initialValue = emptySet())
@@ -98,6 +101,12 @@ fun PearlDetailScreen(
     val theme = tabHeader.theme
     val darkTheme = isPearlDarkTheme()
     val loadedPearl = pearl
+
+    LaunchedEffect(loadedPearl?.pearl?.decodedPublicPearl()) {
+        loadedPearl?.pearl?.decodedPublicPearl()?.let { publicPearl ->
+            viewModel.syncPublicPearlEngagement(listOf(publicPearl))
+        }
+    }
 
     Box(Modifier.fillMaxSize()) {
         LiquidBackground(theme = theme, intensity = 0.5f)
@@ -170,10 +179,18 @@ fun PearlDetailScreen(
                             )
                         }
                         entity.decodedPublicPearl() != null -> {
+                            val publicPearl = entity.decodedPublicPearl()!!
                             SavedPublicPearlDetailContent(
-                                publicPearl = entity.decodedPublicPearl()!!,
+                                publicPearl = publicPearl,
                                 theme = theme,
                                 onOpenMedia = { mediaViewerRequest = it },
+                                likeCount = likeCountOverrides[publicPearl.id.lowercase()] ?: publicPearl.likeCount,
+                                isLiked = publicPearl.id.lowercase() in likedPearlIds,
+                                onToggleLike = if (isSignedIn) {
+                                    { viewModel.togglePublicPearlLike(publicPearl) }
+                                } else {
+                                    { onSignInRequired() }
+                                },
                             )
                         }
                         entity.isClinicalCase() -> {

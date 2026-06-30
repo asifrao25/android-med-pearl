@@ -6,8 +6,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChatBubbleOutline
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.filled.ThumbUp
+import androidx.compose.material.icons.outlined.ThumbUpOffAlt
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -22,6 +22,40 @@ import com.knowledgepearls.app.ui.theme.PearlColors
 import com.knowledgepearls.app.ui.theme.PearlLayout
 import com.knowledgepearls.app.ui.theme.TabTheme
 import com.knowledgepearls.app.ui.theme.isPearlDarkTheme
+
+@Composable
+fun PublicPearlLikeButton(
+    likeCount: Int,
+    isLiked: Boolean,
+    theme: TabTheme,
+    onToggleLike: () -> Unit,
+    modifier: Modifier = Modifier,
+    showCount: Boolean = true,
+) {
+    val darkTheme = isPearlDarkTheme()
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        IconButton(onClick = onToggleLike, modifier = Modifier.size(36.dp)) {
+            Icon(
+                imageVector = if (isLiked) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUpOffAlt,
+                contentDescription = if (isLiked) "Unlike" else "Like",
+                tint = if (isLiked) theme.primary else PearlColors.heroSecondary(darkTheme),
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        if (showCount) {
+            Text(
+                text = likeCount.toString(),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = if (isLiked) theme.primary else PearlColors.heroSecondary(darkTheme),
+            )
+        }
+    }
+}
 
 @Composable
 fun PublicPearlEngagementBar(
@@ -44,19 +78,11 @@ fun PublicPearlEngagementBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            IconButton(onClick = onToggleLike) {
-                Icon(
-                    imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                    contentDescription = if (isLiked) "Unlike" else "Like",
-                    tint = if (isLiked) theme.primary else PearlColors.heroSecondary(darkTheme),
-                    modifier = Modifier.size(22.dp),
-                )
-            }
-            Text(
-                text = likeCount.toString(),
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = PearlColors.heroPrimary(darkTheme),
+            PublicPearlLikeButton(
+                likeCount = likeCount,
+                isLiked = isLiked,
+                theme = theme,
+                onToggleLike = onToggleLike,
             )
 
             IconButton(onClick = onOpenComments) {

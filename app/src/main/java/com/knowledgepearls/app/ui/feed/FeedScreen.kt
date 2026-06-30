@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.knowledgepearls.app.data.capture.CaptureSheet
+import com.knowledgepearls.app.data.local.model.decodedPublicPearl
 import com.knowledgepearls.app.ui.capture.CaptureOptionsOverlay
 import com.knowledgepearls.app.ui.capture.GlowingAddButton
 import com.knowledgepearls.app.ui.components.FeedChromeAnchor
@@ -56,7 +57,18 @@ fun FeedScreen(
     onCaptureMenuOpenChange: (Boolean) -> Unit,
     onCaptureSheetSelected: (CaptureSheet) -> Unit,
     onFetchPublicPearl: suspend (String) -> com.knowledgepearls.app.data.model.PublicPearl? = { null },
+    isPublicPearlLiked: (String) -> Boolean = { false },
+    publicPearlLikeCount: (com.knowledgepearls.app.data.model.PublicPearl) -> Int = { it.likeCount },
+    onTogglePublicPearlLike: (com.knowledgepearls.app.data.model.PublicPearl) -> Unit = {},
+    onSyncPublicPearlEngagement: (List<com.knowledgepearls.app.data.model.PublicPearl>) -> Unit = {},
 ) {
+    LaunchedEffect(uiState.filteredPearls) {
+        val snapshots = uiState.filteredPearls.mapNotNull { it.pearl.decodedPublicPearl() }
+        if (snapshots.isNotEmpty()) {
+            onSyncPublicPearlEngagement(snapshots)
+        }
+    }
+
     val theme = TabTheme.Feed
     val feedChrome = LocalFeedChromeVisibility.current
     val feedListState = rememberLazyListState()
@@ -152,6 +164,9 @@ fun FeedScreen(
                             onDeleteRequest = onDeleteRequest,
                             onFoldersRequest = { folderPickerPearl = it },
                             onFetchPublicPearl = onFetchPublicPearl,
+                            isPublicPearlLiked = isPublicPearlLiked,
+                            publicPearlLikeCount = publicPearlLikeCount,
+                            onTogglePublicPearlLike = onTogglePublicPearlLike,
                             modifier = Modifier.weight(1f),
                             listState = feedListState,
                             chromeScrollEnabled = !captureMenuOpen,
@@ -181,6 +196,9 @@ fun FeedScreen(
                             onDeleteRequest = onDeleteRequest,
                             onFoldersRequest = { folderPickerPearl = it },
                             onFetchPublicPearl = onFetchPublicPearl,
+                            isPublicPearlLiked = isPublicPearlLiked,
+                            publicPearlLikeCount = publicPearlLikeCount,
+                            onTogglePublicPearlLike = onTogglePublicPearlLike,
                             modifier = Modifier.weight(1f),
                             listState = searchListState,
                             chromeScrollEnabled = false,

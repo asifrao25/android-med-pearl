@@ -7,6 +7,7 @@ import com.knowledgepearls.app.data.model.UserProfile
 import com.knowledgepearls.app.data.model.normalizeUserId
 import com.knowledgepearls.app.data.repository.MessagingRepository
 import com.knowledgepearls.app.data.repository.ProfileRepository
+import com.knowledgepearls.app.data.repository.PublicPearlEngagementManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,6 +23,7 @@ data class ProfileUiState(
     val pearls: List<PublicPearl> = emptyList(),
     val pearlCount: Int = 0,
     val totalLikesReceived: Int = 0,
+    val likedPearlIds: Set<String> = emptySet(),
     val isOpeningMessage: Boolean = false,
     val messageError: String? = null,
     val isBlocked: Boolean = false,
@@ -38,9 +40,29 @@ data class ProfileMessageTarget(
 class ProfileViewModel @Inject constructor(
     private val profileRepository: ProfileRepository,
     private val messagingRepository: MessagingRepository,
+    private val engagementManager: PublicPearlEngagementManager,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ProfileUiState())
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            engagementManager.likedPearlIds.collect { liked ->
+                _uiState.update { it.copy(likedPearlIds = liked) }
+            }
+        }
+        viewModelScope.launch {
+            engagementManager.likeCountOverrides.collect { counts ->
+                _uiState.update { state ->
+                    state.copy(
+                        pearls = state.pearls.map { pearl ->
+                            counts[pearl.id.lowercase()]?.let { pearl.replacing(likeCount = it) } ?: pearl
+                        },
+                    )
+                }
+            }
+        }
+    }
 
     fun load(userId: String) {
         viewModelScope.launch {
@@ -57,12 +79,20 @@ class ProfileViewModel @Inject constructor(
                 val countFromDb = runCatching {
                     profileRepository.fetchApprovedPearlCount(profile.id)
                 }.getOrDefault(0)
-                val pearlCount = maxOf(pearls.size, countFromDb)
+                val pearlCount = maxOf(
+                    profile.approvedPearlCount,
+                    pearls.size,
+                    countFromDb,
+                )
 
                 val likesFromRpc = runCatching {
                     profileRepository.fetchTotalLikesReceived(profile.id)
                 }.getOrDefault(0)
-                val totalLikes = maxOf(likesFromRpc, pearls.sumOf { it.likeCount })
+                val totalLikes = maxOf(
+                    profile.totalLikesReceived,
+                    likesFromRpc,
+                    pearls.sumOf { it.likeCount },
+                )
 
                 _uiState.update {
                     ProfileUiState(
@@ -71,9 +101,11 @@ class ProfileViewModel @Inject constructor(
                         pearls = pearls,
                         pearlCount = pearlCount,
                         totalLikesReceived = totalLikes,
+                        likedPearlIds = engagementManager.likedPearlIds.value,
                         isBlocked = profileRepository.isUserBlocked(profile.id),
                     )
                 }
+                syncPearlEngagement(pearls)
             }.onFailure {
                 _uiState.update {
                     ProfileUiState(
@@ -122,5 +154,24 @@ class ProfileViewModel @Inject constructor(
 
     fun clearMessageError() {
         _uiState.update { it.copy(messageError = null) }
+    }
+
+    fun isPearlLiked(pearlId: String): Boolean = engagementManager.isLiked(pearlId)
+
+    fun pearlLikeCount(pearl: PublicPearl): Int = engagementManager.likeCount(pearl)
+
+    fun togglePearlLike(pearl: PublicPearl) {
+        viewModelScope.launch {
+            engagementManager.toggleLike(pearl).onFailure { error ->
+                _uiState.update { it.copy(errorMessage = error.message ?: "Could not update like.") }
+            }
+        }
+    }
+
+    fun syncPearlEngagement(pearls: List<PublicPearl>) {
+        viewModelScope.launch {
+            engagementManager.mergeServerPearls(pearls)
+            engagementManager.syncLikedState(pearls.map { it.id })
+        }
     }
 }

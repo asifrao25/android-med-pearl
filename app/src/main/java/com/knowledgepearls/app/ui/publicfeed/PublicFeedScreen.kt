@@ -114,6 +114,9 @@ fun PublicFeedScreen(
     onCaptureSheetSelected: (CaptureSheet) -> Unit = {},
     onSearchQueryChange: (String) -> Unit = {},
     onSearchActiveChange: (Boolean) -> Unit = {},
+    isPearlLiked: (String) -> Boolean = { false },
+    pearlLikeCount: (PublicPearl) -> Int = { it.likeCount },
+    onTogglePearlLike: (PublicPearl) -> Unit = {},
     showSharedPearlIntro: Boolean = false,
     onRequestSharedPearlIntro: () -> Unit = {},
     onSharedPearlIntroContinue: () -> Unit = {},
@@ -391,6 +394,13 @@ fun PublicFeedScreen(
                                         PublicFeedCard(
                                             pearl = pearl,
                                             theme = theme,
+                                            likeCount = pearlLikeCount(pearl),
+                                            isLiked = isPearlLiked(pearl.id),
+                                            onToggleLike = if (isSignedIn) {
+                                                { onTogglePearlLike(pearl) }
+                                            } else {
+                                                null
+                                            },
                                             onClick = { onPearlClick(pearl.id) },
                                         )
                                     }
@@ -443,6 +453,10 @@ fun PublicFeedScreen(
                             onPearlClick = onPearlClick,
                             onOpenSavePicker = onOpenSavePicker,
                             onHidePearl = { removeTarget = it },
+                            isPearlLiked = isPearlLiked,
+                            pearlLikeCount = pearlLikeCount,
+                            onTogglePearlLike = onTogglePearlLike,
+                            isSignedIn = isSignedIn,
                             modifier = Modifier.weight(1f),
                         )
 

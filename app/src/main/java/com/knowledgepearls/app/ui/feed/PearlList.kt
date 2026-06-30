@@ -47,6 +47,9 @@ fun PearlList(
     onDeleteRequest: (PearlWithMedia) -> Unit,
     onFoldersRequest: (PearlWithMedia) -> Unit,
     onFetchPublicPearl: suspend (String) -> com.knowledgepearls.app.data.model.PublicPearl? = { null },
+    isPublicPearlLiked: (String) -> Boolean = { false },
+    publicPearlLikeCount: (com.knowledgepearls.app.data.model.PublicPearl) -> Int = { it.likeCount },
+    onTogglePublicPearlLike: (com.knowledgepearls.app.data.model.PublicPearl) -> Unit = {},
     modifier: Modifier = Modifier,
     theme: TabTheme = TabTheme.Feed,
     listState: LazyListState = rememberLazyListState(),
@@ -65,6 +68,9 @@ fun PearlList(
         onDeleteRequest = onDeleteRequest,
         onFoldersRequest = onFoldersRequest,
         onFetchPublicPearl = onFetchPublicPearl,
+        isPublicPearlLiked = isPublicPearlLiked,
+        publicPearlLikeCount = publicPearlLikeCount,
+        onTogglePublicPearlLike = onTogglePublicPearlLike,
         enableSwipeHintOnFirst = !swipeHintDismissed,
         onSwipeHintDismiss = {
             SwipeRowHintStorage.dismiss(context)
@@ -86,6 +92,9 @@ private fun PearlListContent(
     onDeleteRequest: (PearlWithMedia) -> Unit,
     onFoldersRequest: (PearlWithMedia) -> Unit,
     onFetchPublicPearl: suspend (String) -> com.knowledgepearls.app.data.model.PublicPearl?,
+    isPublicPearlLiked: (String) -> Boolean,
+    publicPearlLikeCount: (com.knowledgepearls.app.data.model.PublicPearl) -> Int,
+    onTogglePublicPearlLike: (com.knowledgepearls.app.data.model.PublicPearl) -> Unit,
     enableSwipeHintOnFirst: Boolean,
     onSwipeHintDismiss: () -> Unit,
     modifier: Modifier = Modifier,
@@ -154,6 +163,9 @@ private fun PearlListContent(
                         PublicFeedCard(
                             pearl = publicPearl,
                             theme = theme,
+                            likeCount = publicPearlLikeCount(publicPearl),
+                            isLiked = isPublicPearlLiked(publicPearl.id),
+                            onToggleLike = { onTogglePublicPearlLike(publicPearl) },
                             modifier = Modifier.fillMaxWidth(),
                             onClick = { onPearlClick(pearl) },
                         )
