@@ -95,8 +95,29 @@ data class LegacyBackupFolderV1(
 )
 
 data class BackupRestoreSummary(
-    val pearlsRestored: Int,
-    val foldersRestored: Int,
-    val mediaRestored: Int,
-    val mediaSkipped: Int,
+    val pearlsAdded: Int = 0,
+    val pearlsUpdated: Int = 0,
+    val foldersAdded: Int = 0,
+    val mediaRestored: Int = 0,
+    val mediaSkipped: Int = 0,
+) {
+    /** @deprecated use explicit fields; kept for call-site compatibility */
+    val pearlsRestored: Int get() = pearlsAdded + pearlsUpdated
+    val foldersRestored: Int get() = foldersAdded
+}
+
+/** Counts shown before the user confirms merge or replace (iOS-aligned). */
+data class RestorePreview(
+    val pearlsToAdd: Int = 0,
+    val pearlsToUpdate: Int = 0,
+    val pearlsUnchanged: Int = 0,
+    val pearlsToRemove: Int = 0,
+    val foldersToAdd: Int = 0,
+    val mediaFilesInBackup: Int = 0,
+    val backupCreatedAt: Long = 0L,
 )
+
+enum class RestoreMode {
+    Merge,
+    Replace,
+}

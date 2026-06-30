@@ -28,6 +28,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -52,6 +56,8 @@ fun PublicFeedCard(
     val darkTheme = isPearlDarkTheme()
     val cardTheme = publicPearlCardTheme(pearl, theme)
 
+    val cardLabel = pearl.titleDisplay.ifBlank { "Community pearl" }
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -64,6 +70,10 @@ fun PublicFeedCard(
                 shape = cardShape,
             )
             .background(PearlColors.glassOverlay(darkTheme))
+            .semantics {
+                contentDescription = "$cardLabel. Community pearl."
+                role = Role.Button
+            }
             .clickable(onClick = onClick),
     ) {
         PublicFeedCardHeader(cardTheme = cardTheme)

@@ -167,6 +167,8 @@ fun FeedScreen(
                             isPublicPearlLiked = isPublicPearlLiked,
                             publicPearlLikeCount = publicPearlLikeCount,
                             onTogglePublicPearlLike = onTogglePublicPearlLike,
+                            hasAnyPearlsInFeed = uiState.pearls.isNotEmpty(),
+                            onCreateFirstPearl = { onCaptureMenuOpenChange(true) },
                             modifier = Modifier.weight(1f),
                             listState = feedListState,
                             chromeScrollEnabled = !captureMenuOpen,
@@ -199,6 +201,8 @@ fun FeedScreen(
                             isPublicPearlLiked = isPublicPearlLiked,
                             publicPearlLikeCount = publicPearlLikeCount,
                             onTogglePublicPearlLike = onTogglePublicPearlLike,
+                            hasAnyPearlsInFeed = uiState.pearls.isNotEmpty(),
+                            emptySearchQuery = uiState.searchQuery.takeIf { it.isNotBlank() },
                             modifier = Modifier.weight(1f),
                             listState = searchListState,
                             chromeScrollEnabled = false,
@@ -267,6 +271,7 @@ fun FeedScreen(
                         hideDistance = FeedChromeMetrics.fabHideDistance,
                     )
                     .padding(end = 20.dp, bottom = PearlLayout.addButtonBottomPadding),
+                theme = theme,
             )
         }
     }

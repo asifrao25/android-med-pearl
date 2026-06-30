@@ -77,6 +77,15 @@ interface KnowledgePearlDao {
     @Query("DELETE FROM pearl_folder_cross_ref WHERE pearlId = :pearlId AND folderId = :folderId")
     suspend fun removePearlFromFolder(pearlId: String, folderId: String)
 
+    @Query("DELETE FROM pearl_folder_cross_ref WHERE pearlId = :pearlId")
+    suspend fun deleteAllFolderCrossRefsForPearl(pearlId: String)
+
+    @Query("DELETE FROM pearl_folder_cross_ref")
+    suspend fun deleteAllFolderCrossRefs()
+
+    @Query("DELETE FROM knowledge_pearls")
+    suspend fun deleteAllPearls()
+
     @Query(
         """
         SELECT p.* FROM knowledge_pearls p

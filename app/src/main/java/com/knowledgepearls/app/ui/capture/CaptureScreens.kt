@@ -19,6 +19,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.knowledgepearls.app.data.capture.PickedMedia
 
+import com.knowledgepearls.app.ui.theme.TabTheme
+
+private fun captureTabTheme(destination: PearlCaptureDestination): TabTheme =
+    if (destination == PearlCaptureDestination.MyFeedAndPublic) TabTheme.PublicFeed else TabTheme.Feed
+
 private data class CaptureDestinationConfig(
     val shareToPublicFeed: Boolean,
     val showShareToPublicToggle: Boolean,
@@ -81,6 +86,7 @@ fun QuickTextCaptureScreen(
         captureDestinationConfig(isSignedIn, captureDestination)
     }
     val shareState = rememberShareToPublicFeed(isSignedIn, captureDestination)
+    val tabTheme = captureTabTheme(captureDestination)
     val attachments = remember { mutableStateListOf<PickedMedia>() }
     val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
     val pickers = rememberMediaPickers(onMediaPicked = { attachments.add(it) })
@@ -111,6 +117,7 @@ fun QuickTextCaptureScreen(
             isSaveDisabled = title.isBlank(),
             isSaving = isSaving,
             onBack = onBack,
+            theme = tabTheme,
             showShareToPublicToggle = shareState.showToggle,
             shareToPublicFeed = shareState.value,
             onShareToPublicFeedChange = shareState.onChange,
@@ -144,6 +151,7 @@ fun WebLinkCaptureScreen(
         captureDestinationConfig(isSignedIn, captureDestination)
     }
     val shareState = rememberShareToPublicFeed(isSignedIn, captureDestination)
+    val tabTheme = captureTabTheme(captureDestination)
     val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
     val previewState by viewModel.linkPreview.collectAsStateWithLifecycle()
     val kind = CaptureKind.WebLink
@@ -178,6 +186,7 @@ fun WebLinkCaptureScreen(
             isSaveDisabled = url.isBlank(),
             isSaving = isSaving,
             onBack = onBack,
+            theme = tabTheme,
             showShareToPublicToggle = shareState.showToggle,
             shareToPublicFeed = shareState.value,
             onShareToPublicFeedChange = shareState.onChange,
@@ -218,6 +227,7 @@ fun AddMediaCaptureScreen(
         captureDestinationConfig(isSignedIn, captureDestination)
     }
     val shareState = rememberShareToPublicFeed(isSignedIn, captureDestination)
+    val tabTheme = captureTabTheme(captureDestination)
     val attachments = remember { mutableStateListOf<PickedMedia>() }
     val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
     val pickers = rememberMediaPickers(onMediaPicked = { attachments.add(it) })
@@ -259,6 +269,7 @@ fun AddMediaCaptureScreen(
             isSaveDisabled = title.isBlank() || attachments.isEmpty(),
             isSaving = isSaving,
             onBack = onBack,
+            theme = tabTheme,
             showShareToPublicToggle = shareState.showToggle,
             shareToPublicFeed = shareState.value,
             onShareToPublicFeedChange = shareState.onChange,
@@ -293,6 +304,7 @@ fun ClinicalCaseCaptureScreen(
         captureDestinationConfig(isSignedIn, captureDestination)
     }
     val shareState = rememberShareToPublicFeed(isSignedIn, captureDestination)
+    val tabTheme = captureTabTheme(captureDestination)
     val examMedia = remember { mutableStateListOf<PickedMedia>() }
     val investigationMedia = remember { mutableStateListOf<PickedMedia>() }
     val discussionMedia = remember { mutableStateListOf<PickedMedia>() }
@@ -334,6 +346,7 @@ fun ClinicalCaseCaptureScreen(
             isSaveDisabled = title.isBlank() || history.isBlank(),
             isSaving = isSaving,
             onBack = onBack,
+            theme = tabTheme,
             showShareToPublicToggle = shareState.showToggle,
             shareToPublicFeed = shareState.value,
             onShareToPublicFeedChange = shareState.onChange,

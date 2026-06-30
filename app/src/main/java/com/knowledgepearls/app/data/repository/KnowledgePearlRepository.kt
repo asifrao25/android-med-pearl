@@ -64,6 +64,8 @@ class KnowledgePearlRepository @Inject constructor(
 
     suspend fun getAllPearls(): List<KnowledgePearlEntity> = pearlDao.getAll()
 
+    suspend fun getAllFolders(): List<FolderEntity> = folderDao.getAll()
+
     suspend fun getAllFolderCrossRefs(): List<PearlFolderCrossRef> = pearlDao.getAllFolderCrossRefs()
 
     suspend fun getAllMedia(): List<PearlMediaEntity> = mediaDao.getAll()
@@ -118,6 +120,17 @@ class KnowledgePearlRepository @Inject constructor(
 
     suspend fun removePearlFromFolder(pearlId: String, folderId: String) {
         pearlDao.removePearlFromFolder(pearlId, folderId)
+    }
+
+    suspend fun clearFolderMemberships(pearlId: String) {
+        pearlDao.deleteAllFolderCrossRefsForPearl(pearlId)
+    }
+
+    suspend fun clearAllLocalLibrary() {
+        mediaDao.deleteAll()
+        pearlDao.deleteAllFolderCrossRefs()
+        pearlDao.deleteAllPearls()
+        folderDao.deleteAll()
     }
 
     suspend fun getPearlsInFolder(folderId: String): List<KnowledgePearlEntity> =

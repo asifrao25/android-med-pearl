@@ -36,6 +36,9 @@ class BackupRepository @Inject constructor(
     private val backupDir: File
         get() = File(context.filesDir, "Backups").also { it.mkdirs() }
 
+    private val restorer: BackupRestorer
+        get() = BackupRestorer(pearlRepository, mediaStorage)
+
     suspend fun createBackup(): BackupFileInfo {
         val payload = buildPayload()
         val stamp = SimpleDateFormat("yyyy-MM-dd'T'HH-mm-ss", Locale.US).format(Date())
@@ -61,15 +64,27 @@ class BackupRepository @Inject constructor(
             ?.sortedByDescending { it.createdAt }
             .orEmpty()
 
-    suspend fun restoreBackup(path: String): BackupRestoreSummary =
-        restorePayload(readPayloadFromText(File(path).readText()))
+    suspend fun loadPayloadFromPath(path: String): BackupPayloadV2 =
+        readPayloadFromText(File(path).readText())
 
-    suspend fun restoreBackupFromUri(uri: Uri): BackupRestoreSummary {
+    suspend fun loadPayloadFromUri(uri: Uri): BackupPayloadV2 {
         val text = context.contentResolver.openInputStream(uri)?.use { input ->
             input.bufferedReader().readText()
         } ?: error("Could not read the selected backup file.")
-        return restorePayload(readPayloadFromText(text))
+        return readPayloadFromText(text)
     }
+
+    suspend fun previewMerge(payload: BackupPayloadV2): RestorePreview =
+        restorer.previewMerge(payload)
+
+    suspend fun previewReplace(payload: BackupPayloadV2): RestorePreview =
+        restorer.previewReplace(payload)
+
+    suspend fun merge(payload: BackupPayloadV2): BackupRestoreSummary =
+        restorer.merge(payload)
+
+    suspend fun replace(payload: BackupPayloadV2): BackupRestoreSummary =
+        restorer.replace(payload)
 
     fun copyBackupToUri(sourcePath: String, destinationUri: Uri) {
         val bytes = File(sourcePath).readBytes()
@@ -144,100 +159,6 @@ class BackupRepository @Inject constructor(
         )
     }
 
-    private suspend fun restorePayload(payload: BackupPayloadV2): BackupRestoreSummary {
-        var mediaRestored = 0
-        var mediaSkipped = 0
-
-        payload.folders.forEach { folder ->
-            pearlRepository.upsertFolder(
-                com.knowledgepearls.app.data.local.entity.FolderEntity(
-                    id = folder.id,
-                    name = folder.name,
-                    createdAt = folder.createdAt,
-                ),
-            )
-        }
-
-        payload.pearls.forEach { dto ->
-            val linkPreviewPath = dto.linkPreviewImageBase64?.let { encoded ->
-                runCatching {
-                    val bytes = Base64.decode(encoded, Base64.NO_WRAP)
-                    mediaStorage.saveBytes(bytes, "jpg")
-                }.getOrNull()
-            }
-
-            pearlRepository.upsertPearl(
-                KnowledgePearlEntity(
-                    id = dto.id,
-                    title = dto.title,
-                    notes = dto.notes,
-                    sourceURL = dto.sourceURL,
-                    linkPreviewImagePath = linkPreviewPath,
-                    linkPreviewDescription = dto.linkPreviewDescription,
-                    sourceReference = dto.sourceReference,
-                    createdAt = dto.createdAt,
-                    updatedAt = dto.updatedAt,
-                    tags = dto.tags,
-                    contentKind = dto.contentKind,
-                    casePayloadJSON = dto.casePayloadJSON,
-                    isSharedPublicly = dto.isSharedPublicly,
-                    publicPearlID = dto.publicPearlID,
-                    publicPearlStatus = dto.publicPearlStatus,
-                    publicFeedSnapshot = dto.publicFeedSnapshot,
-                    isSharedFromFriend = dto.isSharedFromFriend,
-                    sharedByUserID = dto.sharedByUserID,
-                    sharedByName = dto.sharedByName,
-                    sharedByAvatarURL = dto.sharedByAvatarURL,
-                    friendShareID = dto.friendShareID,
-                    isFavourite = dto.isFavourite,
-                ),
-            )
-
-            pearlRepository.deleteMediaForPearl(dto.id)
-            val restoredMedia = dto.media.mapNotNull { mediaDto ->
-                val bytes = mediaDto.dataBase64?.let { encoded ->
-                    runCatching { Base64.decode(encoded, Base64.NO_WRAP) }.getOrNull()
-                }
-                if (bytes == null) {
-                    mediaSkipped++
-                    return@mapNotNull null
-                }
-                val extension = extensionFor(mediaDto.filename, fallbackForType(mediaDto.type))
-                val localPath = runCatching {
-                    mediaStorage.saveBytes(bytes, extension)
-                }.getOrNull()
-                if (localPath == null) {
-                    mediaSkipped++
-                    return@mapNotNull null
-                }
-                mediaRestored++
-                PearlMediaEntity(
-                    id = mediaDto.id,
-                    pearlId = dto.id,
-                    type = mediaDto.type,
-                    localPath = localPath,
-                    filename = mediaDto.filename,
-                    sectionTag = mediaDto.sectionTag,
-                    createdAt = mediaDto.createdAt,
-                )
-            }
-            if (restoredMedia.isNotEmpty()) {
-                pearlRepository.upsertMediaItems(restoredMedia)
-            }
-
-            dto.folderIds.forEach { folderId ->
-                runCatching { pearlRepository.addPearlToFolder(dto.id, folderId) }
-            }
-        }
-
-        return BackupRestoreSummary(
-            pearlsRestored = payload.pearls.size,
-            foldersRestored = payload.folders.size,
-            mediaRestored = mediaRestored,
-            mediaSkipped = mediaSkipped,
-        )
-    }
-
     private fun readPayloadFromText(text: String): BackupPayloadV2 {
         val root = json.parseToJsonElement(text).jsonObject
         return when (root.formatVersionOrNull()) {
@@ -296,18 +217,6 @@ class BackupRepository @Inject constructor(
             mediaCount = payload.mediaCount,
             fileSizeBytes = length(),
         )
-
-    private fun extensionFor(filename: String, fallback: String): String {
-        val ext = filename.substringAfterLast('.', "").lowercase()
-        return ext.ifBlank { fallback }
-    }
-
-    private fun fallbackForType(type: String): String = when (type.lowercase()) {
-        "video" -> "mp4"
-        "pdf" -> "pdf"
-        "document" -> "pdf"
-        else -> "jpg"
-    }
 
     data class BackupFileInfo(
         val id: String,

@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import com.knowledgepearls.app.ui.components.PearlActionOutcome
 import com.knowledgepearls.app.ui.components.PearlAlreadyInFeedAlert
 import com.knowledgepearls.app.ui.components.PublicFeedOfflineState
+import com.knowledgepearls.app.ui.feed.PearlInlineErrorBanner
 import com.knowledgepearls.app.ui.feed.FeedEmptyFilterAlert
 import com.knowledgepearls.app.ui.feed.FeedPearlAuthorInfo
 import com.knowledgepearls.app.ui.feed.PearlFeedAuthorLayout
@@ -500,6 +501,7 @@ fun PublicFeedScreen(
                         },
                     )
                     .padding(end = 20.dp, bottom = floatingAddButtonBottomPadding),
+                theme = theme,
             )
         }
 
@@ -557,16 +559,16 @@ fun PublicFeedScreen(
             )
         }
 
-        uiState.errorMessage?.takeIf { uiState.pearls.isNotEmpty() }?.let {
-            TextButton(
-                onClick = onDismissError,
+        uiState.errorMessage?.takeIf { uiState.pearls.isNotEmpty() }?.let { message ->
+            PearlInlineErrorBanner(
+                message = message,
+                theme = theme,
+                onDismiss = onDismissError,
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .statusBarsPadding()
-                    .padding(top = 64.dp),
-            ) {
-                Text(it, color = PearlColors.heroSecondary(darkTheme))
-            }
+                    .padding(top = 56.dp),
+            )
         }
     }
 }

@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import android.net.Uri
 import com.knowledgepearls.app.data.backup.BackupRepository
 import com.knowledgepearls.app.data.backup.BackupRestoreSummary
+import com.knowledgepearls.app.data.backup.RestoreMode
 import com.knowledgepearls.app.data.cache.DeviceCacheRepository
 import com.knowledgepearls.app.data.model.PublicPearl
 import com.knowledgepearls.app.data.prefs.AppearancePreferences
@@ -36,11 +37,23 @@ data class SettingsUiState(
     val errorMessage: String? = null,
     val isDeletingAccount: Boolean = false,
     val cacheClearedAlert: CacheClearedAlert? = null,
+    val pendingRestore: PendingRestoreState? = null,
 )
 
 data class CacheClearedAlert(
     val bytesFreedLabel: String,
     val effectSummary: String,
+)
+
+data class PendingRestoreState(
+    val path: String? = null,
+    val uri: Uri? = null,
+    val backupCreatedAt: Long,
+    val pearlCount: Int,
+    val folderCount: Int,
+    val mediaCount: Int,
+    val mergePreview: com.knowledgepearls.app.data.backup.RestorePreview,
+    val replacePreview: com.knowledgepearls.app.data.backup.RestorePreview,
 )
 
 @HiltViewModel
@@ -152,12 +165,52 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun restoreBackup(path: String) {
+    fun prepareRestoreFromPath(path: String) {
         viewModelScope.launch {
             _uiState.update { it.copy(isBackupBusy = true, errorMessage = null) }
             runCatching {
-                val summary = backupRepository.restoreBackup(path)
-                _uiState.update { it.copy(statusMessage = summary.toUserMessage()) }
+                val payload = backupRepository.loadPayloadFromPath(path)
+                presentRestoreChoice(path = path, uri = null, payload = payload)
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(errorMessage = error.message ?: "Could not read this backup.")
+                }
+            }
+            _uiState.update { it.copy(isBackupBusy = false) }
+        }
+    }
+
+    fun prepareRestoreFromUri(uri: Uri) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isBackupBusy = true, errorMessage = null) }
+            runCatching {
+                val payload = backupRepository.loadPayloadFromUri(uri)
+                presentRestoreChoice(path = null, uri = uri, payload = payload)
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        errorMessage = error.message ?: "This file isn't a valid Med Pearls backup.",
+                    )
+                }
+            }
+            _uiState.update { it.copy(isBackupBusy = false) }
+        }
+    }
+
+    fun confirmRestoreMerge() {
+        val pending = _uiState.value.pendingRestore ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isBackupBusy = true, errorMessage = null) }
+            runCatching {
+                val payload = loadPendingPayload(pending)
+                val summary = backupRepository.merge(payload)
+                loadBackups()
+                _uiState.update {
+                    it.copy(
+                        pendingRestore = null,
+                        statusMessage = summary.toUserMessage(mode = RestoreMode.Merge),
+                    )
+                }
             }.onFailure { error ->
                 _uiState.update { it.copy(errorMessage = error.message ?: "Restore failed.") }
             }
@@ -165,21 +218,65 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun importBackup(uri: Uri) {
+    fun confirmRestoreReplace() {
+        val pending = _uiState.value.pendingRestore ?: return
         viewModelScope.launch {
             _uiState.update { it.copy(isBackupBusy = true, errorMessage = null) }
             runCatching {
-                val summary = backupRepository.restoreBackupFromUri(uri)
+                val payload = loadPendingPayload(pending)
+                val summary = backupRepository.replace(payload)
                 loadBackups()
-                _uiState.update { it.copy(statusMessage = summary.toUserMessage(prefix = "Import complete.")) }
-            }.onFailure { error ->
                 _uiState.update {
-                    it.copy(errorMessage = error.message ?: "This file isn't a valid Med Pearls backup.")
+                    it.copy(
+                        pendingRestore = null,
+                        statusMessage = summary.toUserMessage(
+                            prefix = "Replace complete.",
+                            mode = RestoreMode.Replace,
+                        ),
+                    )
                 }
+            }.onFailure { error ->
+                _uiState.update { it.copy(errorMessage = error.message ?: "Replace failed.") }
             }
             _uiState.update { it.copy(isBackupBusy = false) }
         }
     }
+
+    fun cancelPendingRestore() {
+        _uiState.update { it.copy(pendingRestore = null) }
+    }
+
+    private suspend fun presentRestoreChoice(
+        path: String?,
+        uri: Uri?,
+        payload: com.knowledgepearls.app.data.backup.BackupPayloadV2,
+    ) {
+        val mergePreview = backupRepository.previewMerge(payload)
+        val replacePreview = backupRepository.previewReplace(payload)
+        _uiState.update {
+            it.copy(
+                pendingRestore = PendingRestoreState(
+                    path = path,
+                    uri = uri,
+                    backupCreatedAt = payload.createdAt,
+                    pearlCount = payload.pearlCount,
+                    folderCount = payload.folderCount,
+                    mediaCount = payload.mediaCount,
+                    mergePreview = mergePreview,
+                    replacePreview = replacePreview,
+                ),
+            )
+        }
+    }
+
+    private suspend fun loadPendingPayload(
+        pending: PendingRestoreState,
+    ): com.knowledgepearls.app.data.backup.BackupPayloadV2 =
+        when {
+            pending.path != null -> backupRepository.loadPayloadFromPath(pending.path)
+            pending.uri != null -> backupRepository.loadPayloadFromUri(pending.uri)
+            else -> error("No backup source selected.")
+        }
 
     fun saveBackupToUri(sourcePath: String, destinationUri: Uri) {
         viewModelScope.launch {
@@ -194,12 +291,30 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    private fun BackupRestoreSummary.toUserMessage(prefix: String = "Restore complete."): String {
+    private fun BackupRestoreSummary.toUserMessage(
+        prefix: String = "Restore complete.",
+        mode: RestoreMode? = null,
+    ): String {
+        val pearlPart = when (mode) {
+            RestoreMode.Merge -> when {
+                pearlsAdded > 0 && pearlsUpdated > 0 ->
+                    "$pearlsAdded pearl(s) added, $pearlsUpdated updated"
+                pearlsAdded > 0 -> "$pearlsAdded pearl(s) added"
+                pearlsUpdated > 0 -> "$pearlsUpdated pearl(s) updated"
+                else -> "No pearl changes"
+            }
+            RestoreMode.Replace -> "$pearlsAdded pearl(s) loaded"
+            null -> "$pearlsRestored pearl(s)"
+        }
+        val folderPart = when {
+            foldersAdded > 0 -> "$foldersAdded folder(s)"
+            else -> "0 folders"
+        }
         val mediaNote = when {
             mediaSkipped > 0 -> " $mediaSkipped attachment(s) could not be restored."
             else -> ""
         }
-        return "$prefix ${pearlsRestored} pearls, ${foldersRestored} folders, and $mediaRestored attachments.$mediaNote"
+        return "$prefix $pearlPart, $folderPart, and $mediaRestored attachment(s).$mediaNote"
     }
 
     fun measureCache() {

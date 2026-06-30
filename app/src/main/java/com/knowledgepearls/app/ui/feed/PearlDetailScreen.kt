@@ -101,6 +101,17 @@ fun PearlDetailScreen(
     val theme = tabHeader.theme
     val darkTheme = isPearlDarkTheme()
     val loadedPearl = pearl
+    var showNotFound by remember(pearlId) { mutableStateOf(false) }
+
+    LaunchedEffect(pearlId, loadedPearl) {
+        if (loadedPearl != null) {
+            showNotFound = false
+            return@LaunchedEffect
+        }
+        showNotFound = false
+        kotlinx.coroutines.delay(1500)
+        showNotFound = true
+    }
 
     LaunchedEffect(loadedPearl?.pearl?.decodedPublicPearl()) {
         loadedPearl?.pearl?.decodedPublicPearl()?.let { publicPearl ->
@@ -129,7 +140,14 @@ fun PearlDetailScreen(
                         .fillMaxWidth(),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text("Loading…", color = PearlColors.heroSecondary(darkTheme))
+                    if (showNotFound) {
+                        PearlDetailNotFoundState(
+                            theme = theme,
+                            onBack = onBack,
+                        )
+                    } else {
+                        PearlDetailLoadingState(theme = theme)
+                    }
                 }
             } else {
                 val item = loadedPearl

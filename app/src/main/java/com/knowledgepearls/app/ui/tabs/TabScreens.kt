@@ -27,6 +27,8 @@ import com.knowledgepearls.app.ui.feed.FeedScreen
 import com.knowledgepearls.app.ui.account.AccountViewModel
 import com.knowledgepearls.app.ui.feed.FeedAuthorContext
 import com.knowledgepearls.app.ui.feed.FeedViewModel
+import com.knowledgepearls.app.ui.feed.PearlDetailLoadingState
+import com.knowledgepearls.app.ui.feed.PearlDetailNotFoundState
 import com.knowledgepearls.app.ui.feed.PearlDetailScreen
 import com.knowledgepearls.app.ui.publicfeed.PublicFeedScreen
 import com.knowledgepearls.app.ui.publicfeed.PublicFeedViewModel
@@ -514,7 +516,10 @@ fun PublicFeedTabScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center,
                     ) {
-                        CircularProgressIndicator(color = TabTheme.PublicFeed.primary)
+                        PearlDetailLoadingState(
+                            theme = TabTheme.PublicFeed,
+                            message = "Loading pearl…",
+                        )
                     }
                 }
                 pearl == null -> {
@@ -522,15 +527,11 @@ fun PublicFeedTabScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("This pearl could not be loaded.")
-                            TextButton(
-                                onClick = { navController.popBackStack() },
-                                modifier = Modifier.padding(top = 8.dp),
-                            ) {
-                                Text("Go back")
-                            }
-                        }
+                        PearlDetailNotFoundState(
+                            theme = TabTheme.PublicFeed,
+                            message = "This pearl could not be loaded.",
+                            onBack = { navController.popBackStack() },
+                        )
                     }
                 }
                 else -> {

@@ -15,6 +15,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.knowledgepearls.app.ui.components.GlassSurface
@@ -33,15 +35,26 @@ fun PublicPearlLikeButton(
     showCount: Boolean = true,
 ) {
     val darkTheme = isPearlDarkTheme()
+    val likeDescription = when {
+        isLiked && likeCount == 1 -> "Unlike. 1 like"
+        isLiked -> "Unlike. $likeCount likes"
+        likeCount == 1 -> "Like. 1 like"
+        else -> "Like. $likeCount likes"
+    }
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        IconButton(onClick = onToggleLike, modifier = Modifier.size(36.dp)) {
+        IconButton(
+            onClick = onToggleLike,
+            modifier = Modifier
+                .size(36.dp)
+                .semantics { contentDescription = likeDescription },
+        ) {
             Icon(
                 imageVector = if (isLiked) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUpOffAlt,
-                contentDescription = if (isLiked) "Unlike" else "Like",
+                contentDescription = null,
                 tint = if (isLiked) theme.primary else PearlColors.heroSecondary(darkTheme),
                 modifier = Modifier.size(20.dp),
             )

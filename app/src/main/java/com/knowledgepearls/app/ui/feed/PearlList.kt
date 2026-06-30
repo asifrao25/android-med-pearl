@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
@@ -24,6 +25,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.knowledgepearls.app.data.local.model.PearlWithMedia
 import com.knowledgepearls.app.data.local.model.rememberPublicPearlForCard
@@ -50,6 +56,9 @@ fun PearlList(
     isPublicPearlLiked: (String) -> Boolean = { false },
     publicPearlLikeCount: (com.knowledgepearls.app.data.model.PublicPearl) -> Int = { it.likeCount },
     onTogglePublicPearlLike: (com.knowledgepearls.app.data.model.PublicPearl) -> Unit = {},
+    hasAnyPearlsInFeed: Boolean = true,
+    emptySearchQuery: String? = null,
+    onCreateFirstPearl: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     theme: TabTheme = TabTheme.Feed,
     listState: LazyListState = rememberLazyListState(),
@@ -71,6 +80,9 @@ fun PearlList(
         isPublicPearlLiked = isPublicPearlLiked,
         publicPearlLikeCount = publicPearlLikeCount,
         onTogglePublicPearlLike = onTogglePublicPearlLike,
+        hasAnyPearlsInFeed = hasAnyPearlsInFeed,
+        emptySearchQuery = emptySearchQuery,
+        onCreateFirstPearl = onCreateFirstPearl,
         enableSwipeHintOnFirst = !swipeHintDismissed,
         onSwipeHintDismiss = {
             SwipeRowHintStorage.dismiss(context)
@@ -95,6 +107,9 @@ private fun PearlListContent(
     isPublicPearlLiked: (String) -> Boolean,
     publicPearlLikeCount: (com.knowledgepearls.app.data.model.PublicPearl) -> Int,
     onTogglePublicPearlLike: (com.knowledgepearls.app.data.model.PublicPearl) -> Unit,
+    hasAnyPearlsInFeed: Boolean,
+    emptySearchQuery: String?,
+    onCreateFirstPearl: (() -> Unit)?,
     enableSwipeHintOnFirst: Boolean,
     onSwipeHintDismiss: () -> Unit,
     modifier: Modifier = Modifier,
@@ -111,11 +126,32 @@ private fun PearlListContent(
             modifier = modifier.fillMaxSize(),
             contentAlignment = Alignment.Center,
         ) {
-            Text(
-                text = "No pearls match your filters.",
-                style = MaterialTheme.typography.bodyLarge,
-                color = PearlColors.heroSecondary(darkTheme),
-            )
+            when {
+                !hasAnyPearlsInFeed && onCreateFirstPearl != null -> {
+                    MyFeedFirstRunEmptyState(
+                        theme = theme,
+                        onCreatePearl = onCreateFirstPearl,
+                    )
+                }
+                !emptySearchQuery.isNullOrBlank() -> {
+                    Text(
+                        text = "No pearls match \"$emptySearchQuery\".",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = PearlColors.heroSecondary(darkTheme),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 32.dp),
+                    )
+                }
+                else -> {
+                    Text(
+                        text = "No pearls match your filters.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = PearlColors.heroSecondary(darkTheme),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 32.dp),
+                    )
+                }
+            }
         }
         return
     }
@@ -170,11 +206,16 @@ private fun PearlListContent(
                             onClick = { onPearlClick(pearl) },
                         )
                     } else {
+                        val cardLabel = pearl.pearl.title.ifBlank { "Untitled pearl" }
                         PearlCard(
                             pearl = pearl,
                             theme = theme,
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .semantics {
+                                    contentDescription = "$cardLabel. Pearl card."
+                                    role = Role.Button
+                                }
                                 .clickable { onPearlClick(pearl) },
                         )
                     }

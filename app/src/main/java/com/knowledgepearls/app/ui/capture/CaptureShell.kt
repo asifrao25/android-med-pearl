@@ -38,6 +38,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.knowledgepearls.app.ui.components.GlassSurface
 import com.knowledgepearls.app.ui.theme.LiquidBackground
@@ -54,13 +58,13 @@ fun CaptureShell(
     isSaving: Boolean,
     onBack: () -> Unit,
     onSave: () -> Unit,
+    theme: TabTheme = TabTheme.Feed,
     showShareToPublicToggle: Boolean = false,
     shareToPublicFeed: Boolean = false,
     onShareToPublicFeedChange: (Boolean) -> Unit = {},
     content: @Composable () -> Unit,
 ) {
     val darkTheme = isPearlDarkTheme()
-    val theme = TabTheme.Feed
     val imeBottom = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
     val keyboardVisible = imeBottom > 0.dp
     val footerBottomPadding = if (keyboardVisible) 8.dp else PearlLayout.tabBarOverlayInset
@@ -258,10 +262,16 @@ fun GlowingAddButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     onBeforeOpen: (() -> Boolean)? = null,
+    theme: TabTheme = TabTheme.Feed,
 ) {
+    val description = if (isMenuOpen) "Close capture menu" else "Create pearl"
     Box(
         modifier = modifier
             .size(PearlLayout.addButtonSize)
+            .semantics {
+                contentDescription = description
+                role = Role.Button
+            }
             .clip(CircleShape)
             .background(
                 brush = Brush.linearGradient(

@@ -39,4 +39,7 @@ interface FolderDao {
 
     @Delete
     suspend fun delete(folder: FolderEntity)
+
+    @Query("DELETE FROM folders")
+    suspend fun deleteAll()
 }

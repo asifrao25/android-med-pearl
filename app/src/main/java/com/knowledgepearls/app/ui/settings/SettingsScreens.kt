@@ -115,8 +115,11 @@ fun SettingsScreen(
     onSetAppFontChoice: (AppFontChoice) -> Unit,
     onLoadBackups: () -> Unit,
     onCreateBackup: (onCreated: ((BackupRepository.BackupFileInfo) -> Unit)?) -> Unit,
-    onRestoreBackup: (String) -> Unit,
-    onImportBackup: (Uri) -> Unit,
+    onPrepareRestore: (String) -> Unit,
+    onPrepareImport: (Uri) -> Unit,
+    onConfirmRestoreMerge: () -> Unit,
+    onConfirmRestoreReplace: () -> Unit,
+    onCancelPendingRestore: () -> Unit,
     onSaveBackupToUri: (String, Uri) -> Unit,
     onMeasureCache: () -> Unit,
     onClearCache: () -> Unit,
@@ -180,8 +183,11 @@ fun SettingsScreen(
                     onBack = { onNavigate(SettingsRoute.Main) },
                     onLoad = onLoadBackups,
                     onCreate = onCreateBackup,
-                    onRestore = onRestoreBackup,
-                    onImport = onImportBackup,
+                    onPrepareRestore = onPrepareRestore,
+                    onPrepareImport = onPrepareImport,
+                    onConfirmRestoreMerge = onConfirmRestoreMerge,
+                    onConfirmRestoreReplace = onConfirmRestoreReplace,
+                    onCancelPendingRestore = onCancelPendingRestore,
                     onSaveToUri = onSaveBackupToUri,
                 )
                 SettingsRoute.DeviceCache -> DeviceCacheScreen(
@@ -465,20 +471,22 @@ private fun BackupRestoreScreen(
     onBack: () -> Unit,
     onLoad: () -> Unit,
     onCreate: (onCreated: ((BackupRepository.BackupFileInfo) -> Unit)?) -> Unit,
-    onRestore: (String) -> Unit,
-    onImport: (Uri) -> Unit,
+    onPrepareRestore: (String) -> Unit,
+    onPrepareImport: (Uri) -> Unit,
+    onConfirmRestoreMerge: () -> Unit,
+    onConfirmRestoreReplace: () -> Unit,
+    onCancelPendingRestore: () -> Unit,
     onSaveToUri: (String, Uri) -> Unit,
 ) {
     val theme = TabTheme.Settings
     val darkTheme = isPearlDarkTheme()
     val context = LocalContext.current
-    var pendingRestorePath by remember { mutableStateOf<String?>(null) }
     var pendingSavePath by remember { mutableStateOf<String?>(null) }
 
     val importLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
     ) { uri ->
-        if (uri != null) onImport(uri)
+        if (uri != null) onPrepareImport(uri)
     }
 
     val saveLauncher = rememberLauncherForActivityResult(
@@ -509,31 +517,13 @@ private fun BackupRestoreScreen(
         context.startActivity(Intent.createChooser(intent, "Export backup"))
     }
 
-    pendingRestorePath?.let { path ->
-        AlertDialog(
-            onDismissRequest = { pendingRestorePath = null },
-            title = { Text("Restore this backup?") },
-            text = {
-                Text(
-                    "Pearls and attachments from this backup will be added or updated on this device. " +
-                        "Existing pearls with the same ID will be replaced. This cannot be undone.",
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        onRestore(path)
-                        pendingRestorePath = null
-                    },
-                ) {
-                    Text("Restore")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingRestorePath = null }) {
-                    Text("Cancel")
-                }
-            },
+    settingsState.pendingRestore?.let { pending ->
+        RestoreModeDialog(
+            pending = pending,
+            isBusy = settingsState.isBackupBusy,
+            onDismiss = onCancelPendingRestore,
+            onMerge = onConfirmRestoreMerge,
+            onReplace = onConfirmRestoreReplace,
         )
     }
 
@@ -543,9 +533,7 @@ private fun BackupRestoreScreen(
         onBack = onBack,
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState()),
+            modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             BackupInstructionCard(
@@ -675,7 +663,7 @@ private fun BackupRestoreScreen(
                                 }
                             }
                             OutlinedButton(
-                                onClick = { pendingRestorePath = backup.path },
+                                onClick = { onPrepareRestore(backup.path) },
                                 enabled = !settingsState.isBackupBusy,
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
