@@ -33,9 +33,11 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.knowledgepearls.app.ui.theme.AppearanceMode
+import com.knowledgepearls.app.ui.theme.AppFontChoice
 import com.knowledgepearls.app.ui.theme.PearlColors
 import com.knowledgepearls.app.ui.theme.PearlLayout
 import com.knowledgepearls.app.ui.theme.TabTheme
+import com.knowledgepearls.app.ui.theme.fontFamilyFor
 import com.knowledgepearls.app.ui.theme.isPearlDarkTheme
 
 enum class SettingsSectionAccent {
@@ -246,6 +248,73 @@ fun AppearanceModeRow(
                 text = subtitle,
                 color = PearlColors.heroSecondary(darkTheme),
                 style = MaterialTheme.typography.labelSmall,
+            )
+        }
+
+        Icon(
+            imageVector = if (isSelected) Icons.Default.CheckCircle else Icons.Default.Circle,
+            contentDescription = null,
+            tint = if (isSelected) theme.primary else PearlColors.heroSecondary(darkTheme).copy(alpha = 0.55f),
+            modifier = Modifier.size(20.dp),
+        )
+    }
+}
+
+@Composable
+fun AppFontChoiceRow(
+    choice: AppFontChoice,
+    isSelected: Boolean,
+    theme: TabTheme,
+    onClick: () -> Unit,
+) {
+    val darkTheme = isPearlDarkTheme()
+    val previewFamily = fontFamilyFor(choice)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(theme.primary.copy(alpha = if (isSelected) 0.22f else 0.14f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = "Aa",
+                fontFamily = previewFamily,
+                fontWeight = FontWeight.SemiBold,
+                color = if (isSelected) theme.primary else PearlColors.heroSecondary(darkTheme),
+                style = MaterialTheme.typography.titleMedium,
+            )
+        }
+
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                text = choice.label,
+                color = PearlColors.heroPrimary(darkTheme),
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            Text(
+                text = choice.subtitle,
+                color = PearlColors.heroSecondary(darkTheme),
+                style = MaterialTheme.typography.labelSmall,
+            )
+            Text(
+                text = choice.previewLine,
+                color = PearlColors.heroPrimary(darkTheme),
+                fontFamily = previewFamily,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
             )
         }
 

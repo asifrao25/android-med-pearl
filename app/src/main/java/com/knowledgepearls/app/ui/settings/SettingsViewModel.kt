@@ -9,6 +9,7 @@ import com.knowledgepearls.app.data.prefs.AppearancePreferences
 import com.knowledgepearls.app.data.repository.AccountRepository
 import com.knowledgepearls.app.data.repository.PublicFeedSharingRepository
 import com.knowledgepearls.app.ui.theme.AppearanceMode
+import com.knowledgepearls.app.ui.theme.AppFontChoice
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -52,6 +53,13 @@ class SettingsViewModel @Inject constructor(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = AppearanceMode.System,
+        )
+
+    val appFontChoice: StateFlow<AppFontChoice> =
+        appearancePreferences.appFontChoice.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = AppFontChoice.Inter,
         )
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -101,6 +109,12 @@ class SettingsViewModel @Inject constructor(
     fun setAppearanceMode(mode: AppearanceMode) {
         viewModelScope.launch {
             appearancePreferences.setAppearanceMode(mode)
+        }
+    }
+
+    fun setAppFontChoice(choice: AppFontChoice) {
+        viewModelScope.launch {
+            appearancePreferences.setAppFontChoice(choice)
         }
     }
 

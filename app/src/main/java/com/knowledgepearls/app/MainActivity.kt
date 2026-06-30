@@ -76,8 +76,9 @@ class MainActivity : ComponentActivity() {
         setContent {
             val settingsViewModel: SettingsViewModel = hiltViewModel()
             val appearanceMode by settingsViewModel.appearanceMode.collectAsStateWithLifecycle()
+            val appFontChoice by settingsViewModel.appFontChoice.collectAsStateWithLifecycle()
 
-            MedPearlsTheme(appearanceMode = appearanceMode) {
+            MedPearlsTheme(appearanceMode = appearanceMode, fontChoice = appFontChoice) {
                 MainScaffold(
                     accountViewModel = accountViewModel,
                     settingsViewModel = settingsViewModel,

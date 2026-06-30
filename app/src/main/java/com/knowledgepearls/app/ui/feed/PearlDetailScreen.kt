@@ -44,9 +44,11 @@ import com.knowledgepearls.app.data.local.model.isSharedToPublicFeed
 import com.knowledgepearls.app.data.local.model.isUserEditable
 import com.knowledgepearls.app.ui.components.DetailDockAction
 import com.knowledgepearls.app.ui.components.LiquidDetailDock
+import com.knowledgepearls.app.ui.components.PersistentTabScreenHeader
 import com.knowledgepearls.app.ui.components.SharedPearlSubmissionSuccessAlert
 import com.knowledgepearls.app.ui.components.SharedPearlSubmitAlert
 import com.knowledgepearls.app.ui.components.SourceReferenceRequiredAlert
+import com.knowledgepearls.app.ui.components.TabHeaderContext
 import com.knowledgepearls.app.ui.folders.FolderPickerOverlay
 import com.knowledgepearls.app.ui.folders.FoldersViewModel
 import com.knowledgepearls.app.ui.publicfeed.PublicPearlMediaViewerOverlay
@@ -62,10 +64,12 @@ fun PearlDetailScreen(
     pearlId: String,
     viewModel: FeedViewModel,
     feedAuthorContext: FeedAuthorContext,
+    tabHeader: TabHeaderContext,
     onResolveAvatarUrl: suspend (String) -> String?,
     onBack: () -> Unit,
     isSignedIn: Boolean,
     onSignInRequired: () -> Unit,
+    onOpenSettings: () -> Unit = {},
     onOpenUserProfile: (String) -> Unit = {},
     foldersViewModel: FoldersViewModel = hiltViewModel(),
 ) {
@@ -89,31 +93,39 @@ fun PearlDetailScreen(
     var editSourceReference by remember { mutableStateOf("") }
     var editTags by remember { mutableStateOf("") }
     var editClinicalPayload by remember { mutableStateOf(ClinicalCasePayload()) }
-    val theme = TabTheme.Feed
+    val theme = tabHeader.theme
     val darkTheme = isPearlDarkTheme()
+    val loadedPearl = pearl
 
     Box(Modifier.fillMaxSize()) {
         LiquidBackground(theme = theme, intensity = 0.5f)
 
-        if (pearl == null) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Loading…", color = PearlColors.heroSecondary(darkTheme))
-            }
-        } else {
-            val item = pearl!!
-            val entity = item.pearl
-            val publicPearl = entity.decodedPublicPearl()
-            val isSharedToPublic = entity.isSharedToPublicFeed()
-            val canEdit = entity.isUserEditable()
-            val author = FeedPearlAuthorInfo.resolve(item, feedAuthorContext, publicPearl)
-            val profileUserId = author.userId ?: feedAuthorContext.userId
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .imePadding(),
+        ) {
+            PersistentTabScreenHeader(
+                context = tabHeader,
+                onSettingsClick = onOpenSettings,
+            )
 
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .statusBarsPadding()
-                    .imePadding(),
-            ) {
+            if (loadedPearl == null) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text("Loading…", color = PearlColors.heroSecondary(darkTheme))
+                }
+            } else {
+                val item = loadedPearl
+                val entity = item.pearl
+                val author = FeedPearlAuthorInfo.resolve(item, feedAuthorContext, entity.decodedPublicPearl())
+                val profileUserId = author.userId ?: feedAuthorContext.userId
+
                 PearlDetailAuthorBar(
                     displayName = author.displayName,
                     avatarUrl = author.avatarUrl,
@@ -138,7 +150,7 @@ fun PearlDetailScreen(
                     }
 
                     when {
-                        isEditing && canEdit -> {
+                        isEditing && entity.isUserEditable() -> {
                             PearlEditableDetailContent(
                                 pearl = item,
                                 theme = theme,
@@ -155,14 +167,14 @@ fun PearlDetailScreen(
                                 onOpenMedia = { mediaViewerRequest = it },
                             )
                         }
-                        publicPearl != null && item.mediaItems.isEmpty() -> {
+                        entity.decodedPublicPearl() != null && item.mediaItems.isEmpty() -> {
                             SavedPublicPearlDetailContent(
-                                publicPearl = publicPearl,
+                                publicPearl = entity.decodedPublicPearl()!!,
                                 theme = theme,
                                 onOpenMedia = { mediaViewerRequest = it },
                             )
                         }
-                        item.pearl.isClinicalCase() -> {
+                        entity.isClinicalCase() -> {
                             LocalClinicalCaseDetailContent(
                                 pearl = item,
                                 theme = theme,
@@ -179,6 +191,12 @@ fun PearlDetailScreen(
                     }
                 }
             }
+        }
+
+        loadedPearl?.let { item ->
+            val entity = item.pearl
+            val canEdit = entity.isUserEditable()
+            val isSharedToPublic = entity.isSharedToPublicFeed()
 
             LiquidDetailDock(
                 theme = theme,

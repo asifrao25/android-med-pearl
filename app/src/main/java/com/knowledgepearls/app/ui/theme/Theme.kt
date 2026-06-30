@@ -40,6 +40,7 @@ val LocalAppearanceMode = staticCompositionLocalOf { AppearanceMode.System }
 @Composable
 fun MedPearlsTheme(
     appearanceMode: AppearanceMode = AppearanceMode.Dark,
+    fontChoice: AppFontChoice = AppFontChoice.Inter,
     content: @Composable () -> Unit,
 ) {
     val darkTheme = when (appearanceMode) {
@@ -53,7 +54,7 @@ fun MedPearlsTheme(
     CompositionLocalProvider(LocalAppearanceMode provides appearanceMode) {
         MaterialTheme(
             colorScheme = colorScheme,
-            typography = PearlTypography,
+            typography = pearlTypography(fontChoice),
             content = content,
         )
     }

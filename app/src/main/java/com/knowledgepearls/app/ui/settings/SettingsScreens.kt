@@ -61,6 +61,7 @@ import com.knowledgepearls.app.ui.components.TabScreenHeader
 import com.knowledgepearls.app.ui.profile.SettingsProfileAvatar
 import com.knowledgepearls.app.ui.publicfeed.PendingSubmissionsScreen
 import com.knowledgepearls.app.ui.theme.AppearanceMode
+import com.knowledgepearls.app.ui.theme.AppFontChoice
 import com.knowledgepearls.app.ui.theme.LiquidBackground
 import com.knowledgepearls.app.ui.theme.PearlColors
 import com.knowledgepearls.app.ui.theme.PearlLayout
@@ -84,6 +85,7 @@ fun SettingsScreen(
     accountState: AccountUiState,
     settingsState: SettingsUiState,
     appearanceMode: AppearanceMode,
+    appFontChoice: AppFontChoice,
     onDismiss: () -> Unit,
     onNavigate: (SettingsRoute) -> Unit,
     onSignIn: () -> Unit,
@@ -92,6 +94,7 @@ fun SettingsScreen(
     onLoadPending: () -> Unit,
     onWithdrawSubmission: (com.knowledgepearls.app.data.model.PublicPearl) -> Unit,
     onSetAppearance: (AppearanceMode) -> Unit,
+    onSetAppFontChoice: (AppFontChoice) -> Unit,
     onLoadBackups: () -> Unit,
     onCreateBackup: () -> Unit,
     onRestoreBackup: (String) -> Unit,
@@ -130,12 +133,14 @@ fun SettingsScreen(
                     accountState = accountState,
                     settingsState = settingsState,
                     appearanceMode = appearanceMode,
+                    appFontChoice = appFontChoice,
                     onDismiss = onDismiss,
                     onNavigate = onNavigate,
                     onSignIn = onSignIn,
                     onOpenProfile = onOpenProfile,
                     onSignOut = onSignOut,
                     onSetAppearance = onSetAppearance,
+                    onSetAppFontChoice = onSetAppFontChoice,
                 )
                 SettingsRoute.PendingSubmissions -> {
                     LaunchedEffect(Unit) { onLoadPending() }
@@ -185,12 +190,14 @@ private fun SettingsMainScreen(
     accountState: AccountUiState,
     settingsState: SettingsUiState,
     appearanceMode: AppearanceMode,
+    appFontChoice: AppFontChoice,
     onDismiss: () -> Unit,
     onNavigate: (SettingsRoute) -> Unit,
     onSignIn: () -> Unit,
     onOpenProfile: () -> Unit,
     onSignOut: () -> Unit,
     onSetAppearance: (AppearanceMode) -> Unit,
+    onSetAppFontChoice: (AppFontChoice) -> Unit,
 ) {
     val theme = TabTheme.Settings
     val darkTheme = isPearlDarkTheme()
@@ -284,6 +291,25 @@ private fun SettingsMainScreen(
                                 isSelected = appearanceMode == mode,
                                 theme = theme,
                                 onClick = { onSetAppearance(mode) },
+                            )
+                        }
+                    }
+                }
+            }
+
+            item {
+                SettingsSectionHeader(title = "Text font")
+                SettingsMenuCard(theme = theme) {
+                    Column {
+                        AppFontChoice.entries.forEachIndexed { index, choice ->
+                            if (index > 0) {
+                                SettingsMenuDivider()
+                            }
+                            AppFontChoiceRow(
+                                choice = choice,
+                                isSelected = appFontChoice == choice,
+                                theme = theme,
+                                onClick = { onSetAppFontChoice(choice) },
                             )
                         }
                     }

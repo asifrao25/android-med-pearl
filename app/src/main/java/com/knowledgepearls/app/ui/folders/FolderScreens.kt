@@ -51,6 +51,7 @@ import androidx.navigation.compose.rememberNavController
 import com.knowledgepearls.app.data.local.model.FolderWithCount
 import com.knowledgepearls.app.data.local.model.PearlWithMedia
 import com.knowledgepearls.app.ui.components.GlassSurface
+import com.knowledgepearls.app.ui.components.tabHeaderContext
 import com.knowledgepearls.app.ui.feed.FeedAuthorContext
 import com.knowledgepearls.app.ui.feed.FeedViewModel
 import com.knowledgepearls.app.ui.feed.PearlDeleteConfirmationDialog
@@ -163,6 +164,10 @@ fun FolderContentsScreen(
                         pearlId = pearlId,
                         viewModel = feedViewModel,
                         feedAuthorContext = feedAuthorContext,
+                        tabHeader = TabTheme.Folders.tabHeaderContext(
+                            title = folderName,
+                            showsSettingsButton = false,
+                        ),
                         onResolveAvatarUrl = onResolveAvatarUrl,
                         onBack = { navController.popBackStack() },
                         isSignedIn = accountState.isSignedIn,

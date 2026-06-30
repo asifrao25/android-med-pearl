@@ -27,9 +27,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.knowledgepearls.app.data.model.PublicPearl
 import com.knowledgepearls.app.ui.components.DetailDockAction
+import com.knowledgepearls.app.ui.components.LiquidDetailDock
 import com.knowledgepearls.app.ui.components.PearlActionOutcome
 import com.knowledgepearls.app.ui.components.PearlAlreadyInFeedAlert
-import com.knowledgepearls.app.ui.components.LiquidDetailDock
+import com.knowledgepearls.app.ui.components.PersistentTabScreenHeader
+import com.knowledgepearls.app.ui.components.TabHeaderContext
 import com.knowledgepearls.app.ui.feed.PearlDetailAuthorBar
 import com.knowledgepearls.app.ui.feed.PearlDetailTitleBar
 import com.knowledgepearls.app.ui.feed.PublicPearlDetailBody
@@ -42,6 +44,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun PublicPearlDetailScreen(
     pearl: PublicPearl,
+    tabHeader: TabHeaderContext,
     likeCount: Int,
     commentCount: Int,
     isLiked: Boolean,
@@ -52,6 +55,7 @@ fun PublicPearlDetailScreen(
     commentsError: String?,
     onResolveAvatarUrl: suspend (String) -> String?,
     onBack: () -> Unit,
+    onOpenSettings: () -> Unit = {},
     onOpenUserProfile: (String) -> Unit = {},
     onAddToMyFeed: () -> Unit,
     onHide: () -> Unit,
@@ -63,7 +67,7 @@ fun PublicPearlDetailScreen(
     onCloseComments: () -> Unit,
     onPostComment: (String) -> Unit,
 ) {
-    val theme = TabTheme.PublicFeed
+    val theme = tabHeader.theme
     val context = LocalContext.current
     var mediaViewerRequest by remember(pearl.id) { mutableStateOf<PublicPearlMediaViewerRequest?>(null) }
     var commentsSheetOpen by remember(commentsVisible) { mutableStateOf(commentsVisible) }
@@ -124,6 +128,11 @@ fun PublicPearlDetailScreen(
                 .statusBarsPadding()
                 .imePadding(),
         ) {
+            PersistentTabScreenHeader(
+                context = tabHeader,
+                onSettingsClick = onOpenSettings,
+            )
+
             PearlDetailAuthorBar(
                 displayName = pearl.safeDisplayName.ifBlank { "Unknown" },
                 avatarUrl = null,

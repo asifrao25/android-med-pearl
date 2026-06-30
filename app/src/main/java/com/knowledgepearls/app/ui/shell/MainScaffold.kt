@@ -100,6 +100,7 @@ fun MainScaffold(
     val threadState by inboxViewModel.threadState.collectAsStateWithLifecycle()
     val settingsState by settingsViewModel.uiState.collectAsStateWithLifecycle()
     val appearanceMode by settingsViewModel.appearanceMode.collectAsStateWithLifecycle()
+    val appFontChoice by settingsViewModel.appFontChoice.collectAsStateWithLifecycle()
     val connectivityState by connectivityMonitor.state.collectAsStateWithLifecycle()
     val backendHealthState by backendHealthMonitor.state.collectAsStateWithLifecycle()
     val activityContext = LocalContext.current
@@ -658,6 +659,7 @@ fun MainScaffold(
             accountState = accountState,
             settingsState = settingsState,
             appearanceMode = appearanceMode,
+            appFontChoice = appFontChoice,
             onDismiss = { settingsOpen = false },
             onNavigate = { settingsRoute = it },
             onSignIn = { authOpen = true },
@@ -669,6 +671,7 @@ fun MainScaffold(
             onLoadPending = settingsViewModel::loadPendingSubmissions,
             onWithdrawSubmission = settingsViewModel::withdrawSubmission,
             onSetAppearance = settingsViewModel::setAppearanceMode,
+            onSetAppFontChoice = settingsViewModel::setAppFontChoice,
             onLoadBackups = settingsViewModel::loadBackups,
             onCreateBackup = settingsViewModel::createBackup,
             onRestoreBackup = settingsViewModel::restoreBackup,

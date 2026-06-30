@@ -22,6 +22,7 @@ import com.knowledgepearls.app.ui.capture.ClinicalCaseCaptureScreen
 import com.knowledgepearls.app.ui.capture.PearlCaptureDestination
 import com.knowledgepearls.app.ui.capture.QuickTextCaptureScreen
 import com.knowledgepearls.app.ui.capture.WebLinkCaptureScreen
+import com.knowledgepearls.app.ui.components.tabHeaderContext
 import com.knowledgepearls.app.ui.feed.FeedScreen
 import com.knowledgepearls.app.ui.account.AccountViewModel
 import com.knowledgepearls.app.ui.feed.FeedAuthorContext
@@ -31,6 +32,7 @@ import com.knowledgepearls.app.ui.publicfeed.PublicFeedScreen
 import com.knowledgepearls.app.ui.publicfeed.PublicFeedViewModel
 import com.knowledgepearls.app.data.connectivity.ConnectivityState
 import com.knowledgepearls.app.ui.publicfeed.PublicPearlDetailScreen
+import com.knowledgepearls.app.ui.theme.TabTheme
 
 @Composable
 fun FeedTabScreen(
@@ -129,10 +131,12 @@ fun FeedTabScreen(
                 pearlId = pearlId,
                 viewModel = feedViewModel,
                 feedAuthorContext = feedAuthorContext,
+                tabHeader = TabTheme.Feed.tabHeaderContext(),
                 onResolveAvatarUrl = feedViewModel::fetchAvatarUrl,
                 onBack = { navController.popBackStack() },
                 isSignedIn = accountState.isSignedIn,
                 onSignInRequired = onSignInRequired,
+                onOpenSettings = onOpenSettings,
                 onOpenUserProfile = onOpenUserProfile,
             )
         }
@@ -256,10 +260,12 @@ fun FavouritesTabScreen(
                 pearlId = pearlId,
                 viewModel = feedViewModel,
                 feedAuthorContext = feedAuthorContext,
+                tabHeader = TabTheme.Favourites.tabHeaderContext(),
                 onResolveAvatarUrl = feedViewModel::fetchAvatarUrl,
                 onBack = { navController.popBackStack() },
                 isSignedIn = accountState.isSignedIn,
                 onSignInRequired = onSignInRequired,
+                onOpenSettings = onOpenSettings,
                 onOpenUserProfile = onOpenUserProfile,
             )
         }
@@ -483,6 +489,7 @@ fun PublicFeedTabScreen(
 
             PublicPearlDetailScreen(
                 pearl = pearl,
+                tabHeader = TabTheme.PublicFeed.tabHeaderContext(),
                 likeCount = pearl.likeCount,
                 commentCount = viewModel.commentCount(pearl.id),
                 isLiked = viewModel.isLiked(pearl.id),
@@ -493,6 +500,7 @@ fun PublicFeedTabScreen(
                 commentsError = uiState.commentsError,
                 onResolveAvatarUrl = feedViewModel::fetchAvatarUrl,
                 onBack = { navController.popBackStack() },
+                onOpenSettings = onOpenSettings,
                 onOpenUserProfile = onOpenUserProfile,
                 onAddToMyFeed = { viewModel.addToMyFeed(pearl) },
                 saveOutcome = uiState.actionOutcome,

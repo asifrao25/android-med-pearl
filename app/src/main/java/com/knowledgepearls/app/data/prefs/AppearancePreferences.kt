@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.knowledgepearls.app.ui.theme.AppearanceMode
+import com.knowledgepearls.app.ui.theme.AppFontChoice
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -26,6 +27,11 @@ class AppearancePreferences @Inject constructor(
             }
         }
 
+    val appFontChoice: Flow<AppFontChoice> =
+        context.appearanceDataStore.data.map { prefs ->
+            AppFontChoice.fromStorageKey(prefs[KEY_FONT])
+        }
+
     suspend fun setAppearanceMode(mode: AppearanceMode) {
         context.appearanceDataStore.edit { prefs ->
             prefs[KEY_MODE] = when (mode) {
@@ -36,7 +42,14 @@ class AppearancePreferences @Inject constructor(
         }
     }
 
+    suspend fun setAppFontChoice(choice: AppFontChoice) {
+        context.appearanceDataStore.edit { prefs ->
+            prefs[KEY_FONT] = choice.storageKey
+        }
+    }
+
     companion object {
         private val KEY_MODE = stringPreferencesKey("appearance_mode")
+        private val KEY_FONT = stringPreferencesKey("app_font_choice")
     }
 }
