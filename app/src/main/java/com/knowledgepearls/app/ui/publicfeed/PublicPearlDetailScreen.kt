@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -32,6 +31,7 @@ import com.knowledgepearls.app.ui.components.PearlActionOutcome
 import com.knowledgepearls.app.ui.components.PearlAlreadyInFeedAlert
 import com.knowledgepearls.app.ui.components.PersistentTabScreenHeader
 import com.knowledgepearls.app.ui.components.TabHeaderContext
+import com.knowledgepearls.app.ui.components.keyboardScrollPadding
 import com.knowledgepearls.app.ui.feed.PearlDetailAuthorBar
 import com.knowledgepearls.app.ui.feed.PearlDetailTitleBar
 import com.knowledgepearls.app.ui.feed.PublicPearlDetailBody
@@ -126,7 +126,7 @@ fun PublicPearlDetailScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
-                .imePadding(),
+                .keyboardScrollPadding(),
         ) {
             PersistentTabScreenHeader(
                 context = tabHeader,

@@ -1,6 +1,5 @@
 package com.knowledgepearls.app.ui.messaging
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,7 +13,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -29,6 +28,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -36,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import com.knowledgepearls.app.data.model.MessageProfileResult
 import com.knowledgepearls.app.ui.components.AvatarView
 import com.knowledgepearls.app.ui.components.GlassSurface
+import com.knowledgepearls.app.ui.components.inputBarBottomPadding
 import com.knowledgepearls.app.ui.theme.PearlColors
 import com.knowledgepearls.app.ui.theme.PearlLayout
 import com.knowledgepearls.app.ui.theme.TabTheme
@@ -43,20 +45,28 @@ import com.knowledgepearls.app.ui.theme.isPearlDarkTheme
 import kotlinx.coroutines.delay
 
 @Composable
-fun NewChatSearchOverlay(
-    visible: Boolean,
+fun NewChatSearchScreen(
     theme: TabTheme,
-    onDismiss: () -> Unit,
+    onBack: () -> Unit,
+    onLoadRecent: suspend () -> List<MessageProfileResult>,
     onSearch: suspend (String) -> List<MessageProfileResult>,
     onSelectUser: (MessageProfileResult) -> Unit,
 ) {
-    if (!visible) return
-
-    var query by remember(visible) { mutableStateOf("") }
-    var results by remember(visible) { mutableStateOf<List<MessageProfileResult>>(emptyList()) }
-    var isSearching by remember { mutableStateOf(false) }
     val darkTheme = isPearlDarkTheme()
+    val focusRequester = remember { FocusRequester() }
+
+    var query by remember { mutableStateOf("") }
+    var recentRecipients by remember { mutableStateOf<List<MessageProfileResult>>(emptyList()) }
+    var results by remember { mutableStateOf<List<MessageProfileResult>>(emptyList()) }
+    var isSearching by remember { mutableStateOf(false) }
+
     val isQuerying = query.trim().length >= 2
+    val listProfiles = if (isQuerying) results else recentRecipients
+
+    LaunchedEffect(Unit) {
+        recentRecipients = runCatching { onLoadRecent() }.getOrDefault(emptyList())
+        focusRequester.requestFocus()
+    }
 
     LaunchedEffect(query) {
         val trimmed = query.trim()
@@ -72,95 +82,116 @@ fun NewChatSearchOverlay(
         isSearching = false
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(PearlColors.scrim(darkTheme, 0.55f))
-            .clickable(onClick = onDismiss),
-    ) {
-        Column(
+    Column(modifier = Modifier.fillMaxSize()) {
+        Row(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = PearlLayout.screenHorizontalPadding)
-                .padding(top = 12.dp, bottom = 16.dp)
-                .clickable(enabled = false, onClick = {}),
+                .fillMaxWidth()
+                .padding(horizontal = PearlLayout.screenHorizontalPadding, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = "New Message",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = PearlColors.heroPrimary(darkTheme),
-                    modifier = Modifier.weight(1f),
+            IconButton(onClick = onBack) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    tint = PearlColors.heroPrimary(darkTheme),
                 )
-                IconButton(onClick = onDismiss) {
-                    Icon(
-                        Icons.Default.Close,
-                        contentDescription = "Close",
-                        tint = PearlColors.heroSecondary(darkTheme),
+            }
+            Text(
+                text = "New Message",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = PearlColors.heroPrimary(darkTheme),
+            )
+        }
+
+        OutlinedTextField(
+            value = query,
+            onValueChange = { query = it },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = PearlLayout.screenHorizontalPadding)
+                .focusRequester(focusRequester),
+            placeholder = { Text("Search by name") },
+            singleLine = true,
+            shape = RoundedCornerShape(14.dp),
+        )
+
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .padding(top = 12.dp)
+                .inputBarBottomPadding(fallbackWhenHidden = 12.dp),
+        ) {
+            when {
+                isSearching -> {
+                    CircularProgressIndicator(
+                        modifier = Modifier.align(Alignment.Center),
+                        color = theme.primary,
                     )
                 }
-            }
-
-            OutlinedTextField(
-                value = query,
-                onValueChange = { query = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                placeholder = { Text("Search by name") },
-                singleLine = true,
-                shape = RoundedCornerShape(14.dp),
-            )
-
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .padding(top = 12.dp),
-            ) {
-                when {
-                    isSearching -> {
-                        CircularProgressIndicator(
-                            modifier = Modifier.align(Alignment.Center),
-                            color = theme.primary,
-                        )
-                    }
-                    !isQuerying -> {
+                listProfiles.isEmpty() -> {
+                    Column(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(horizontal = 32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
                         Text(
-                            text = "Type at least 2 characters to find someone.",
+                            text = if (isQuerying) "No users found" else "Type a name to search",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = PearlColors.heroPrimary(darkTheme),
+                        )
+                        Text(
+                            text = if (isQuerying) {
+                                "Try a different name or check that the user accepts messages."
+                            } else {
+                                "People you've messaged recently will appear here."
+                            },
                             style = MaterialTheme.typography.bodyMedium,
                             color = PearlColors.heroSecondary(darkTheme),
                             textAlign = TextAlign.Center,
-                            modifier = Modifier
-                                .align(Alignment.Center)
-                                .padding(horizontal = 24.dp),
                         )
                     }
-                    results.isEmpty() -> {
-                        Text(
-                            text = "No users found who accept messages.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = PearlColors.heroSecondary(darkTheme),
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier
-                                .align(Alignment.Center)
-                                .padding(horizontal = 24.dp),
-                        )
-                    }
-                    else -> {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(vertical = 4.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            items(results, key = { it.id }) { profile ->
-                                NewChatProfileRow(
-                                    profile = profile,
-                                    onClick = { onSelectUser(profile) },
+                }
+                else -> {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(
+                            horizontal = PearlLayout.screenHorizontalPadding,
+                            vertical = 8.dp,
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        if (!isQuerying && recentRecipients.isNotEmpty()) {
+                            item {
+                                Text(
+                                    text = "Recent",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = PearlColors.heroSecondary(darkTheme),
+                                    modifier = Modifier.padding(bottom = 4.dp),
+                                )
+                            }
+                        }
+                        items(listProfiles, key = { it.id }) { profile ->
+                            NewChatProfileRow(
+                                profile = profile,
+                                onClick = { onSelectUser(profile) },
+                            )
+                        }
+                        if (!isQuerying && recentRecipients.isNotEmpty()) {
+                            item {
+                                Text(
+                                    text = "Or search by name above",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = PearlColors.heroSecondary(darkTheme),
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 8.dp),
                                 )
                             }
                         }

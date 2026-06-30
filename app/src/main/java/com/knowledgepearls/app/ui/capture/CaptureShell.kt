@@ -7,13 +7,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -44,6 +39,8 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.knowledgepearls.app.ui.components.GlassSurface
+import com.knowledgepearls.app.ui.components.inputBarBottomPadding
+import com.knowledgepearls.app.ui.components.keyboardScrollPadding
 import com.knowledgepearls.app.ui.theme.LiquidBackground
 import com.knowledgepearls.app.ui.theme.PearlColors
 import com.knowledgepearls.app.ui.theme.PearlLayout
@@ -65,9 +62,6 @@ fun CaptureShell(
     content: @Composable () -> Unit,
 ) {
     val darkTheme = isPearlDarkTheme()
-    val imeBottom = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
-    val keyboardVisible = imeBottom > 0.dp
-    val footerBottomPadding = if (keyboardVisible) 8.dp else PearlLayout.tabBarOverlayInset
 
     Box(Modifier.fillMaxSize()) {
         LiquidBackground(theme = theme, intensity = 0.65f)
@@ -99,6 +93,7 @@ fun CaptureShell(
                 modifier = Modifier
                     .weight(1f)
                     .verticalScroll(rememberScrollState())
+                    .keyboardScrollPadding()
                     .padding(horizontal = PearlLayout.screenHorizontalPadding)
                     .padding(bottom = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -125,8 +120,7 @@ fun CaptureShell(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .imePadding()
-                    .navigationBarsPadding(),
+                    .inputBarBottomPadding(fallbackWhenHidden = PearlLayout.tabBarOverlayInset),
             ) {
                 if (showShareToPublicToggle) {
                     GlassSurface(
@@ -171,7 +165,7 @@ fun CaptureShell(
                             start = PearlLayout.screenHorizontalPadding,
                             end = PearlLayout.screenHorizontalPadding,
                             top = if (showShareToPublicToggle) 8.dp else 12.dp,
-                            bottom = footerBottomPadding,
+                            bottom = 8.dp,
                         ),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = kind.primary,

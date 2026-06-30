@@ -12,8 +12,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -68,6 +66,7 @@ import com.knowledgepearls.app.data.model.PearlShareInboxRow
 import com.knowledgepearls.app.ui.components.AvatarView
 import com.knowledgepearls.app.ui.components.FloatingInboxSheet
 import com.knowledgepearls.app.ui.components.GlassSurface
+import com.knowledgepearls.app.ui.components.inputBarBottomPadding
 import com.knowledgepearls.app.ui.theme.PearlColors
 import com.knowledgepearls.app.ui.theme.PearlLayout
 import com.knowledgepearls.app.ui.theme.TabTheme
@@ -98,6 +97,7 @@ fun InboxScreen(
     onAcceptShare: (String) -> Unit,
     onDeclineShare: (String) -> Unit,
     onSearchUsers: suspend (String) -> List<MessageProfileResult>,
+    onLoadRecentRecipients: suspend () -> List<MessageProfileResult>,
     onStartChat: (MessageProfileResult) -> Unit,
 ) {
     val theme = TabTheme.PublicFeed
@@ -107,19 +107,32 @@ fun InboxScreen(
 
     LaunchedEffect(Unit) { onLoad() }
 
-    Box(Modifier.fillMaxSize()) {
-        FloatingInboxSheet(
-            onDismiss = onDismiss,
-            listState = if (inThread) null else inboxListState,
-        ) {
-            if (inThread) {
+    FloatingInboxSheet(
+        onDismiss = onDismiss,
+        listState = if (inThread || showNewChatSearch) null else inboxListState,
+    ) {
+        when {
+            inThread -> {
                 MessageThreadScreen(
                     state = threadState,
                     theme = theme,
                     onBack = onCloseThread,
                     onSendMessage = onSendMessage,
                 )
-            } else {
+            }
+            showNewChatSearch -> {
+                NewChatSearchScreen(
+                    theme = theme,
+                    onBack = { showNewChatSearch = false },
+                    onLoadRecent = onLoadRecentRecipients,
+                    onSearch = onSearchUsers,
+                    onSelectUser = { profile ->
+                        showNewChatSearch = false
+                        onStartChat(profile)
+                    },
+                )
+            }
+            else -> {
                 InboxListContent(
                     inboxState = inboxState,
                     theme = theme,
@@ -133,17 +146,6 @@ fun InboxScreen(
                 )
             }
         }
-
-        NewChatSearchOverlay(
-            visible = showNewChatSearch && !inThread,
-            theme = theme,
-            onDismiss = { showNewChatSearch = false },
-            onSearch = onSearchUsers,
-            onSelectUser = { profile ->
-                showNewChatSearch = false
-                onStartChat(profile)
-            },
-        )
     }
 }
 
@@ -395,13 +397,13 @@ fun MessageThreadScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = PearlLayout.screenHorizontalPadding)
-                .padding(top = 8.dp, bottom = 12.dp),
+                .padding(top = 8.dp)
+                .inputBarBottomPadding(fallbackWhenHidden = 12.dp),
             cornerRadius = 20.dp,
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .imePadding()
                     .padding(horizontal = 10.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,

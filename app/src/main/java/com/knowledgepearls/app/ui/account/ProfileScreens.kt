@@ -47,6 +47,7 @@ import com.knowledgepearls.app.ui.theme.LiquidBackground
 import com.knowledgepearls.app.ui.theme.PearlColors
 import com.knowledgepearls.app.ui.theme.TabTheme
 import com.knowledgepearls.app.ui.theme.isPearlDarkTheme
+import com.knowledgepearls.app.ui.components.keyboardScrollPadding
 import java.io.ByteArrayOutputStream
 
 private val Teal = Color(0xFF14B8A6)
@@ -205,6 +206,7 @@ private fun ProfileFormScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
+                .keyboardScrollPadding()
                 .padding(horizontal = 24.dp, vertical = 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {

@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import com.knowledgepearls.app.data.model.ShareProfileResult
 import com.knowledgepearls.app.ui.components.GlassSurface
 import com.knowledgepearls.app.ui.components.PearlMaterialAlertDialog
+import com.knowledgepearls.app.ui.components.inputBarBottomPadding
 import com.knowledgepearls.app.ui.theme.LiquidBackground
 import com.knowledgepearls.app.ui.theme.PearlColors
 import com.knowledgepearls.app.ui.theme.PearlLayout
@@ -254,7 +255,7 @@ fun FriendShareOverlay(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = PearlLayout.screenHorizontalPadding)
-                    .padding(bottom = PearlLayout.detailScrollBottomPadding)
+                    .inputBarBottomPadding(fallbackWhenHidden = PearlLayout.detailScrollBottomPadding)
                     .height(50.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = theme.primary),
                 shape = RoundedCornerShape(14.dp),

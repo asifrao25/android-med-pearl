@@ -37,6 +37,7 @@ import com.knowledgepearls.app.ui.theme.LiquidBackground
 import com.knowledgepearls.app.ui.theme.PearlColors
 import com.knowledgepearls.app.ui.theme.TabTheme
 import com.knowledgepearls.app.ui.theme.isPearlDarkTheme
+import com.knowledgepearls.app.ui.components.keyboardScrollPadding
 import kotlinx.coroutines.delay
 
 private val Teal = Color(0xFF14B8A6)
@@ -73,6 +74,7 @@ fun AuthScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
+                    .keyboardScrollPadding()
                     .padding(horizontal = 24.dp),
             ) {
                 Box(

@@ -6,6 +6,8 @@ import com.knowledgepearls.app.data.model.ConversationRow
 import com.knowledgepearls.app.data.model.DirectMessage
 import com.knowledgepearls.app.data.model.PearlShareInboxRow
 import com.knowledgepearls.app.data.model.MessageProfileResult
+import com.knowledgepearls.app.data.prefs.RecentMessageRecipient
+import com.knowledgepearls.app.data.prefs.RecentMessageRecipientsStore
 import com.knowledgepearls.app.data.repository.AccountRepository
 import com.knowledgepearls.app.data.repository.InboxCountsRepository
 import com.knowledgepearls.app.data.repository.MessagingRepository
@@ -35,6 +37,7 @@ data class InboxUiState(
 
 data class MessageThreadUiState(
     val conversationId: String = "",
+    val otherUserId: String = "",
     val otherDisplayName: String = "",
     val otherAvatarUrl: String? = null,
     val currentUserId: String = "",
@@ -52,6 +55,7 @@ class InboxViewModel @Inject constructor(
     private val pearlShareRepository: PearlShareRepository,
     private val inboxCountsRepository: InboxCountsRepository,
     private val accountRepository: AccountRepository,
+    private val recentMessageRecipientsStore: RecentMessageRecipientsStore,
 ) : ViewModel() {
     private val _inboxState = MutableStateFlow(InboxUiState())
     val inboxState: StateFlow<InboxUiState> = _inboxState.asStateFlow()
@@ -103,6 +107,7 @@ class InboxViewModel @Inject constructor(
             val viewer = loadViewerContext()
             _threadState.value = MessageThreadUiState(
                 conversationId = conversation.id,
+                otherUserId = conversation.otherUserId,
                 otherDisplayName = conversation.otherDisplayName,
                 otherAvatarUrl = conversation.otherAvatarUrl,
                 currentUserId = viewer.userId,
@@ -116,6 +121,11 @@ class InboxViewModel @Inject constructor(
                 _threadState.update {
                     it.copy(messages = messages, isLoading = false)
                 }
+                recordRecentRecipient(
+                    userId = conversation.otherUserId,
+                    name = conversation.otherDisplayName,
+                    avatarUrl = conversation.otherAvatarUrl,
+                )
                 loadInbox()
             }.onFailure { error ->
                 _threadState.update {
@@ -146,6 +156,11 @@ class InboxViewModel @Inject constructor(
                         isSending = false,
                     )
                 }
+                recordRecentRecipient(
+                    userId = _threadState.value.otherUserId,
+                    name = _threadState.value.otherDisplayName,
+                    avatarUrl = _threadState.value.otherAvatarUrl,
+                )
                 loadInbox()
             }.onFailure { error ->
                 _threadState.update {
@@ -217,6 +232,7 @@ class InboxViewModel @Inject constructor(
             val viewer = loadViewerContext()
             _inboxState.update { it.copy(selectedTab = InboxTab.Messages, errorMessage = null) }
             _threadState.value = MessageThreadUiState(
+                otherUserId = otherUserId,
                 otherDisplayName = otherDisplayName,
                 otherAvatarUrl = otherAvatarUrl,
                 currentUserId = viewer.userId,
@@ -239,6 +255,11 @@ class InboxViewModel @Inject constructor(
                         isLoading = false,
                     )
                 }
+                recordRecentRecipient(
+                    userId = otherUserId,
+                    name = otherDisplayName,
+                    avatarUrl = otherAvatarUrl,
+                )
             }.onFailure { error ->
                 _threadState.value = MessageThreadUiState()
                 _inboxState.update {
@@ -275,6 +296,37 @@ class InboxViewModel @Inject constructor(
     suspend fun searchUsersForMessage(query: String): List<MessageProfileResult> {
         val userId = accountRepository.currentUserId() ?: return emptyList()
         return messagingRepository.searchProfilesForMessage(query, userId)
+    }
+
+    suspend fun loadRecentMessageRecipients(): List<MessageProfileResult> {
+        val stored = recentMessageRecipientsStore.getRecent().map { recipient ->
+            MessageProfileResult(
+                id = recipient.id,
+                name = recipient.name,
+                avatarUrl = recipient.avatarUrl,
+            )
+        }
+        if (stored.isNotEmpty()) return stored
+        return _inboxState.value.conversations.take(5).map { conversation ->
+            MessageProfileResult(
+                id = conversation.otherUserId,
+                name = conversation.otherDisplayName,
+                avatarUrl = conversation.otherAvatarUrl,
+            )
+        }
+    }
+
+    private fun recordRecentRecipient(userId: String, name: String, avatarUrl: String?) {
+        if (userId.isBlank()) return
+        viewModelScope.launch {
+            recentMessageRecipientsStore.recordRecipient(
+                RecentMessageRecipient(
+                    id = userId,
+                    name = name,
+                    avatarUrl = avatarUrl,
+                ),
+            )
+        }
     }
 
     private data class ViewerContext(

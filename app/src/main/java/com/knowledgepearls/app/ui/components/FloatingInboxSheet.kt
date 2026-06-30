@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import com.knowledgepearls.app.ui.theme.PearlColors
 import com.knowledgepearls.app.ui.theme.PearlLayout
 import com.knowledgepearls.app.ui.theme.isPearlDarkTheme
+import com.knowledgepearls.app.ui.components.isKeyboardVisible
 
 private val inboxFloatingShape = RoundedCornerShape(28.dp)
 
@@ -33,6 +34,8 @@ fun FloatingInboxSheet(
     content: @Composable () -> Unit,
 ) {
     val darkTheme = isPearlDarkTheme()
+    val keyboardVisible = isKeyboardVisible()
+    val sheetBottomInset = if (keyboardVisible) 0.dp else PearlLayout.inboxSheetBottomInset
     val configuration = LocalConfiguration.current
     val sheetHeight = (
         configuration.screenHeightDp * PearlLayout.inboxSheetHeightFraction
@@ -58,7 +61,7 @@ fun FloatingInboxSheet(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(horizontal = PearlLayout.inboxSheetHorizontalInset)
-                .padding(bottom = PearlLayout.inboxSheetBottomInset)
+                .padding(bottom = sheetBottomInset)
                 .fillMaxWidth()
                 .height(sheetHeight)
                 .shadow(28.dp, inboxFloatingShape, clip = false)

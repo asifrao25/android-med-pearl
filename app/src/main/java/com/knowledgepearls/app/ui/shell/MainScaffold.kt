@@ -727,6 +727,7 @@ fun MainScaffold(
                 onAcceptShare = { shareId -> inboxViewModel.respondToShare(shareId, accept = true) },
                 onDeclineShare = { shareId -> inboxViewModel.respondToShare(shareId, accept = false) },
                 onSearchUsers = inboxViewModel::searchUsersForMessage,
+                onLoadRecentRecipients = inboxViewModel::loadRecentMessageRecipients,
                 onStartChat = { profile ->
                     inboxViewModel.openConversationWithUser(
                         otherUserId = profile.id,
