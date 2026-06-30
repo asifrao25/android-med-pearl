@@ -16,8 +16,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 enum class PublicFeedSection(val label: String) {
     NEW("New"),
@@ -26,6 +27,7 @@ enum class PublicFeedSection(val label: String) {
 
 data class PublicFeedUiState(
     val pearls: List<PublicPearl> = emptyList(),
+    val filteredPearls: List<PublicPearl> = emptyList(),
     val feedRefreshGeneration: Int = 0,
     val section: PublicFeedSection = PublicFeedSection.NEW,
     val contentTypeFilter: ContentTypeFilter = ContentTypeFilter.ALL,
@@ -55,17 +57,6 @@ data class PublicFeedUiState(
     val newCount: Int get() = unseenPearls.size
 
     val seenCount: Int get() = seenPearls.size
-
-    val filteredPearls: List<PublicPearl>
-        get() {
-            val sectionPearls = when (section) {
-                PublicFeedSection.NEW -> unseenPearls
-                PublicFeedSection.SEEN -> seenPearls
-            }
-            return sectionPearls
-                .filter { it.matches(contentTypeFilter) }
-                .sortedByDescending { it.feedSortMillis }
-        }
 }
 
 @HiltViewModel
@@ -78,47 +69,38 @@ class PublicFeedViewModel @Inject constructor(
     private var seenIds = repository.getSeenIds()
     private var hiddenIds = repository.getHiddenIds()
     private var blockedUserIds = repository.getBlockedUserIds()
+    private var lastSuccessfulRefreshAt = 0L
+    private var lastForcedRefreshAt = 0L
+    private val feedMutex = Mutex()
 
     private fun isVisible(pearl: PublicPearl): Boolean =
         pearl.id !in hiddenIds && normalizeUserId(pearl.userId) !in blockedUserIds
 
-    private val _uiState = MutableStateFlow(PublicFeedUiState(seenIds = seenIds))
+    private val _uiState = MutableStateFlow(
+        computeFilteredPearls(
+            PublicFeedUiState(seenIds = seenIds),
+        ),
+    )
     val uiState: StateFlow<PublicFeedUiState> = _uiState.asStateFlow()
-    private var loadJob: Job? = null
 
-    fun loadInitial() {
-        loadJob?.cancel()
-        loadJob = viewModelScope.launch {
-            currentOffset = 0
-            seenIds = repository.getSeenIds()
-            hiddenIds = repository.getHiddenIds()
-            blockedUserIds = repository.getBlockedUserIds()
-            _uiState.update {
-                it.copy(
-                    pearls = emptyList(),
-                    feedRefreshGeneration = it.feedRefreshGeneration + 1,
-                    isLoading = true,
-                    hasMore = true,
-                    errorMessage = null,
-                    seenIds = seenIds,
-                )
-            }
-            loadNextPageInternal(reset = true)
-        }
+    /** Called when the Public Feed tab becomes active — always fetches latest page-0 pearls. */
+    fun onTabEntered() {
+        refreshFeed(force = true)
     }
 
-    /** Fetches the latest approved pearls and merges them into the current list. */
-    fun refreshFeed() {
-        loadJob?.cancel()
-        loadJob = viewModelScope.launch {
-            seenIds = repository.getSeenIds()
-            hiddenIds = repository.getHiddenIds()
-            blockedUserIds = repository.getBlockedUserIds()
-            val existing = _uiState.value.pearls
-            if (existing.isEmpty()) {
+    /** Background stale check while the tab stays open (does not run on every resume). */
+    fun refreshFeedIfStale() {
+        refreshFeed(force = false)
+    }
+
+    fun loadInitial() {
+        viewModelScope.launch {
+            feedMutex.withLock {
                 currentOffset = 0
-                _uiState.update {
+                reloadLocalVisibilityState()
+                publish {
                     it.copy(
+                        pearls = emptyList(),
                         feedRefreshGeneration = it.feedRefreshGeneration + 1,
                         isLoading = true,
                         hasMore = true,
@@ -127,70 +109,106 @@ class PublicFeedViewModel @Inject constructor(
                     )
                 }
                 loadNextPageInternal(reset = true)
-                return@launch
             }
+        }
+    }
 
-            _uiState.update { it.copy(isLoading = true, errorMessage = null, seenIds = seenIds) }
-            runCatching {
-                repository.fetchPage(offset = 0)
-            }.onSuccess { page ->
-                val visible = page.filter(::isVisible)
-                val freshIds = visible.map { it.id }.toSet()
-                val hadNew = visible.any { pearl -> existing.none { it.id == pearl.id } }
-                _uiState.update { current ->
-                    current.copy(
-                        pearls = sortNewestFirst(visible + existing.filter { it.id !in freshIds }),
-                        isLoading = false,
-                        feedRefreshGeneration = if (hadNew) {
-                            current.feedRefreshGeneration + 1
-                        } else {
-                            current.feedRefreshGeneration
-                        },
-                        seenIds = seenIds,
-                    )
+    fun refreshFeed(force: Boolean = false) {
+        viewModelScope.launch {
+            if (!shouldRunRefresh(force)) return@launch
+            feedMutex.withLock {
+                reloadLocalVisibilityState()
+                val existing = _uiState.value.pearls
+                if (existing.isEmpty()) {
+                    currentOffset = 0
+                    publish {
+                        it.copy(
+                            feedRefreshGeneration = it.feedRefreshGeneration + 1,
+                            isLoading = true,
+                            hasMore = true,
+                            errorMessage = null,
+                            seenIds = seenIds,
+                        )
+                    }
+                    loadNextPageInternal(reset = true)
+                    return@withLock
                 }
-                syncEngagement(visible.map { it.id })
-            }.onFailure { error ->
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        errorMessage = error.message ?: "Could not refresh public feed.",
-                    )
+
+                publish { it.copy(isLoading = true, errorMessage = null, seenIds = seenIds) }
+                runCatching {
+                    repository.fetchPage(offset = 0)
+                }.onSuccess { page ->
+                    val visible = page.filter(::isVisible)
+                    val freshIds = visible.map { it.id }.toSet()
+                    val hadNew = visible.any { pearl -> existing.none { it.id == pearl.id } }
+                    publish { current ->
+                        current.copy(
+                            pearls = sortNewestFirst(visible + existing.filter { it.id !in freshIds }),
+                            isLoading = false,
+                            feedRefreshGeneration = if (hadNew) {
+                                current.feedRefreshGeneration + 1
+                            } else {
+                                current.feedRefreshGeneration
+                            },
+                            seenIds = seenIds,
+                        )
+                    }
+                    markRefreshSuccess(force)
+                    syncEngagement(visible.map { it.id })
+                }.onFailure { error ->
+                    publish {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = error.message ?: "Could not refresh public feed.",
+                        )
+                    }
                 }
             }
         }
     }
 
     fun loadNextPage() {
-        viewModelScope.launch { loadNextPageInternal(reset = false) }
+        viewModelScope.launch {
+            feedMutex.withLock {
+                loadNextPageInternal(reset = false)
+            }
+        }
     }
 
     private suspend fun loadNextPageInternal(reset: Boolean) {
         val state = _uiState.value
         if (!reset && (state.isLoading || !state.hasMore)) return
 
-        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+        publish { it.copy(isLoading = true, errorMessage = null) }
 
         runCatching {
             repository.fetchPage(offset = currentOffset)
         }.onSuccess { page ->
             if (page.size < PublicFeedRepository.PAGE_SIZE) {
-                _uiState.update { it.copy(hasMore = false) }
+                publish { it.copy(hasMore = false) }
             }
             currentOffset += page.size
             val visible = page.filter(::isVisible)
-            _uiState.update { current ->
+            publish { current ->
                 current.copy(
                     pearls = sortNewestFirst(
                         if (reset) visible else current.pearls + visible,
                     ),
                     isLoading = false,
-                    showEmptyFilterAlert = shouldShowEmptyFilterAlert(current.contentTypeFilter, reset, visible),
-                ).copy(seenIds = seenIds)
+                    showEmptyFilterAlert = shouldShowEmptyFilterAlert(
+                        current.contentTypeFilter,
+                        reset,
+                        visible,
+                    ),
+                    seenIds = seenIds,
+                )
+            }
+            if (reset) {
+                markRefreshSuccess(force = true)
             }
             syncEngagement(visible.map { it.id })
         }.onFailure { error ->
-            _uiState.update {
+            publish {
                 it.copy(
                     isLoading = false,
                     errorMessage = error.message ?: "Could not load public feed.",
@@ -200,11 +218,11 @@ class PublicFeedViewModel @Inject constructor(
     }
 
     fun setSection(section: PublicFeedSection) {
-        _uiState.update { it.copy(section = section) }
+        publish { it.copy(section = section) }
     }
 
     fun setContentTypeFilter(filter: ContentTypeFilter) {
-        _uiState.update {
+        publish {
             it.copy(
                 contentTypeFilter = filter,
                 showEmptyFilterAlert = shouldShowEmptyFilterAlert(filter, reset = false, latestPage = emptyList()),
@@ -225,7 +243,7 @@ class PublicFeedViewModel @Inject constructor(
         if (pearl.id in seenIds) return
         repository.markSeen(pearl.id)
         seenIds = repository.getSeenIds()
-        _uiState.update { it.copy(seenIds = seenIds, showSeenToast = showToast) }
+        publish { it.copy(seenIds = seenIds, showSeenToast = showToast) }
     }
 
     fun dismissSeenToast() {
@@ -235,13 +253,13 @@ class PublicFeedViewModel @Inject constructor(
     fun markUnseen(pearl: PublicPearl) {
         repository.markUnseen(pearl.id)
         seenIds = repository.getSeenIds()
-        _uiState.update { it.copy(seenIds = seenIds) }
+        publish { it.copy(seenIds = seenIds) }
     }
 
     fun blockUser(userId: String) {
         repository.blockUser(userId)
         blockedUserIds = repository.getBlockedUserIds()
-        _uiState.update { current ->
+        publish { current ->
             current.copy(
                 pearls = current.pearls.filter { normalizeUserId(it.userId) !in blockedUserIds },
                 actionOutcome = com.knowledgepearls.app.ui.components.PearlActionOutcome.RemovedFromFeed,
@@ -252,7 +270,7 @@ class PublicFeedViewModel @Inject constructor(
     fun hide(pearl: PublicPearl) {
         hiddenIds = hiddenIds + pearl.id
         repository.hide(pearl.id)
-        _uiState.update { current ->
+        publish { current ->
             current.copy(
                 pearls = current.pearls.filter { it.id != pearl.id },
                 seenIds = seenIds,
@@ -360,7 +378,7 @@ class PublicFeedViewModel @Inject constructor(
                 val liked = _uiState.value.likedPearlIds.toMutableSet()
                 if (currentlyLiked) liked.remove(pearlId) else liked.add(pearlId)
                 val delta = if (currentlyLiked) -1 else 1
-                _uiState.update { state ->
+                publish { state ->
                     state.copy(
                         likedPearlIds = liked,
                         pearls = state.pearls.map { item ->
@@ -452,11 +470,39 @@ class PublicFeedViewModel @Inject constructor(
         if (pearlIds.isEmpty()) return
         runCatching {
             val liked = engagementRepository.fetchLikedPearlIds(userId, pearlIds)
-            val counts = pearlIds.associateWith { id ->
-                runCatching { engagementRepository.fetchCommentCount(id) }.getOrDefault(0)
-            }.mapKeys { it.key.lowercase() }
+            val counts = engagementRepository.fetchCommentCounts(pearlIds)
             _uiState.update { it.copy(likedPearlIds = liked, commentCounts = it.commentCounts + counts) }
         }
+    }
+
+    private fun shouldRunRefresh(force: Boolean): Boolean {
+        val now = System.currentTimeMillis()
+        if (force) {
+            if (lastForcedRefreshAt != 0L && now - lastForcedRefreshAt < TAB_ENTER_DEBOUNCE_MS) {
+                return false
+            }
+            lastForcedRefreshAt = now
+            return true
+        }
+        if (lastSuccessfulRefreshAt == 0L) return true
+        return now - lastSuccessfulRefreshAt >= STALE_AFTER_MS
+    }
+
+    private fun markRefreshSuccess(force: Boolean) {
+        lastSuccessfulRefreshAt = System.currentTimeMillis()
+        if (force) {
+            lastForcedRefreshAt = lastSuccessfulRefreshAt
+        }
+    }
+
+    private fun reloadLocalVisibilityState() {
+        seenIds = repository.getSeenIds()
+        hiddenIds = repository.getHiddenIds()
+        blockedUserIds = repository.getBlockedUserIds()
+    }
+
+    private fun publish(transform: (PublicFeedUiState) -> PublicFeedUiState) {
+        _uiState.update { computeFilteredPearls(transform(it)) }
     }
 
     private fun shouldShowEmptyFilterAlert(
@@ -474,4 +520,20 @@ class PublicFeedViewModel @Inject constructor(
             compareByDescending<PublicPearl> { it.feedSortMillis }
                 .thenByDescending { it.id },
         )
+
+    private companion object {
+        const val TAB_ENTER_DEBOUNCE_MS = 2_000L
+        const val STALE_AFTER_MS = 5 * 60_000L
+    }
+}
+
+private fun computeFilteredPearls(state: PublicFeedUiState): PublicFeedUiState {
+    val sectionPearls = when (state.section) {
+        PublicFeedSection.NEW -> state.pearls.filter { it.id !in state.seenIds }
+        PublicFeedSection.SEEN -> state.pearls.filter { it.id in state.seenIds }
+    }
+    val filtered = sectionPearls
+        .filter { it.matches(state.contentTypeFilter) }
+        .sortedByDescending { it.feedSortMillis }
+    return state.copy(filteredPearls = filtered)
 }

@@ -1,5 +1,7 @@
 package com.knowledgepearls.app.data.local.model
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import com.knowledgepearls.app.data.local.entity.KnowledgePearlEntity
 import com.knowledgepearls.app.data.model.PublicPearl
 import kotlinx.serialization.json.Json
@@ -17,3 +19,9 @@ fun KnowledgePearlEntity.isSavedFromPublicFeed(): Boolean = decodedPublicPearl()
 /** Locally captured pearls the user can edit — not friend shares or public-feed saves. */
 fun KnowledgePearlEntity.isUserEditable(): Boolean =
     !isSharedFromFriend && !isSavedFromPublicFeed()
+
+@Composable
+fun rememberDecodedPublicPearl(pearl: KnowledgePearlEntity): PublicPearl? =
+    remember(pearl.id, pearl.publicFeedSnapshot) {
+        pearl.decodedPublicPearl()
+    }

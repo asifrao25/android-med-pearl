@@ -1,5 +1,6 @@
 package com.knowledgepearls.app.data.repository
 
+import com.knowledgepearls.app.data.cache.AvatarUrlCache
 import com.knowledgepearls.app.data.model.UserProfile
 import com.knowledgepearls.app.data.model.normalizeUserId
 import com.knowledgepearls.app.data.remote.SupabaseConfig
@@ -54,6 +55,7 @@ enum class EmailSignUpOutcome {
 @Singleton
 class AccountRepository @Inject constructor(
     private val supabase: SupabaseClient,
+    private val avatarUrlCache: AvatarUrlCache,
 ) {
     suspend fun currentUserId(): String? =
         supabase.auth.currentSessionOrNull()?.user?.id
@@ -151,6 +153,7 @@ class AccountRepository @Inject constructor(
     }
 
     suspend fun signOut() {
+        avatarUrlCache.clear()
         supabase.auth.signOut()
     }
 
@@ -178,13 +181,18 @@ class AccountRepository @Inject constructor(
 
     suspend fun fetchAvatarUrl(userId: String): String? {
         if (userId.isBlank() || !isAuthenticated()) return null
-        return runCatching {
+        if (avatarUrlCache.isCached(userId)) {
+            return avatarUrlCache.get(userId)
+        }
+        val url = runCatching {
             val rows = supabase.from("profiles").select {
                 filter { eq("id", userId) }
                 limit(1)
             }.decodeList<AvatarUrlRow>()
             rows.firstOrNull()?.avatarUrl
         }.getOrNull()
+        avatarUrlCache.put(userId, url)
+        return url
     }
 
     suspend fun fetchProfile(userId: String): UserProfile? {
@@ -301,6 +309,7 @@ class AccountRepository @Inject constructor(
         supabase.from("profiles").update(AvatarPatch(avatarUrl)) {
             filter { eq("id", userId) }
         }
+        avatarUrlCache.put(userId, avatarUrl)
     }
 
     fun isAuthenticated(): Boolean =

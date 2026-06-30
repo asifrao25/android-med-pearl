@@ -24,7 +24,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.knowledgepearls.app.data.local.model.PearlWithMedia
-import com.knowledgepearls.app.data.local.model.decodedPublicPearl
+import com.knowledgepearls.app.data.local.model.rememberDecodedPublicPearl
 import com.knowledgepearls.app.ui.components.PearlSwipeAction
 import com.knowledgepearls.app.ui.components.PearlSwipeRow
 import com.knowledgepearls.app.ui.components.SwipeRowHintStorage
@@ -107,7 +107,7 @@ private fun PearlListContent(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         items(pearls, key = { it.pearl.id }) { pearl ->
-            val publicPearl = pearl.pearl.decodedPublicPearl()
+            val publicPearl = rememberDecodedPublicPearl(pearl.pearl)
             val author = FeedPearlAuthorInfo.resolve(pearl, feedAuthorContext, publicPearl)
             val showHint = enableSwipeHintOnFirst && pearl == pearls.first()
 

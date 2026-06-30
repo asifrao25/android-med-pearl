@@ -24,8 +24,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 data class FeedUiState(
@@ -106,7 +108,8 @@ class FeedViewModel @Inject constructor(
             isSharingPearl = sharing,
             shareErrorMessage = shareError,
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FeedUiState())
+    }.flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FeedUiState())
 
     fun setSearchQuery(query: String) {
         searchQuery.value = query
@@ -144,9 +147,15 @@ class FeedViewModel @Inject constructor(
     fun confirmDelete() {
         val target = deleteTarget.value ?: return
         viewModelScope.launch {
-            pearlRepository.deletePearl(target.pearl.id)
-            deleteTarget.value = null
-            actionSuccessMessage.value = "Pearl deleted"
+            runCatching {
+                pearlRepository.deletePearl(target.pearl.id)
+            }.onSuccess {
+                deleteTarget.value = null
+                actionSuccessMessage.value = "Pearl deleted"
+            }.onFailure { error ->
+                deleteTarget.value = null
+                shareErrorMessage.value = error.message ?: "Could not delete pearl"
+            }
         }
     }
 
@@ -246,14 +255,23 @@ class FeedViewModel @Inject constructor(
 
     fun confirmDeleteForPearl(pearlId: String) {
         viewModelScope.launch {
-            pearlRepository.deletePearl(pearlId)
-            actionSuccessMessage.value = "Pearl deleted"
+            runCatching {
+                pearlRepository.deletePearl(pearlId)
+            }.onSuccess {
+                actionSuccessMessage.value = "Pearl deleted"
+            }.onFailure { error ->
+                shareErrorMessage.value = error.message ?: "Could not delete pearl"
+            }
         }
     }
 
     fun toggleFavourite(pearlId: String) {
         viewModelScope.launch {
-            pearlRepository.toggleFavourite(pearlId)
+            runCatching {
+                pearlRepository.toggleFavourite(pearlId)
+            }.onFailure { error ->
+                shareErrorMessage.value = error.message ?: "Could not update favourite"
+            }
         }
     }
 

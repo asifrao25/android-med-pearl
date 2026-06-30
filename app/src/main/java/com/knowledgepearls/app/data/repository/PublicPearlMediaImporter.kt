@@ -5,9 +5,6 @@ import com.knowledgepearls.app.data.local.entity.PearlMediaEntity
 import com.knowledgepearls.app.data.media.MediaStorage
 import com.knowledgepearls.app.data.model.PublicPearl
 import com.knowledgepearls.app.data.model.PublicPearlMediaItem
-import java.net.URL
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 object PublicPearlMediaImporter {
     suspend fun importMediaItems(
@@ -19,10 +16,9 @@ object PublicPearlMediaImporter {
         items.forEach { item ->
             val remoteUrl = item.loadableUrl ?: return@forEach
             runCatching {
-                val bytes = withContext(Dispatchers.IO) { URL(remoteUrl).readBytes() }
                 val filename = item.resolvedFilename
                 val extension = filename.substringAfterLast('.', "jpg")
-                val localPath = mediaStorage.saveBytes(bytes, extension)
+                val localPath = mediaStorage.saveFromUrl(remoteUrl, extension)
                 val type = when {
                     item.isVideo -> MediaType.VIDEO
                     item.isDocument -> MediaType.DOCUMENT

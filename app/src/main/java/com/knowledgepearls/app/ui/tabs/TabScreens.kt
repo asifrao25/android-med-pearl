@@ -301,18 +301,8 @@ fun PublicFeedTabScreen(
     val publicFeedDestination = PearlCaptureDestination.MyFeedAndPublic
     val onPublicCaptureSaved: () -> Unit = {
         feedViewModel.showCaptureSavedMessage()
-        viewModel.refreshFeed()
+        viewModel.refreshFeed(force = true)
         navController.popBackStack("public_feed", false)
-    }
-
-    DisposableEffect(navController, accountState.isSignedIn) {
-        val listener = androidx.navigation.NavController.OnDestinationChangedListener { _, destination, _ ->
-            if (accountState.isSignedIn && destination.route == "public_feed") {
-                viewModel.refreshFeed()
-            }
-        }
-        navController.addOnDestinationChangedListener(listener)
-        onDispose { navController.removeOnDestinationChangedListener(listener) }
     }
 
     LaunchedEffect(initialPearlId, accountState.isSignedIn, uiState.pearls.isNotEmpty()) {
@@ -357,7 +347,7 @@ fun PublicFeedTabScreen(
                 onResolveAvatarUrl = feedViewModel::fetchAvatarUrl,
                 onOpenUserProfile = onOpenUserProfile,
                 onLoadInitial = viewModel::loadInitial,
-                onRefreshFeed = viewModel::refreshFeed,
+                onRefreshFeed = { viewModel.refreshFeed(force = true) },
                 onLoadNextPage = viewModel::loadNextPage,
                 onSectionSelected = viewModel::setSection,
                 onContentTypeSelected = viewModel::setContentTypeFilter,
@@ -462,7 +452,7 @@ fun PublicFeedTabScreen(
                     onResolveAvatarUrl = feedViewModel::fetchAvatarUrl,
                     onOpenUserProfile = onOpenUserProfile,
                     onLoadInitial = viewModel::loadInitial,
-                onRefreshFeed = viewModel::refreshFeed,
+                onRefreshFeed = { viewModel.refreshFeed(force = true) },
                     onLoadNextPage = viewModel::loadNextPage,
                     onSectionSelected = viewModel::setSection,
                     onContentTypeSelected = viewModel::setContentTypeFilter,

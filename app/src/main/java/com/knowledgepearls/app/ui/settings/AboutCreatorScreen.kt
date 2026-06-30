@@ -30,8 +30,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -66,7 +66,7 @@ fun AboutCreatorScreen(
 ) {
     val theme = TabTheme.Settings
     val darkTheme = isPearlDarkTheme()
-    val creatorUserId by viewModel.creatorUserId.collectAsState()
+    val creatorUserId by viewModel.creatorUserId.collectAsStateWithLifecycle()
     var showCreationStoryAlert by remember { mutableStateOf(false) }
 
     if (showCreationStoryAlert) {

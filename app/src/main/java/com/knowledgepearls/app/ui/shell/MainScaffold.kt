@@ -1,8 +1,6 @@
 package com.knowledgepearls.app.ui.shell
 
 import androidx.compose.animation.Crossfade
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,7 +16,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -67,7 +64,6 @@ import com.knowledgepearls.app.ui.publicfeed.PublicFeedSectionTabs
 import com.knowledgepearls.app.ui.publicfeed.PublicFeedSeenFocusScrim
 import com.knowledgepearls.app.ui.publicfeed.PublicFeedViewModel
 import com.knowledgepearls.app.ui.publicfeed.PublicPearlSaveOverlay
-import com.knowledgepearls.app.ui.publicfeed.PublicFeedSeenFocusEffect
 import com.knowledgepearls.app.ui.theme.PearlLayout
 import com.knowledgepearls.app.ui.theme.TabTheme
 import dagger.hilt.android.EntryPointAccessors
@@ -235,25 +231,11 @@ fun MainScaffold(
         accountViewModel.restoreSession()
     }
 
-    LaunchedEffect(showSplash, accountState.isSignedIn) {
-        if (!showSplash && accountState.isSignedIn) {
-            accountViewModel.runForegroundSync()
-        }
-    }
-
     val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner, showSplash, accountState.isSignedIn, selectedTab) {
+    DisposableEffect(lifecycleOwner, showSplash, accountState.isSignedIn) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME && !showSplash && accountState.isSignedIn) {
                 inboxViewModel.refreshBadge()
-            }
-            if (
-                event == Lifecycle.Event.ON_RESUME &&
-                !showSplash &&
-                accountState.isSignedIn &&
-                selectedTab == MainTab.PublicFeed
-            ) {
-                publicFeedViewModel.refreshFeed()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -267,19 +249,20 @@ fun MainScaffold(
             !showSplash &&
             accountState.isSignedIn &&
             connected &&
-            !wasNetworkConnected
+            !wasNetworkConnected &&
+            selectedTab == MainTab.PublicFeed
         ) {
-            publicFeedViewModel.refreshFeed()
+            publicFeedViewModel.refreshFeed(force = true)
         }
         wasNetworkConnected = connected
     }
 
     LaunchedEffect(selectedTab, showSplash, accountState.isSignedIn) {
         if (showSplash || !accountState.isSignedIn || selectedTab != MainTab.PublicFeed) return@LaunchedEffect
-        publicFeedViewModel.refreshFeed()
+        publicFeedViewModel.onTabEntered()
         while (true) {
-            delay(PUBLIC_FEED_AUTO_REFRESH_MS)
-            publicFeedViewModel.refreshFeed()
+            delay(PUBLIC_FEED_STALE_CHECK_MS)
+            publicFeedViewModel.refreshFeedIfStale()
         }
     }
 
@@ -400,26 +383,12 @@ fun MainScaffold(
 
         val publicFeedSeenFocus = showPublicFeedBottomChrome && publicFeedState.showSeenToast
 
-        val seenFocusBlur by animateDpAsState(
-            targetValue = if (publicFeedSeenFocus) PublicFeedSeenFocusEffect.blurRadius else 0.dp,
-            animationSpec = tween(
-                durationMillis = if (publicFeedSeenFocus) {
-                    PublicFeedSeenFocusEffect.blurInMillis
-                } else {
-                    PublicFeedSeenFocusEffect.blurOutMillis
-                },
-            ),
-            label = "publicFeedSeenFocusBlur",
-        )
-
         val showInboxReminder = showFloatingInboxChrome &&
             !inboxReminderDismissed &&
             inboxBadgeCount > 0
 
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .then(if (publicFeedSeenFocus) Modifier.blur(seenFocusBlur) else Modifier),
+            modifier = Modifier.fillMaxSize(),
         ) {
             Crossfade(targetState = backdropTab, label = "tabBackdrop") { tab ->
             when (tab) {
@@ -809,5 +778,5 @@ fun MainScaffold(
     }
 }
 
-private const val PUBLIC_FEED_AUTO_REFRESH_MS = 45_000L
+private const val PUBLIC_FEED_STALE_CHECK_MS = 5 * 60_000L
 private const val INBOX_BADGE_REFRESH_MS = 30_000L
