@@ -18,8 +18,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.lerp
 import kotlin.math.max
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 @Stable
 class FeedChromeVisibility {
@@ -119,42 +119,20 @@ fun TrackFeedChromeScroll(
         }
 
         snapshotFlow {
-            Triple(
-                listState.layoutInfo.totalItemsCount,
-                listState.firstVisibleItemIndex,
-                listState.firstVisibleItemScrollOffset,
-            )
-        }.collect { (totalItems, index, offset) ->
+            listState.firstVisibleItemIndex * 100_000 + listState.firstVisibleItemScrollOffset
+        }
+            .distinctUntilChanged()
+            .collect { composite ->
             val layoutInfo = listState.layoutInfo
+            val totalItems = layoutInfo.totalItemsCount
             val canScroll = totalItems > 0 && (
                 layoutInfo.visibleItemsInfo.size < totalItems ||
-                    index > 0 ||
-                    offset > 0 ||
+                    composite > 0 ||
                     (layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) < totalItems - 1
                 )
-            chrome.onScrollComposite(index * 100_000 + offset, canScroll)
+            chrome.onScrollComposite(composite, canScroll)
         }
     }
-}
-
-@Composable
-fun rememberFeedChromeProgress(): Float {
-    val chrome = LocalFeedChromeVisibility.current ?: return 1f
-    val progress by animateFloatAsState(
-        targetValue = chrome.targetProgress,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = Spring.StiffnessMedium,
-        ),
-        label = "feedChromeProgress",
-    )
-    return progress
-}
-
-@Composable
-fun feedChromeBottomPadding(fullPadding: Dp, collapsedPadding: Dp = 24.dp): Dp {
-    val progress = rememberFeedChromeProgress()
-    return lerp(collapsedPadding, fullPadding, progress)
 }
 
 fun Modifier.feedChromeSlide(
