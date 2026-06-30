@@ -76,30 +76,30 @@ class CaptureViewModel @Inject constructor(
         onError: (String) -> Unit,
     ) = save {
         val tags = parseTags(tagsRaw)
-        val id = if (saveToMyFeed) {
-            captureRepository.saveQuickPearl(
-                title = title,
-                notes = notes,
-                sourceReference = sourceReference,
-                tags = tags,
-                mediaItems = media,
-            )
-        } else {
-            ""
-        }
-        if (shareToPublicFeed) {
-            val publicId = publicFeedSharingRepository.shareStandardPearl(
-                title = title,
-                notes = notes,
-                tags = tags,
-                sourceUrl = null,
-                linkPreviewDescription = "",
-                sourceReference = sourceReference,
-                mediaItems = media,
-            )
-            linkPublicSubmission(id, saveToMyFeed, publicId)
-        }
-        id.ifBlank { "submitted" }
+        persistPearl(
+            shareToPublicFeed = shareToPublicFeed,
+            saveToMyFeed = saveToMyFeed,
+            share = {
+                publicFeedSharingRepository.shareStandardPearl(
+                    title = title,
+                    notes = notes,
+                    tags = tags,
+                    sourceUrl = null,
+                    linkPreviewDescription = "",
+                    sourceReference = sourceReference,
+                    mediaItems = media,
+                )
+            },
+            saveLocal = {
+                captureRepository.saveQuickPearl(
+                    title = title,
+                    notes = notes,
+                    sourceReference = sourceReference,
+                    tags = tags,
+                    mediaItems = media,
+                )
+            },
+        )
     }.invoke(onSuccess, onError)
 
     fun saveWebLinkPearl(
@@ -122,32 +122,32 @@ class CaptureViewModel @Inject constructor(
         save {
             val resolvedTitle = title.ifBlank { preview.preview?.title.orEmpty() }
             val resolvedReference = sourceReference.ifBlank { normalized }
-            val id = if (saveToMyFeed) {
-                captureRepository.saveWebLinkPearl(
-                    title = resolvedTitle,
-                    notes = notes,
-                    sourceReference = resolvedReference,
-                    tags = tags,
-                    sourceURL = normalized,
-                    linkPreviewImagePath = preview.previewImagePath,
-                    linkPreviewDescription = preview.preview?.description.orEmpty(),
-                )
-            } else {
-                ""
-            }
-            if (shareToPublicFeed) {
-                val publicId = publicFeedSharingRepository.shareStandardPearl(
-                    title = resolvedTitle,
-                    notes = notes,
-                    tags = tags,
-                    sourceUrl = normalized,
-                    linkPreviewDescription = preview.preview?.description.orEmpty(),
-                    sourceReference = resolvedReference,
-                    mediaItems = emptyList(),
-                )
-                linkPublicSubmission(id, saveToMyFeed, publicId)
-            }
-            id.ifBlank { "submitted" }
+            persistPearl(
+                shareToPublicFeed = shareToPublicFeed,
+                saveToMyFeed = saveToMyFeed,
+                share = {
+                    publicFeedSharingRepository.shareStandardPearl(
+                        title = resolvedTitle,
+                        notes = notes,
+                        tags = tags,
+                        sourceUrl = normalized,
+                        linkPreviewDescription = preview.preview?.description.orEmpty(),
+                        sourceReference = resolvedReference,
+                        mediaItems = emptyList(),
+                    )
+                },
+                saveLocal = {
+                    captureRepository.saveWebLinkPearl(
+                        title = resolvedTitle,
+                        notes = notes,
+                        sourceReference = resolvedReference,
+                        tags = tags,
+                        sourceURL = normalized,
+                        linkPreviewImagePath = preview.previewImagePath,
+                        linkPreviewDescription = preview.preview?.description.orEmpty(),
+                    )
+                },
+            )
         }.invoke(onSuccess, onError)
     }
 
@@ -163,30 +163,30 @@ class CaptureViewModel @Inject constructor(
         onError: (String) -> Unit,
     ) = save {
         val tags = parseTags(tagsRaw)
-        val id = if (saveToMyFeed) {
-            captureRepository.saveMediaPearl(
-                title = title,
-                notes = notes,
-                sourceReference = sourceReference,
-                tags = tags,
-                mediaItems = media,
-            )
-        } else {
-            ""
-        }
-        if (shareToPublicFeed) {
-            val publicId = publicFeedSharingRepository.shareStandardPearl(
-                title = title,
-                notes = notes,
-                tags = tags,
-                sourceUrl = null,
-                linkPreviewDescription = "",
-                sourceReference = sourceReference,
-                mediaItems = media,
-            )
-            linkPublicSubmission(id, saveToMyFeed, publicId)
-        }
-        id.ifBlank { "submitted" }
+        persistPearl(
+            shareToPublicFeed = shareToPublicFeed,
+            saveToMyFeed = saveToMyFeed,
+            share = {
+                publicFeedSharingRepository.shareStandardPearl(
+                    title = title,
+                    notes = notes,
+                    tags = tags,
+                    sourceUrl = null,
+                    linkPreviewDescription = "",
+                    sourceReference = sourceReference,
+                    mediaItems = media,
+                )
+            },
+            saveLocal = {
+                captureRepository.saveMediaPearl(
+                    title = title,
+                    notes = notes,
+                    sourceReference = sourceReference,
+                    tags = tags,
+                    mediaItems = media,
+                )
+            },
+        )
     }.invoke(onSuccess, onError)
 
     fun saveClinicalCasePearl(
@@ -200,41 +200,46 @@ class CaptureViewModel @Inject constructor(
         onError: (String) -> Unit,
     ) = save {
         val tags = parseTags(tagsRaw)
-        val id = if (saveToMyFeed) {
-            captureRepository.saveClinicalCasePearl(
-                title = title,
-                payload = payload,
-                tags = tags,
-                sectionMedia = sectionMedia,
-            )
-        } else {
-            ""
-        }
-        if (shareToPublicFeed) {
-            val publicId = publicFeedSharingRepository.shareClinicalCase(
-                title = title,
-                payload = payload,
-                tags = tags,
-                sectionMedia = sectionMedia,
-            )
-            linkPublicSubmission(id, saveToMyFeed, publicId)
-        }
-        id.ifBlank { "submitted" }
+        persistPearl(
+            shareToPublicFeed = shareToPublicFeed,
+            saveToMyFeed = saveToMyFeed,
+            share = {
+                publicFeedSharingRepository.shareClinicalCase(
+                    title = title,
+                    payload = payload,
+                    tags = tags,
+                    sectionMedia = sectionMedia,
+                )
+            },
+            saveLocal = {
+                captureRepository.saveClinicalCasePearl(
+                    title = title,
+                    payload = payload,
+                    tags = tags,
+                    sectionMedia = sectionMedia,
+                )
+            },
+        )
     }.invoke(onSuccess, onError)
 
-    private suspend fun linkPublicSubmission(
-        localPearlId: String,
+    /** Remote-first when sharing publicly (matches iOS PearlCaptureSaver). */
+    private suspend fun persistPearl(
+        shareToPublicFeed: Boolean,
         saveToMyFeed: Boolean,
-        publicPearlId: String,
-    ) {
-        if (saveToMyFeed && localPearlId.isNotBlank()) {
+        share: suspend () -> String,
+        saveLocal: suspend () -> String,
+    ): String {
+        val publicId = if (shareToPublicFeed) share() else null
+        val localId = if (saveToMyFeed) saveLocal() else ""
+        if (publicId != null && saveToMyFeed && localId.isNotBlank()) {
             pearlRepository.updatePublicPearlStatus(
-                pearlId = localPearlId,
-                publicPearlId = publicPearlId,
+                pearlId = localId,
+                publicPearlId = publicId,
                 status = "pending",
                 isSharedPublicly = true,
             )
         }
+        return localId.ifBlank { publicId ?: "submitted" }
     }
 
     private fun save(block: suspend () -> String): (onSuccess: (String) -> Unit, onError: (String) -> Unit) -> Unit {

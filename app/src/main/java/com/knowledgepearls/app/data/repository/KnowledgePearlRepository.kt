@@ -132,4 +132,16 @@ class KnowledgePearlRepository @Inject constructor(
             ),
         )
     }
+
+    suspend fun clearPublicPearlLink(publicPearlId: String) {
+        val pearl = findByPublicPearlId(publicPearlId) ?: return
+        pearlDao.update(
+            pearl.copy(
+                publicPearlID = null,
+                publicPearlStatus = "",
+                isSharedPublicly = false,
+                updatedAt = System.currentTimeMillis(),
+            ),
+        )
+    }
 }

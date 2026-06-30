@@ -10,6 +10,7 @@ import com.knowledgepearls.app.data.repository.AccountRepository
 import com.knowledgepearls.app.data.repository.PublicFeedEngagementRepository
 import com.knowledgepearls.app.data.repository.PublicFeedRepository
 import com.knowledgepearls.app.data.repository.AddToMyFeedResult
+import com.knowledgepearls.app.data.repository.MediaImportResult
 import com.knowledgepearls.app.data.search.PublicPearlSearchIndex
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -302,6 +303,7 @@ class PublicFeedViewModel @Inject constructor(
             val userId = accountRepository.currentUserId()
             runCatching { repository.addToMyFeed(pearl, userId) }
                 .onSuccess { result ->
+                    val importNote = mediaImportNote(result.mediaImport)
                     _uiState.update {
                         it.copy(
                             actionOutcome = when (result) {
@@ -311,6 +313,7 @@ class PublicFeedViewModel @Inject constructor(
                                     com.knowledgepearls.app.ui.components.PearlActionOutcome.AlreadyInMyFeed
                             },
                             actionSuccessMessage = pearl.titleDisplay,
+                            errorMessage = importNote,
                         )
                     }
                 }
@@ -322,15 +325,35 @@ class PublicFeedViewModel @Inject constructor(
         }
     }
 
+    suspend fun fetchPearlById(pearlId: String): PublicPearl? =
+        repository.fetchPearlById(pearlId)
+
+    private fun mediaImportNote(import: MediaImportResult?): String? {
+        if (import == null || import.attempted == 0) return null
+        return when {
+            import.isCompleteFailure -> "Saved, but attachments could not be downloaded."
+            import.hasPartialFailure ->
+                "Saved, but ${import.failed} attachment(s) could not be downloaded."
+            else -> null
+        }
+    }
+
     fun saveToFolder(pearl: PublicPearl, folderId: String, folderName: String) {
         viewModelScope.launch {
             val userId = accountRepository.currentUserId()
             runCatching { repository.saveToFolder(pearl, folderId, userId) }
-                .onSuccess {
+                .onSuccess { result ->
+                    val importNote = mediaImportNote(result.mediaImport)
                     _uiState.update {
                         it.copy(
-                            actionOutcome = com.knowledgepearls.app.ui.components.PearlActionOutcome.SavedToFolder,
+                            actionOutcome = when (result) {
+                                is AddToMyFeedResult.Saved ->
+                                    com.knowledgepearls.app.ui.components.PearlActionOutcome.SavedToFolder
+                                is AddToMyFeedResult.AlreadyInFeed ->
+                                    com.knowledgepearls.app.ui.components.PearlActionOutcome.AlreadyInMyFeed
+                            },
                             actionSuccessMessage = folderName,
+                            errorMessage = importNote,
                         )
                     }
                 }
@@ -347,13 +370,20 @@ class PublicFeedViewModel @Inject constructor(
             val userId = accountRepository.currentUserId()
             runCatching {
                 val folder = repository.createFolder(folderName)
-                repository.saveToFolder(pearl, folder.id, userId)
-                folder.name
-            }.onSuccess { name ->
+                val result = repository.saveToFolder(pearl, folder.id, userId)
+                folder.name to result
+            }.onSuccess { (name, result) ->
+                val importNote = mediaImportNote(result.mediaImport)
                 _uiState.update {
                     it.copy(
-                        actionOutcome = com.knowledgepearls.app.ui.components.PearlActionOutcome.SavedToFolder,
+                        actionOutcome = when (result) {
+                            is AddToMyFeedResult.Saved ->
+                                com.knowledgepearls.app.ui.components.PearlActionOutcome.SavedToFolder
+                            is AddToMyFeedResult.AlreadyInFeed ->
+                                com.knowledgepearls.app.ui.components.PearlActionOutcome.AlreadyInMyFeed
+                        },
                         actionSuccessMessage = name,
+                        errorMessage = importNote,
                     )
                 }
             }.onFailure { error ->

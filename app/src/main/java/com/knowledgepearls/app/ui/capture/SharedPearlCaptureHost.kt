@@ -10,6 +10,7 @@ import com.knowledgepearls.app.ui.theme.TabTheme
 fun SharedPearlCaptureHost(
     pearlTitle: String,
     sourceReference: String,
+    sourceUrl: String? = null,
     shareToPublicFeed: Boolean,
     isClinicalCase: Boolean,
     onPerformSave: (onSuccess: (String) -> Unit, onError: (String) -> Unit) -> Unit,
@@ -23,6 +24,7 @@ fun SharedPearlCaptureHost(
             attemptSharedPearlSave(
                 shareToPublicFeed = shareToPublicFeed,
                 sourceReference = sourceReference,
+                sourceUrl = sourceUrl,
                 pearlTitle = pearlTitle,
                 isClinicalCase = isClinicalCase,
                 state = alertState,

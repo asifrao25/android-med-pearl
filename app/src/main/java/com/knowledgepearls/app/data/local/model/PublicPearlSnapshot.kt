@@ -1,7 +1,11 @@
 package com.knowledgepearls.app.data.local.model
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import com.knowledgepearls.app.data.local.entity.KnowledgePearlEntity
 import com.knowledgepearls.app.data.model.PublicPearl
 import kotlinx.serialization.json.Json
@@ -25,3 +29,23 @@ fun rememberDecodedPublicPearl(pearl: KnowledgePearlEntity): PublicPearl? =
     remember(pearl.id, pearl.publicFeedSnapshot) {
         pearl.decodedPublicPearl()
     }
+
+@Composable
+fun rememberPublicPearlForCard(
+    pearl: KnowledgePearlEntity,
+    fetchById: suspend (String) -> PublicPearl?,
+): PublicPearl? {
+    val snapshot = rememberDecodedPublicPearl(pearl)
+    var fetched by remember(pearl.id) { mutableStateOf<PublicPearl?>(null) }
+    val publicId = pearl.publicPearlID
+
+    LaunchedEffect(pearl.id, publicId, snapshot) {
+        if (snapshot != null) {
+            fetched = null
+            return@LaunchedEffect
+        }
+        fetched = publicId?.takeIf { it.isNotBlank() }?.let { fetchById(it) }
+    }
+
+    return snapshot ?: fetched
+}

@@ -55,6 +55,7 @@ fun FeedScreen(
     captureMenuOpen: Boolean,
     onCaptureMenuOpenChange: (Boolean) -> Unit,
     onCaptureSheetSelected: (CaptureSheet) -> Unit,
+    onFetchPublicPearl: suspend (String) -> com.knowledgepearls.app.data.model.PublicPearl? = { null },
 ) {
     val theme = TabTheme.Feed
     val feedChrome = LocalFeedChromeVisibility.current
@@ -150,6 +151,7 @@ fun FeedScreen(
                             onPearlClick = { onPearlClick(it.pearl.id) },
                             onDeleteRequest = onDeleteRequest,
                             onFoldersRequest = { folderPickerPearl = it },
+                            onFetchPublicPearl = onFetchPublicPearl,
                             modifier = Modifier.weight(1f),
                             listState = feedListState,
                             chromeScrollEnabled = !captureMenuOpen,
@@ -178,6 +180,7 @@ fun FeedScreen(
                             onPearlClick = { onPearlClick(it.pearl.id) },
                             onDeleteRequest = onDeleteRequest,
                             onFoldersRequest = { folderPickerPearl = it },
+                            onFetchPublicPearl = onFetchPublicPearl,
                             modifier = Modifier.weight(1f),
                             listState = searchListState,
                             chromeScrollEnabled = false,

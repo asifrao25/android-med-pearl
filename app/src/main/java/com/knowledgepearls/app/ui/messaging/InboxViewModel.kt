@@ -161,13 +161,12 @@ class InboxViewModel @Inject constructor(
         viewModelScope.launch {
             _inboxState.update { it.copy(respondingShareId = shareId, errorMessage = null) }
             runCatching {
-                pearlShareRepository.respondToShare(shareId, accept)
                 if (accept) {
                     val share = _inboxState.value.pendingShares.firstOrNull { it.share.id == shareId }?.share
-                    if (share != null) {
-                        pearlShareRepository.importAcceptedShare(share)
-                    }
+                        ?: error("Share not found.")
+                    pearlShareRepository.importAcceptedShare(share)
                 }
+                pearlShareRepository.respondToShare(shareId, accept)
                 loadInbox()
             }.onFailure { error ->
                 _inboxState.update {

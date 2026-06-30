@@ -42,6 +42,7 @@ import com.knowledgepearls.app.data.local.model.effectiveSourceReference
 import com.knowledgepearls.app.data.local.model.isClinicalCase
 import com.knowledgepearls.app.data.local.model.isSharedToPublicFeed
 import com.knowledgepearls.app.data.local.model.isUserEditable
+import com.knowledgepearls.app.ui.components.ClinicalCaseDeidentificationAlert
 import com.knowledgepearls.app.ui.components.DetailDockAction
 import com.knowledgepearls.app.ui.components.LiquidDetailDock
 import com.knowledgepearls.app.ui.components.PersistentTabScreenHeader
@@ -83,6 +84,7 @@ fun PearlDetailScreen(
     var showShareMenu by remember { mutableStateOf(false) }
     var showFriendShare by remember { mutableStateOf(false) }
     var showShareSubmitAlert by remember { mutableStateOf(false) }
+    var showClinicalDeidentification by remember { mutableStateOf(false) }
     var showShareSuccessAlert by remember { mutableStateOf(false) }
     var showSourceReferenceRequired by remember { mutableStateOf(false) }
     var isEditing by remember { mutableStateOf(false) }
@@ -167,7 +169,7 @@ fun PearlDetailScreen(
                                 onOpenMedia = { mediaViewerRequest = it },
                             )
                         }
-                        entity.decodedPublicPearl() != null && item.mediaItems.isEmpty() -> {
+                        entity.decodedPublicPearl() != null -> {
                             SavedPublicPearlDetailContent(
                                 publicPearl = entity.decodedPublicPearl()!!,
                                 theme = theme,
@@ -313,6 +315,8 @@ fun PearlDetailScreen(
                         val current = pearl ?: return@PearlShareOptionsOverlay
                         if (current.pearl.isSharedToPublicFeed()) {
                             viewModel.withdrawPearlFromPublicFeed(current)
+                        } else if (current.pearl.isClinicalCase()) {
+                            showClinicalDeidentification = true
                         } else {
                             showShareSubmitAlert = true
                         }
@@ -333,6 +337,17 @@ fun PearlDetailScreen(
                 }
             },
         )
+
+        if (showClinicalDeidentification) {
+            ClinicalCaseDeidentificationAlert(
+                theme = TabTheme.PublicFeed,
+                onContinue = {
+                    showClinicalDeidentification = false
+                    showShareSubmitAlert = true
+                },
+                onCancel = { showClinicalDeidentification = false },
+            )
+        }
 
         if (showShareSubmitAlert && pearl != null) {
             SharedPearlSubmitAlert(

@@ -26,7 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.knowledgepearls.app.data.local.model.PearlWithMedia
-import com.knowledgepearls.app.data.local.model.rememberDecodedPublicPearl
+import com.knowledgepearls.app.data.local.model.rememberPublicPearlForCard
 import com.knowledgepearls.app.ui.components.TrackFeedChromeScroll
 import com.knowledgepearls.app.ui.components.feedChromeBottomPadding
 import com.knowledgepearls.app.ui.components.PearlSwipeAction
@@ -46,6 +46,7 @@ fun PearlList(
     onPearlClick: (PearlWithMedia) -> Unit,
     onDeleteRequest: (PearlWithMedia) -> Unit,
     onFoldersRequest: (PearlWithMedia) -> Unit,
+    onFetchPublicPearl: suspend (String) -> com.knowledgepearls.app.data.model.PublicPearl? = { null },
     modifier: Modifier = Modifier,
     theme: TabTheme = TabTheme.Feed,
     listState: LazyListState = rememberLazyListState(),
@@ -63,6 +64,7 @@ fun PearlList(
         onPearlClick = onPearlClick,
         onDeleteRequest = onDeleteRequest,
         onFoldersRequest = onFoldersRequest,
+        onFetchPublicPearl = onFetchPublicPearl,
         enableSwipeHintOnFirst = !swipeHintDismissed,
         onSwipeHintDismiss = {
             SwipeRowHintStorage.dismiss(context)
@@ -83,6 +85,7 @@ private fun PearlListContent(
     onPearlClick: (PearlWithMedia) -> Unit,
     onDeleteRequest: (PearlWithMedia) -> Unit,
     onFoldersRequest: (PearlWithMedia) -> Unit,
+    onFetchPublicPearl: suspend (String) -> com.knowledgepearls.app.data.model.PublicPearl?,
     enableSwipeHintOnFirst: Boolean,
     onSwipeHintDismiss: () -> Unit,
     modifier: Modifier = Modifier,
@@ -120,7 +123,7 @@ private fun PearlListContent(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         items(pearls, key = { it.pearl.id }) { pearl ->
-            val publicPearl = rememberDecodedPublicPearl(pearl.pearl)
+            val publicPearl = rememberPublicPearlForCard(pearl.pearl, onFetchPublicPearl)
             val author = FeedPearlAuthorInfo.resolve(pearl, feedAuthorContext, publicPearl)
             val showHint = enableSwipeHintOnFirst && pearl == pearls.first()
 
@@ -147,7 +150,7 @@ private fun PearlListContent(
                     enableSwipeHint = showHint,
                     onSwipeHintDismiss = onSwipeHintDismiss,
                 ) {
-                    if (publicPearl != null && pearl.mediaItems.isEmpty()) {
+                    if (publicPearl != null) {
                         PublicFeedCard(
                             pearl = publicPearl,
                             theme = theme,

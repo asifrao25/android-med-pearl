@@ -12,10 +12,12 @@ object PublicPearlMediaImporter {
         mediaStorage: MediaStorage,
         pearlId: String,
         items: List<PublicPearlMediaItem>,
-    ) {
+    ): MediaImportResult {
+        if (items.isEmpty()) return MediaImportResult(attempted = 0, imported = 0)
+        var imported = 0
         items.forEach { item ->
             val remoteUrl = item.loadableUrl ?: return@forEach
-            runCatching {
+            val success = runCatching {
                 val filename = item.resolvedFilename
                 val extension = filename.substringAfterLast('.', "jpg")
                 val localPath = mediaStorage.saveFromUrl(remoteUrl, extension)
@@ -33,8 +35,10 @@ object PublicPearlMediaImporter {
                         sectionTag = item.section.orEmpty(),
                     ),
                 )
-            }
+            }.isSuccess
+            if (success) imported++
         }
+        return MediaImportResult(attempted = items.size, imported = imported)
     }
 
     suspend fun importFromPublicPearl(
@@ -42,9 +46,9 @@ object PublicPearlMediaImporter {
         mediaStorage: MediaStorage,
         pearlId: String,
         pearl: PublicPearl,
-    ) {
+    ): MediaImportResult {
         val items = pearl.resolvedMediaItems
-        if (items.isEmpty()) return
-        importMediaItems(pearlRepository, mediaStorage, pearlId, items)
+        if (items.isEmpty()) return MediaImportResult(attempted = 0, imported = 0)
+        return importMediaItems(pearlRepository, mediaStorage, pearlId, items)
     }
 }

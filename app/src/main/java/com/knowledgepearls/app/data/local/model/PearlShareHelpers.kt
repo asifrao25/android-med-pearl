@@ -5,10 +5,13 @@ import com.knowledgepearls.app.data.local.entity.KnowledgePearlEntity
 import com.knowledgepearls.app.data.local.entity.PearlMediaEntity
 import java.io.File
 
-fun KnowledgePearlEntity.effectiveSourceReference(): String {
-    val trimmed = sourceReference.trim()
+fun KnowledgePearlEntity.effectiveSourceReference(): String =
+    effectiveSourceReference(stored = sourceReference, sourceUrl = sourceURL)
+
+fun effectiveSourceReference(stored: String, sourceUrl: String? = null): String {
+    val trimmed = stored.trim()
     if (trimmed.isNotBlank()) return trimmed
-    return sourceURL?.trim().orEmpty()
+    return sourceUrl?.trim().orEmpty()
 }
 
 fun KnowledgePearlEntity.isSharedToPublicFeed(): Boolean =

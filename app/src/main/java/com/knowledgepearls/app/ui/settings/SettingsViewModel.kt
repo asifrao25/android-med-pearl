@@ -8,6 +8,7 @@ import com.knowledgepearls.app.data.model.PublicPearl
 import com.knowledgepearls.app.data.prefs.AppearancePreferences
 import com.knowledgepearls.app.data.repository.AccountRepository
 import com.knowledgepearls.app.data.repository.PublicFeedSharingRepository
+import com.knowledgepearls.app.data.repository.PublicFeedWithdrawal
 import com.knowledgepearls.app.ui.theme.AppearanceMode
 import com.knowledgepearls.app.ui.theme.AppFontChoice
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -44,6 +45,7 @@ data class CacheClearedAlert(
 class SettingsViewModel @Inject constructor(
     private val accountRepository: AccountRepository,
     private val publicFeedSharingRepository: PublicFeedSharingRepository,
+    private val publicFeedWithdrawal: PublicFeedWithdrawal,
     private val backupRepository: BackupRepository,
     private val deviceCacheRepository: DeviceCacheRepository,
     private val appearancePreferences: AppearancePreferences,
@@ -93,7 +95,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(withdrawingId = pearl.id, errorMessage = null) }
             runCatching {
-                publicFeedSharingRepository.withdraw(pearl.id)
+                publicFeedWithdrawal.withdrawSubmission(pearl.id)
                 loadPendingSubmissions()
             }.onFailure { error ->
                 _uiState.update {

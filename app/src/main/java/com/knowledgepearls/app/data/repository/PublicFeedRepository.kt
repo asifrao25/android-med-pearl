@@ -20,6 +20,8 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 @Singleton
 class PublicFeedRepository @Inject constructor(
@@ -30,6 +32,14 @@ class PublicFeedRepository @Inject constructor(
 ) {
     private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     private val json = Json { ignoreUnknownKeys = true }
+    private val addToMyFeedMutex = Mutex()
+
+    suspend fun fetchPearlById(pearlId: String): PublicPearl? = runCatching {
+        supabase.postgrest.rpc(
+            "fetch_public_pearl",
+            FetchPublicPearlParams(pPearlId = pearlId.lowercase()),
+        ).decodeSingle<PublicPearl>()
+    }.getOrNull()
 
     suspend fun fetchPage(offset: Int, limit: Int = PAGE_SIZE): List<PublicPearl> {
         val rpcPage = runCatching {
@@ -95,36 +105,37 @@ class PublicFeedRepository @Inject constructor(
         prefs.edit().putStringSet(KEY_HIDDEN, ids).apply()
     }
 
-    suspend fun addToMyFeed(pearl: PublicPearl, currentUserId: String?): AddToMyFeedResult {
-        val existing = pearlRepository.findByPublicPearlId(pearl.id)
-        if (existing != null) {
-            backfillMediaIfNeeded(existing.id, pearl)
-            syncLocalCopy(
-                existing = existing,
+    suspend fun addToMyFeed(pearl: PublicPearl, currentUserId: String?): AddToMyFeedResult =
+        addToMyFeedMutex.withLock {
+            val existing = pearlRepository.findByPublicPearlId(pearl.id)
+            if (existing != null) {
+                val mediaImport = backfillMediaIfNeeded(existing.id, pearl)
+                syncLocalCopy(
+                    existing = existing,
+                    pearl = pearl,
+                    ownedByCurrentUser = isOwnPublicPearl(pearl, currentUserId),
+                    bumpFeedPosition = false,
+                )
+                return@withLock AddToMyFeedResult.AlreadyInFeed(existing, mediaImport)
+            }
+
+            val now = System.currentTimeMillis()
+            val ownedByUser = isOwnPublicPearl(pearl, currentUserId)
+            val entity = buildLocalPearlEntity(
                 pearl = pearl,
-                ownedByCurrentUser = isOwnPublicPearl(pearl, currentUserId),
-                bumpFeedPosition = false,
+                now = now,
+                ownedByUser = ownedByUser,
             )
-            return AddToMyFeedResult.AlreadyInFeed(existing)
+
+            pearlRepository.upsertPearl(entity)
+            val mediaImport = PublicPearlMediaImporter.importFromPublicPearl(
+                pearlRepository = pearlRepository,
+                mediaStorage = mediaStorage,
+                pearlId = entity.id,
+                pearl = pearl,
+            )
+            AddToMyFeedResult.Saved(entity, mediaImport)
         }
-
-        val now = System.currentTimeMillis()
-        val ownedByUser = isOwnPublicPearl(pearl, currentUserId)
-        var entity = buildLocalPearlEntity(
-            pearl = pearl,
-            now = now,
-            ownedByUser = ownedByUser,
-        )
-
-        pearlRepository.upsertPearl(entity)
-        PublicPearlMediaImporter.importFromPublicPearl(
-            pearlRepository = pearlRepository,
-            mediaStorage = mediaStorage,
-            pearlId = entity.id,
-            pearl = pearl,
-        )
-        return AddToMyFeedResult.Saved(entity)
-    }
 
     suspend fun saveToFolder(
         pearl: PublicPearl,
@@ -145,15 +156,16 @@ class PublicFeedRepository @Inject constructor(
 
     suspend fun createFolder(name: String) = pearlRepository.createFolder(name.trim())
 
-    private suspend fun backfillMediaIfNeeded(pearlId: String, pearl: PublicPearl) {
-        if (pearl.resolvedMediaItems.isNotEmpty() && pearlRepository.mediaCountForPearl(pearlId) == 0) {
-            PublicPearlMediaImporter.importFromPublicPearl(
-                pearlRepository = pearlRepository,
-                mediaStorage = mediaStorage,
-                pearlId = pearlId,
-                pearl = pearl,
-            )
+    private suspend fun backfillMediaIfNeeded(pearlId: String, pearl: PublicPearl): MediaImportResult? {
+        if (pearl.resolvedMediaItems.isEmpty() || pearlRepository.mediaCountForPearl(pearlId) > 0) {
+            return null
         }
+        return PublicPearlMediaImporter.importFromPublicPearl(
+            pearlRepository = pearlRepository,
+            mediaStorage = mediaStorage,
+            pearlId = pearlId,
+            pearl = pearl,
+        )
     }
 
     private suspend fun syncLocalCopy(
@@ -242,4 +254,9 @@ class PublicFeedRepository @Inject constructor(
 private data class ListApprovedPublicPearlsParams(
     @SerialName("p_limit") val limit: Int,
     @SerialName("p_offset") val offset: Int,
+)
+
+@Serializable
+private data class FetchPublicPearlParams(
+    @SerialName("p_pearl_id") val pPearlId: String,
 )

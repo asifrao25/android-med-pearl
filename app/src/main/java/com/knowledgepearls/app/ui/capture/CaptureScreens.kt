@@ -155,6 +155,7 @@ fun WebLinkCaptureScreen(
     SharedPearlCaptureHost(
         pearlTitle = title.ifBlank { previewState.preview?.title.orEmpty() },
         sourceReference = sourceReference,
+        sourceUrl = url.takeIf { it.isNotBlank() },
         shareToPublicFeed = shareState.value,
         isClinicalCase = false,
         onPerformSave = { onSuccess, onError ->

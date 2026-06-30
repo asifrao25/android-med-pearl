@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import com.knowledgepearls.app.data.local.model.effectiveSourceReference
 import com.knowledgepearls.app.ui.components.ClinicalCaseDeidentificationAlert
 import com.knowledgepearls.app.ui.components.PearlAlertCard
 import com.knowledgepearls.app.ui.components.PearlAlertMessage
@@ -31,12 +32,13 @@ fun rememberSharedPearlCaptureAlertState(): SharedPearlCaptureAlertState =
 fun attemptSharedPearlSave(
     shareToPublicFeed: Boolean,
     sourceReference: String,
+    sourceUrl: String? = null,
     pearlTitle: String,
     isClinicalCase: Boolean,
     state: SharedPearlCaptureAlertState,
     onSave: () -> Unit,
 ) {
-    if (shareToPublicFeed && sourceReference.isBlank()) {
+    if (shareToPublicFeed && effectiveSourceReference(sourceReference, sourceUrl).isBlank()) {
         state.showSourceReferenceRequired = true
         return
     }

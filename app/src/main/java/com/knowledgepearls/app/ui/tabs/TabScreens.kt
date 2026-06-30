@@ -31,7 +31,19 @@ import com.knowledgepearls.app.ui.feed.PearlDetailScreen
 import com.knowledgepearls.app.ui.publicfeed.PublicFeedScreen
 import com.knowledgepearls.app.ui.publicfeed.PublicFeedViewModel
 import com.knowledgepearls.app.data.connectivity.ConnectivityState
+import com.knowledgepearls.app.data.model.PublicPearl
 import com.knowledgepearls.app.ui.publicfeed.PublicPearlDetailScreen
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import com.knowledgepearls.app.ui.theme.TabTheme
 
 @Composable
@@ -127,6 +139,7 @@ fun FeedTabScreen(
                         CaptureSheet.Files -> navController.navigate("capture/media/files")
                     }
                 },
+                onFetchPublicPearl = feedViewModel::fetchPublicPearlForCard,
             )
         }
         composable("pearl/{pearlId}") { entry ->
@@ -323,7 +336,7 @@ fun PublicFeedTabScreen(
 
     val publicFeedDestination = PearlCaptureDestination.MyFeedAndPublic
     val onPublicCaptureSaved: () -> Unit = {
-        feedViewModel.showCaptureSavedMessage()
+        feedViewModel.showPublicSubmissionMessage()
         viewModel.refreshFeed(force = true)
         navController.popBackStack("public_feed", false)
     }
@@ -459,82 +472,81 @@ fun PublicFeedTabScreen(
 
         composable("public_pearl/{pearlId}") { entry ->
             val pearlId = entry.arguments?.getString("pearlId").orEmpty()
-            val pearl = uiState.pearls.firstOrNull { it.id == pearlId }
-            if (pearl == null) {
-                PublicFeedScreen(
-                    uiState = uiState,
-                    isSignedIn = accountState.isSignedIn,
-                    inboxBadgeCount = inboxBadgeCount,
-                    onOpenSettings = onOpenSettings,
-                    onOpenInbox = onOpenInbox,
-                    onSignIn = accountViewModel::signIn,
-                    onSignUp = accountViewModel::signUp,
-                    onGoogleSignIn = { accountViewModel.signInWithGoogle(activityContext) },
-                    onVerifyCode = accountViewModel::verifySignupCode,
-                    onResendCode = accountViewModel::resendVerificationCode,
-                    onClearSignInSuccess = accountViewModel::clearSignInSuccess,
-                    accountState = accountState,
-                    onPearlClick = {},
-                    onResolveAvatarUrl = feedViewModel::fetchAvatarUrl,
-                    onOpenUserProfile = onOpenUserProfile,
-                    onLoadInitial = viewModel::loadInitial,
-                onRefreshFeed = { viewModel.refreshFeed(force = true) },
-                    onLoadNextPage = viewModel::loadNextPage,
-                    onSectionSelected = viewModel::setSection,
-                    onContentTypeSelected = viewModel::setContentTypeFilter,
-                    onResetContentTypeFilter = viewModel::resetContentTypeFilter,
-                    onDismissEmptyFilterAlert = viewModel::dismissEmptyFilterAlert,
-                    onDismissActionSuccess = viewModel::dismissActionSuccess,
-                    onDismissError = viewModel::dismissError,
-                    onDismissSeenToast = viewModel::dismissSeenToast,
-                    onOpenSavePicker = viewModel::openSavePicker,
-                    onHidePearl = viewModel::hide,
-                    onSaveToMyFeed = viewModel::addToMyFeed,
-                    onSaveToFolder = { pearl, folder ->
-                        viewModel.saveToFolder(pearl, folder.folder.id, folder.folder.name)
-                    },
-                    onCreateFolderAndSave = { pearl, name ->
-                        viewModel.createFolderAndSavePearl(pearl, name)
-                    },
-                    isNetworkAvailable = connectivityState.isConnected,
-                    isOfflineMode = connectivityState.isOfflineMode,
-                    onRetryConnection = onRetryConnection,
-                )
-                return@composable
+            val pearlFromList = uiState.pearls.firstOrNull { it.id == pearlId }
+            var fetchedPearl by remember(pearlId) { mutableStateOf<PublicPearl?>(null) }
+            var isResolvingPearl by remember(pearlId) { mutableStateOf(pearlFromList == null) }
+
+            LaunchedEffect(pearlId, pearlFromList) {
+                if (pearlFromList != null) {
+                    fetchedPearl = null
+                    isResolvingPearl = false
+                    viewModel.markSeen(pearlFromList, showToast = true)
+                    return@LaunchedEffect
+                }
+                isResolvingPearl = true
+                fetchedPearl = viewModel.fetchPearlById(pearlId)
+                isResolvingPearl = false
+                fetchedPearl?.let { viewModel.markSeen(it, showToast = true) }
             }
 
-            LaunchedEffect(pearl.id) {
-                viewModel.markSeen(pearl, showToast = true)
-            }
+            val pearl = pearlFromList ?: fetchedPearl
 
-            PublicPearlDetailScreen(
-                pearl = pearl,
-                tabHeader = TabTheme.PublicFeed.tabHeaderContext(),
-                likeCount = pearl.likeCount,
-                commentCount = viewModel.commentCount(pearl.id),
-                isLiked = viewModel.isLiked(pearl.id),
-                commentsVisible = uiState.commentsPearlId == pearl.id,
-                comments = uiState.commentsForPearl,
-                isCommentsLoading = uiState.isCommentsLoading,
-                isPostingComment = uiState.isPostingComment,
-                commentsError = uiState.commentsError,
-                onResolveAvatarUrl = feedViewModel::fetchAvatarUrl,
-                onBack = { navController.popBackStack() },
-                onOpenSettings = onOpenSettings,
-                onOpenUserProfile = onOpenUserProfile,
-                onAddToMyFeed = { viewModel.addToMyFeed(pearl) },
-                saveOutcome = uiState.actionOutcome,
-                saveOutcomePearlTitle = uiState.actionSuccessMessage,
-                onDismissSaveOutcome = viewModel::dismissActionSuccess,
-                onHide = {
-                    viewModel.hide(pearl)
-                    navController.popBackStack()
-                },
-                onToggleLike = { viewModel.toggleLike(pearl) },
-                onOpenComments = { viewModel.openComments(pearl.id) },
-                onCloseComments = viewModel::closeComments,
-                onPostComment = { body -> viewModel.postComment(pearl.id, body) },
-            )
+            when {
+                pearl == null && isResolvingPearl -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(color = TabTheme.PublicFeed.primary)
+                    }
+                }
+                pearl == null -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("This pearl could not be loaded.")
+                            TextButton(
+                                onClick = { navController.popBackStack() },
+                                modifier = Modifier.padding(top = 8.dp),
+                            ) {
+                                Text("Go back")
+                            }
+                        }
+                    }
+                }
+                else -> {
+                    PublicPearlDetailScreen(
+                        pearl = pearl,
+                        tabHeader = TabTheme.PublicFeed.tabHeaderContext(),
+                        likeCount = pearl.likeCount,
+                        commentCount = viewModel.commentCount(pearl.id),
+                        isLiked = viewModel.isLiked(pearl.id),
+                        commentsVisible = uiState.commentsPearlId == pearl.id,
+                        comments = uiState.commentsForPearl,
+                        isCommentsLoading = uiState.isCommentsLoading,
+                        isPostingComment = uiState.isPostingComment,
+                        commentsError = uiState.commentsError,
+                        onResolveAvatarUrl = feedViewModel::fetchAvatarUrl,
+                        onBack = { navController.popBackStack() },
+                        onOpenSettings = onOpenSettings,
+                        onOpenUserProfile = onOpenUserProfile,
+                        onAddToMyFeed = { viewModel.addToMyFeed(pearl) },
+                        saveOutcome = uiState.actionOutcome,
+                        saveOutcomePearlTitle = uiState.actionSuccessMessage,
+                        onDismissSaveOutcome = viewModel::dismissActionSuccess,
+                        onHide = {
+                            viewModel.hide(pearl)
+                            navController.popBackStack()
+                        },
+                        onToggleLike = { viewModel.toggleLike(pearl) },
+                        onOpenComments = { viewModel.openComments(pearl.id) },
+                        onCloseComments = viewModel::closeComments,
+                        onPostComment = { body -> viewModel.postComment(pearl.id, body) },
+                    )
+                }
+            }
         }
     }
 }

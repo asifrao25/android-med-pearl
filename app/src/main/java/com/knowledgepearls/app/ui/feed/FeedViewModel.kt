@@ -14,11 +14,14 @@ import com.knowledgepearls.app.data.local.model.isClinicalCase
 import com.knowledgepearls.app.data.local.model.matches
 import com.knowledgepearls.app.data.local.model.toPickedMedia
 import com.knowledgepearls.app.data.model.ContentTypeFilter
+import com.knowledgepearls.app.data.model.PublicPearl
 import com.knowledgepearls.app.data.model.ShareProfileResult
 import com.knowledgepearls.app.data.repository.AccountRepository
 import com.knowledgepearls.app.data.repository.KnowledgePearlRepository
 import com.knowledgepearls.app.data.repository.PearlShareRepository
+import com.knowledgepearls.app.data.repository.PublicFeedRepository
 import com.knowledgepearls.app.data.repository.PublicFeedSharingRepository
+import com.knowledgepearls.app.data.repository.PublicFeedWithdrawal
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -52,6 +55,8 @@ class FeedViewModel @Inject constructor(
     private val pearlRepository: KnowledgePearlRepository,
     private val accountRepository: AccountRepository,
     private val publicFeedSharingRepository: PublicFeedSharingRepository,
+    private val publicFeedWithdrawal: PublicFeedWithdrawal,
+    private val publicFeedRepository: PublicFeedRepository,
     private val pearlShareRepository: PearlShareRepository,
     private val captureRepository: CaptureRepository,
 ) : ViewModel() {
@@ -183,6 +188,11 @@ class FeedViewModel @Inject constructor(
         viewModelScope.launch {
             isSharingPearl.value = true
             runCatching {
+                val duplicates = pearlShareRepository.checkShareDuplicates(pearl, recipientIds)
+                if (duplicates.isNotEmpty()) {
+                    val names = duplicates.joinToString(", ") { it.recipientName }
+                    error("These recipients already have this pearl: $names")
+                }
                 pearlShareRepository.sharePearlWithFriends(
                     pearl = pearl,
                     recipientIds = recipientIds,
@@ -239,13 +249,7 @@ class FeedViewModel @Inject constructor(
         viewModelScope.launch {
             isSharingPearl.value = true
             runCatching {
-                publicFeedSharingRepository.withdraw(publicId)
-                pearlRepository.updatePublicPearlStatus(
-                    pearlId = pearl.pearl.id,
-                    publicPearlId = null,
-                    status = "",
-                    isSharedPublicly = false,
-                )
+                publicFeedWithdrawal.withdrawSubmission(publicId)
                 actionSuccessMessage.value = "Withdrawn from Public Feed"
             }.onFailure { shareErrorMessage.value = it.message ?: "Withdraw failed" }
             isSharingPearl.value = false
@@ -255,6 +259,13 @@ class FeedViewModel @Inject constructor(
     fun showCaptureSavedMessage() {
         actionSuccessMessage.value = "Pearl saved to My Feed"
     }
+
+    fun showPublicSubmissionMessage() {
+        actionSuccessMessage.value = "Submitted to Public Feed for review"
+    }
+
+    suspend fun fetchPublicPearlForCard(publicPearlId: String): PublicPearl? =
+        publicFeedRepository.fetchPearlById(publicPearlId)
 
     fun observePearl(id: String) = pearlRepository.observePearl(id)
 

@@ -40,6 +40,12 @@ class PublicFeedSharingRepository @Inject constructor(
         }
     }
 
+    suspend fun withdrawWithStorageCleanup(publicPearlId: String) {
+        val paths = fetchStoragePaths(publicPearlId)
+        removeStoragePaths(paths)
+        withdraw(publicPearlId)
+    }
+
     suspend fun shareStandardPearl(
         title: String,
         notes: String,
@@ -52,24 +58,29 @@ class PublicFeedSharingRepository @Inject constructor(
         val userId = requireUserId()
         val pearlId = UUID.randomUUID().toString().lowercase()
         val uploaded = uploadMedia(userId, pearlId, mediaItems)
-        val contentType = resolveContentType(uploaded, sourceUrl != null)
-        val first = uploaded.firstOrNull()
-        submitPearl(
-            id = pearlId,
-            userId = userId,
-            title = title,
-            notes = notes,
-            tags = tags,
-            contentType = contentType,
-            sourceUrl = sourceUrl,
-            linkPreviewDescription = linkPreviewDescription,
-            mediaUrl = first?.url,
-            mediaPath = first?.path,
-            mediaItems = uploaded,
-            sourceReference = sourceReference,
-            casePayload = ClinicalCasePayload(),
-        )
-        return pearlId
+        return try {
+            val contentType = resolveContentType(uploaded, sourceUrl != null)
+            val first = uploaded.firstOrNull()
+            submitPearl(
+                id = pearlId,
+                userId = userId,
+                title = title,
+                notes = notes,
+                tags = tags,
+                contentType = contentType,
+                sourceUrl = sourceUrl,
+                linkPreviewDescription = linkPreviewDescription,
+                mediaUrl = first?.url,
+                mediaPath = first?.path,
+                mediaItems = uploaded,
+                sourceReference = sourceReference,
+                casePayload = ClinicalCasePayload(),
+            )
+            pearlId
+        } catch (error: Throwable) {
+            removeStoragePaths(uploaded.map { it.path })
+            throw error
+        }
     }
 
     suspend fun shareClinicalCase(
@@ -84,23 +95,28 @@ class PublicFeedSharingRepository @Inject constructor(
             items.map { it.copy(sectionTag = section) }
         }
         val uploaded = uploadMedia(userId, pearlId, flatMedia, includeSection = true)
-        val first = uploaded.firstOrNull()
-        submitPearl(
-            id = pearlId,
-            userId = userId,
-            title = title,
-            notes = payload.history,
-            tags = tags,
-            contentType = "clinical_case",
-            sourceUrl = null,
-            linkPreviewDescription = "",
-            mediaUrl = first?.url,
-            mediaPath = first?.path,
-            mediaItems = uploaded,
-            sourceReference = payload.references,
-            casePayload = payload,
-        )
-        return pearlId
+        return try {
+            val first = uploaded.firstOrNull()
+            submitPearl(
+                id = pearlId,
+                userId = userId,
+                title = title,
+                notes = payload.history,
+                tags = tags,
+                contentType = "clinical_case",
+                sourceUrl = null,
+                linkPreviewDescription = "",
+                mediaUrl = first?.url,
+                mediaPath = first?.path,
+                mediaItems = uploaded,
+                sourceReference = payload.references,
+                casePayload = payload,
+            )
+            pearlId
+        } catch (error: Throwable) {
+            removeStoragePaths(uploaded.map { it.path })
+            throw error
+        }
     }
 
     private suspend fun submitPearl(
@@ -156,6 +172,33 @@ class PublicFeedSharingRepository @Inject constructor(
         }
     }
 
+    private suspend fun fetchStoragePaths(publicPearlId: String): List<String> {
+        val rows = runCatching {
+            supabase.from("public_pearls").select {
+                filter { eq("id", publicPearlId.lowercase()) }
+            }.decodeList<PublicPearlMediaRow>()
+        }.getOrDefault(emptyList())
+        val row = rows.firstOrNull() ?: return emptyList()
+        return storagePaths(row.mediaItems, row.mediaPath)
+    }
+
+    private suspend fun removeStoragePaths(paths: List<String>) {
+        if (paths.isEmpty()) return
+        val bucket = supabase.storage.from(SupabaseConfig.PUBLIC_PEARL_MEDIA_BUCKET)
+        paths.distinct().forEach { path ->
+            runCatching { bucket.delete(path) }
+        }
+    }
+
+    private fun storagePaths(
+        mediaItems: List<PublicPearlMediaItem>?,
+        legacyPath: String?,
+    ): List<String> {
+        val paths = mediaItems.orEmpty().mapNotNull { it.path?.takeIf { path -> path.isNotBlank() } }
+        if (paths.isNotEmpty()) return paths
+        return legacyPath?.takeIf { it.isNotBlank() }?.let(::listOf).orEmpty()
+    }
+
     private suspend fun uploadMedia(
         userId: String,
         pearlId: String,
@@ -209,6 +252,12 @@ class PublicFeedSharingRepository @Inject constructor(
             message.contains("does not exist") ||
             message.contains("404")
     }
+
+    @Serializable
+    private data class PublicPearlMediaRow(
+        @SerialName("media_path") val mediaPath: String? = null,
+        @SerialName("media_items") val mediaItems: List<PublicPearlMediaItem>? = null,
+    )
 
     @Serializable
     private data class UploadedMediaItem(

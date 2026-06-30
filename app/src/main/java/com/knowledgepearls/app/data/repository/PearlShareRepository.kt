@@ -7,6 +7,7 @@ import com.knowledgepearls.app.data.local.entity.MediaType
 import com.knowledgepearls.app.data.local.model.PearlWithMedia
 import com.knowledgepearls.app.data.local.model.clinicalCasePayload
 import com.knowledgepearls.app.data.local.model.effectiveSourceReference
+import com.knowledgepearls.app.data.share.PearlContentIdentity
 import com.knowledgepearls.app.data.local.model.isClinicalCase
 import com.knowledgepearls.app.data.local.model.toPickedMedia
 import com.knowledgepearls.app.data.local.model.withClinicalCasePayload
@@ -61,8 +62,32 @@ class PearlShareRepository @Inject constructor(
         )
         val payload = buildSharePayload(entity, uploaded)
         val fingerprint = buildFingerprint(entity)
-        val contentIdentity = buildContentIdentity(entity, pickedMedia)
+        val contentIdentity = PearlContentIdentity.forPearl(entity, pickedMedia)
         return sendShare(recipientIds, payload, fingerprint, contentIdentity)
+    }
+
+    suspend fun checkShareDuplicates(
+        pearl: PearlWithMedia,
+        recipientIds: List<String>,
+    ): List<PearlShareDuplicate> {
+        if (recipientIds.isEmpty()) return emptyList()
+        val contentIdentity = PearlContentIdentity.forPearl(pearl.pearl, pearl.mediaItems.toPickedMedia())
+        return runCatching {
+            supabase.postgrest.rpc(
+                "check_pearl_share_duplicates",
+                CheckPearlShareDuplicatesParams(
+                    recipientIds = recipientIds.map { it.lowercase() },
+                    contentIdentity = contentIdentity,
+                ),
+            ).decodeList<PearlShareDuplicateRow>()
+                .map {
+                    PearlShareDuplicate(
+                        recipientId = it.recipientId,
+                        recipientName = it.recipientName,
+                        reason = it.reason,
+                    )
+                }
+        }.getOrDefault(emptyList())
     }
 
     suspend fun sendShare(
@@ -159,6 +184,7 @@ class PearlShareRepository @Inject constructor(
             sharedByName = sender.first,
             sharedByAvatarURL = sender.second,
             friendShareID = share.id,
+            friendShareContentIdentityAtImport = PearlContentIdentity.forPayload(payload),
             publicFeedSnapshot = payload.publicFeedSnapshot.orEmpty(),
             contentKind = payload.contentKind.ifBlank { KnowledgePearlContentKind.STANDARD },
         )
@@ -217,32 +243,6 @@ class PearlShareRepository @Inject constructor(
             pearl.contentKind,
             pearl.updatedAt.toString(),
         ).joinToString("|")
-        return android.util.Base64.encodeToString(
-            basis.toByteArray(Charsets.UTF_8),
-            android.util.Base64.NO_WRAP,
-        )
-    }
-
-    private fun buildContentIdentity(
-        pearl: KnowledgePearlEntity,
-        pickedMedia: List<PickedMedia>,
-    ): String {
-        val mediaSignature = pickedMedia.joinToString("|") { item ->
-            "${item.type}:${item.filename}:${item.sectionTag}:${item.bytes.size}"
-        }
-        val basis = buildList {
-            add(pearl.title)
-            add(if (pearl.isClinicalCase()) "" else pearl.notes)
-            add(pearl.tags.joinToString(","))
-            add(pearl.contentKind)
-            add(pearl.sourceURL.orEmpty())
-            add(pearl.effectiveSourceReference())
-            if (pearl.isClinicalCase()) {
-                add(pearl.clinicalCasePayload().history)
-                add(pearl.clinicalCasePayload().diagnosis)
-            }
-            add(mediaSignature)
-        }.joinToString("|")
         return android.util.Base64.encodeToString(
             basis.toByteArray(Charsets.UTF_8),
             android.util.Base64.NO_WRAP,
@@ -340,4 +340,23 @@ class PearlShareRepository @Inject constructor(
         val name: String? = null,
         @SerialName("avatar_url") val avatarUrl: String? = null,
     )
+
+    @Serializable
+    private data class CheckPearlShareDuplicatesParams(
+        @SerialName("p_recipient_ids") val recipientIds: List<String>,
+        @SerialName("p_content_identity") val contentIdentity: String,
+    )
+
+    @Serializable
+    private data class PearlShareDuplicateRow(
+        @SerialName("recipient_id") val recipientId: String,
+        @SerialName("recipient_name") val recipientName: String,
+        val reason: String,
+    )
 }
+
+data class PearlShareDuplicate(
+    val recipientId: String,
+    val recipientName: String,
+    val reason: String,
+)
