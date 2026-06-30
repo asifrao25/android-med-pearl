@@ -2,6 +2,9 @@ package com.knowledgepearls.app.ui.publicfeed
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.knowledgepearls.app.data.analytics.AnalyticsContentType
+import com.knowledgepearls.app.data.analytics.AnalyticsEventKind
+import com.knowledgepearls.app.data.analytics.AnalyticsService
 import com.knowledgepearls.app.data.model.ContentTypeFilter
 import com.knowledgepearls.app.data.model.PublicPearl
 import com.knowledgepearls.app.data.model.PearlComment
@@ -71,6 +74,7 @@ class PublicFeedViewModel @Inject constructor(
     private val engagementRepository: PublicFeedEngagementRepository,
     private val engagementManager: PublicPearlEngagementManager,
     private val accountRepository: AccountRepository,
+    private val analyticsService: AnalyticsService,
 ) : ViewModel() {
     private var currentOffset = 0
     private var seenIds = repository.getSeenIds()
@@ -319,11 +323,25 @@ class PublicFeedViewModel @Inject constructor(
         }
     }
 
+    fun trackAuthGateShown() {
+        analyticsService.track(AnalyticsEventKind.TrialGateHit)
+    }
+
+    fun trackPublicCardOpened(pearl: PublicPearl) {
+        analyticsService.trackPublicCardOpened(pearl)
+    }
+
     fun addToMyFeed(pearl: PublicPearl) {
         viewModelScope.launch {
             val userId = accountRepository.currentUserId()
             runCatching { repository.addToMyFeed(pearl, userId) }
                 .onSuccess { result ->
+                    if (result is AddToMyFeedResult.Saved) {
+                        analyticsService.trackAddedToFeed(
+                            publicPearlId = pearl.id,
+                            contentType = AnalyticsContentType.forPublicPearl(pearl),
+                        )
+                    }
                     val importNote = mediaImportNote(result.mediaImport)
                     _uiState.update {
                         it.copy(

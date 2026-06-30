@@ -3,6 +3,8 @@ package com.knowledgepearls.app.ui.feed
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.knowledgepearls.app.data.local.model.PearlWithMedia
+import com.knowledgepearls.app.data.analytics.AnalyticsContentType
+import com.knowledgepearls.app.data.analytics.AnalyticsService
 import com.knowledgepearls.app.data.capture.CaptureRepository
 import com.knowledgepearls.app.data.capture.parseTags
 import com.knowledgepearls.app.data.search.PearlSearchIndex
@@ -64,6 +66,7 @@ class FeedViewModel @Inject constructor(
     private val recentShareRecipientsStore: RecentShareRecipientsStore,
     private val captureRepository: CaptureRepository,
     private val engagementManager: PublicPearlEngagementManager,
+    private val analyticsService: AnalyticsService,
 ) : ViewModel() {
     val likedPearlIds = engagementManager.likedPearlIds
     val likeCountOverrides = engagementManager.likeCountOverrides
@@ -166,6 +169,7 @@ class FeedViewModel @Inject constructor(
         val target = deleteTarget.value ?: return
         viewModelScope.launch {
             runCatching {
+                analyticsService.trackPearlDeleted(target.pearl, target.mediaItems)
                 pearlRepository.deletePearl(target.pearl.id)
             }.onSuccess {
                 deleteTarget.value = null
@@ -216,6 +220,7 @@ class FeedViewModel @Inject constructor(
                     recipientIds = recipientIds,
                 )
             }.onSuccess {
+                analyticsService.trackPearlSharedFriend(pearl, recipientIds.size)
                 recentShareRecipientsStore.recordShares(
                     recipients.map { recipient ->
                         RecentShareRecipient(
@@ -265,6 +270,10 @@ class FeedViewModel @Inject constructor(
                     status = "pending",
                     isSharedPublicly = true,
                 )
+                analyticsService.trackPearlSharedPublic(
+                    pearlId = publicId,
+                    contentType = AnalyticsContentType.forPearl(pearl),
+                )
             }.onSuccess { onSuccess() }
                 .onFailure { shareErrorMessage.value = it.message ?: "Share failed" }
             isSharingPearl.value = false
@@ -299,6 +308,9 @@ class FeedViewModel @Inject constructor(
     fun confirmDeleteForPearl(pearlId: String) {
         viewModelScope.launch {
             runCatching {
+                pearlRepository.getPearlWithMedia(pearlId)?.let { pearlWithMedia ->
+                    analyticsService.trackPearlDeleted(pearlWithMedia.pearl, pearlWithMedia.mediaItems)
+                }
                 pearlRepository.deletePearl(pearlId)
             }.onSuccess {
                 actionSuccessMessage.value = "Pearl deleted"
@@ -311,7 +323,15 @@ class FeedViewModel @Inject constructor(
     fun toggleFavourite(pearlId: String) {
         viewModelScope.launch {
             runCatching {
+                val pearl = pearlRepository.getPearlWithMedia(pearlId)?.pearl
+                val wasFavourite = pearl?.isFavourite == true
                 pearlRepository.toggleFavourite(pearlId)
+                if (!wasFavourite) {
+                    analyticsService.track(
+                        kind = com.knowledgepearls.app.data.analytics.AnalyticsEventKind.PearlFavourited,
+                        pearlId = pearlId,
+                    )
+                }
             }.onFailure { error ->
                 shareErrorMessage.value = error.message ?: "Could not update favourite"
             }
@@ -374,6 +394,20 @@ class FeedViewModel @Inject constructor(
             engagementManager.mergeServerPearls(pearls)
             engagementManager.syncLikedState(pearls.map { it.id })
         }
+    }
+
+    fun trackCardOpened(pearl: PearlWithMedia) {
+        val ownerLabel = pearl.pearl.sharedByName.takeIf { it.isNotBlank() }
+        val isPublic = pearl.pearl.publicPearlID != null
+        analyticsService.trackCardOpened(
+            pearl = pearl,
+            isPublic = isPublic,
+            ownerLabel = ownerLabel,
+        )
+    }
+
+    fun trackLinkOpened(url: String, pearlId: String?) {
+        analyticsService.trackLinkOpened(url, pearlId)
     }
 
     suspend fun fetchAvatarUrl(userId: String): String? =

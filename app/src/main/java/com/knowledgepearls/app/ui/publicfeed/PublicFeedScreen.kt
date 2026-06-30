@@ -88,6 +88,7 @@ fun PublicFeedScreen(
     onVerifyCode: (String, String) -> Unit,
     onResendCode: (String) -> Unit,
     onClearSignInSuccess: () -> Unit,
+    onAuthGateShown: () -> Unit = {},
     accountState: AccountUiState,
     onPearlClick: (String) -> Unit,
     onResolveAvatarUrl: suspend (String) -> String? = { null },
@@ -524,6 +525,9 @@ fun PublicFeedScreen(
         }
 
         if (!isSignedIn) {
+            LaunchedEffect(Unit) {
+                onAuthGateShown()
+            }
             PublicFeedAuthGate(
                 accountState = accountState,
                 onSignIn = onSignIn,

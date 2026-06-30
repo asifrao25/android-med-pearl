@@ -2,6 +2,7 @@ package com.knowledgepearls.app.ui.favourites
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.knowledgepearls.app.data.analytics.AnalyticsService
 import com.knowledgepearls.app.data.local.model.PearlWithMedia
 import com.knowledgepearls.app.data.local.model.belongsInMyFeed
 import com.knowledgepearls.app.data.repository.KnowledgePearlRepository
@@ -30,6 +31,7 @@ data class FavouritesUiState(
 @HiltViewModel
 class FavouritesViewModel @Inject constructor(
     private val repository: KnowledgePearlRepository,
+    private val analyticsService: AnalyticsService,
 ) : ViewModel() {
     private val searchQuery = MutableStateFlow("")
     private val isSearchActive = MutableStateFlow(false)
@@ -70,6 +72,9 @@ class FavouritesViewModel @Inject constructor(
     fun deletePearl(id: String) {
         viewModelScope.launch {
             runCatching {
+                repository.getPearlWithMedia(id)?.let { pearlWithMedia ->
+                    analyticsService.trackPearlDeleted(pearlWithMedia.pearl, pearlWithMedia.mediaItems)
+                }
                 repository.deletePearl(id)
             }.onFailure { error ->
                 errorMessage.value = error.message ?: "Could not delete pearl"

@@ -1,0 +1,28 @@
+package com.knowledgepearls.app.data.analytics
+
+enum class AnalyticsEventKind(val wireName: String) {
+    AppOpen("app_open"),
+    AppBackground("app_background"),
+    SessionEnd("session_end"),
+    Heartbeat("heartbeat"),
+    PearlCreated("pearl_created"),
+    PearlDeleted("pearl_deleted"),
+    CardOpened("card_opened"),
+    LinkOpened("link_opened"),
+    PearlSharedPublic("pearl_shared_public"),
+    PearlSharedFriend("pearl_shared_friend"),
+    PearlShareAccepted("pearl_share_accepted"),
+    PearlShareDeclined("pearl_share_declined"),
+    AddedToFeed("added_to_feed"),
+    Viewed("viewed"),
+    PearlFavourited("pearl_favourited"),
+    CaptureText("capture_text"),
+    CapturePhoto("capture_photo"),
+    CaptureLink("capture_link"),
+    CaptureShareExtension("capture_share_extension"),
+    CaptureClinicalCase("capture_clinical_case"),
+    MediaSnapshot("media_snapshot"),
+    TrialGateHit("trial_gate_hit"),
+    SignupCompleted("signup_completed"),
+    PushOpened("push_opened"),
+}

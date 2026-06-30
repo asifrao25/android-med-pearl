@@ -19,12 +19,20 @@ interface KnowledgePearlDao {
     fun observeAllWithMedia(): Flow<List<PearlWithMedia>>
 
     @Transaction
+    @Query("SELECT * FROM knowledge_pearls ORDER BY updatedAt DESC")
+    suspend fun getAllWithMedia(): List<PearlWithMedia>
+
+    @Transaction
     @Query("SELECT * FROM knowledge_pearls WHERE isFavourite = 1 ORDER BY updatedAt DESC")
     fun observeFavouritesWithMedia(): Flow<List<PearlWithMedia>>
 
     @Transaction
     @Query("SELECT * FROM knowledge_pearls WHERE id = :id LIMIT 1")
     fun observeByIdWithMedia(id: String): Flow<PearlWithMedia?>
+
+    @Transaction
+    @Query("SELECT * FROM knowledge_pearls WHERE id = :id LIMIT 1")
+    suspend fun getByIdWithMedia(id: String): PearlWithMedia?
 
     @Transaction
     @Query(

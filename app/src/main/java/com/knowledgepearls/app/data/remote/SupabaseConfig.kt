@@ -9,4 +9,5 @@ object SupabaseConfig {
     const val SUPPORT_EMAIL = "admin@hormonology.uk"
     const val AVATARS_BUCKET = "avatars"
     const val PUBLIC_PEARL_MEDIA_BUCKET = "public-pearl-media"
+    const val ANALYTICS_INGEST_URL = "$URL/functions/v1/analytics-ingest"
 }

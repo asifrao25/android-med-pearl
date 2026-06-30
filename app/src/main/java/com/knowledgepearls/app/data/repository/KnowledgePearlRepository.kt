@@ -26,6 +26,10 @@ class KnowledgePearlRepository @Inject constructor(
 ) {
     fun observeAllPearls(): Flow<List<PearlWithMedia>> = pearlDao.observeAllWithMedia()
 
+    suspend fun getAllPearlsWithMedia(): List<PearlWithMedia> = pearlDao.getAllWithMedia()
+
+    suspend fun getPearlWithMedia(id: String): PearlWithMedia? = pearlDao.getByIdWithMedia(id)
+
     fun observeFavourites(): Flow<List<PearlWithMedia>> = pearlDao.observeFavouritesWithMedia()
 
     fun observePearl(id: String): Flow<PearlWithMedia?> = pearlDao.observeByIdWithMedia(id)

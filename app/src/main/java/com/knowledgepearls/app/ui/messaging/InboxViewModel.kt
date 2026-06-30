@@ -2,6 +2,7 @@ package com.knowledgepearls.app.ui.messaging
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.knowledgepearls.app.data.analytics.AnalyticsService
 import com.knowledgepearls.app.data.model.ConversationRow
 import com.knowledgepearls.app.data.model.DirectMessage
 import com.knowledgepearls.app.data.model.PearlShareInboxRow
@@ -59,6 +60,7 @@ class InboxViewModel @Inject constructor(
     private val inboxCountsRepository: InboxCountsRepository,
     private val accountRepository: AccountRepository,
     private val recentMessageRecipientsStore: RecentMessageRecipientsStore,
+    private val analyticsService: AnalyticsService,
 ) : ViewModel() {
     private val _inboxState = MutableStateFlow(InboxUiState())
     val inboxState: StateFlow<InboxUiState> = _inboxState.asStateFlow()
@@ -203,12 +205,17 @@ class InboxViewModel @Inject constructor(
         viewModelScope.launch {
             _inboxState.update { it.copy(respondingShareId = shareId, errorMessage = null) }
             runCatching {
+                val shareRow = _inboxState.value.pendingShares.firstOrNull { it.share.id == shareId }
                 if (accept) {
-                    val share = _inboxState.value.pendingShares.firstOrNull { it.share.id == shareId }?.share
-                        ?: error("Share not found.")
+                    val share = shareRow?.share ?: error("Share not found.")
                     pearlShareRepository.importAcceptedShare(share)
                 }
                 pearlShareRepository.respondToShare(shareId, accept)
+                analyticsService.trackPearlShareResponse(
+                    accepted = accept,
+                    pearlTitle = shareRow?.share?.pearlPayload?.title.orEmpty(),
+                    contentType = shareRow?.share?.pearlPayload?.contentType,
+                )
                 loadInbox()
             }.onFailure { error ->
                 _inboxState.update {

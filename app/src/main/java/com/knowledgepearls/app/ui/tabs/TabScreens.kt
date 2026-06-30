@@ -189,6 +189,7 @@ fun FeedTabScreen(
                 viewModel = captureViewModel,
                 isSignedIn = accountState.isSignedIn,
                 initialNotes = shareImport?.text,
+                fromShareImport = true,
                 onBack = { navController.popBackStack() },
                 onSaved = {
                     feedViewModel.showCaptureSavedMessage()
@@ -213,6 +214,7 @@ fun FeedTabScreen(
                 isSignedIn = accountState.isSignedIn,
                 initialUrl = shareImport?.url,
                 initialNotes = shareImport?.text,
+                fromShareImport = true,
                 onBack = { navController.popBackStack() },
                 onSaved = {
                     feedViewModel.showCaptureSavedMessage()
@@ -393,6 +395,7 @@ fun PublicFeedTabScreen(
                 onVerifyCode = accountViewModel::verifySignupCode,
                 onResendCode = accountViewModel::resendVerificationCode,
                 onClearSignInSuccess = accountViewModel::clearSignInSuccess,
+                onAuthGateShown = viewModel::trackAuthGateShown,
                 accountState = accountState,
                 onPearlClick = { pearlId ->
                     navController.navigate("public_pearl/$pearlId")
@@ -540,6 +543,9 @@ fun PublicFeedTabScreen(
                     }
                 }
                 else -> {
+                    LaunchedEffect(pearl.id) {
+                        viewModel.trackPublicCardOpened(pearl)
+                    }
                     PublicPearlDetailScreen(
                         pearl = pearl,
                         tabHeader = TabTheme.PublicFeed.tabHeaderContext(),

@@ -76,6 +76,7 @@ fun QuickTextCaptureScreen(
     onBack: () -> Unit,
     onSaved: () -> Unit,
     initialNotes: String? = null,
+    fromShareImport: Boolean = false,
     captureDestination: PearlCaptureDestination = PearlCaptureDestination.MyFeedOnly,
 ) {
     var title by remember { mutableStateOf("") }
@@ -105,6 +106,7 @@ fun QuickTextCaptureScreen(
                 tagsRaw = tags,
                 media = attachments.toList(),
                 shareToPublicFeed = shareState.value,
+                fromShareImport = fromShareImport,
                 onSuccess = onSuccess,
                 onError = onError,
             )
@@ -140,6 +142,7 @@ fun WebLinkCaptureScreen(
     onSaved: () -> Unit,
     initialUrl: String? = null,
     initialNotes: String? = null,
+    fromShareImport: Boolean = false,
     captureDestination: PearlCaptureDestination = PearlCaptureDestination.MyFeedOnly,
 ) {
     var url by remember { mutableStateOf(initialUrl.orEmpty()) }
@@ -174,6 +177,7 @@ fun WebLinkCaptureScreen(
                 tagsRaw = tags,
                 url = url,
                 shareToPublicFeed = shareState.value,
+                fromShareImport = fromShareImport,
                 onSuccess = onSuccess,
                 onError = onError,
             )

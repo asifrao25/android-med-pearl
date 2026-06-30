@@ -3,6 +3,8 @@ package com.knowledgepearls.app.ui.account
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import android.content.Context
+import com.knowledgepearls.app.data.analytics.AnalyticsEventKind
+import com.knowledgepearls.app.data.analytics.AnalyticsService
 import com.knowledgepearls.app.data.auth.GoogleSignInCancelledException
 import com.knowledgepearls.app.data.auth.GoogleSignInHelper
 import com.knowledgepearls.app.data.push.PushNotificationManager
@@ -24,6 +26,7 @@ class AccountViewModel @Inject constructor(
     private val googleSignInHelper: GoogleSignInHelper,
     private val pearlSyncCoordinator: PearlSyncCoordinator,
     private val pushNotificationManager: PushNotificationManager,
+    private val analyticsService: AnalyticsService,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(AccountUiState())
     val uiState: StateFlow<AccountUiState> = _uiState.asStateFlow()
@@ -86,6 +89,7 @@ class AccountViewModel @Inject constructor(
                 when (accountRepository.signUp(email, password)) {
                     EmailSignUpOutcome.SignedIn -> {
                         refreshAuthenticatedState(triggerSync = true)
+                        analyticsService.track(AnalyticsEventKind.SignupCompleted)
                         _uiState.update { it.copy(showSignInSuccess = true) }
                     }
                     EmailSignUpOutcome.EmailVerificationRequired -> {
@@ -111,6 +115,7 @@ class AccountViewModel @Inject constructor(
             runCatching {
                 accountRepository.verifySignupEmailCode(email, code)
                 refreshAuthenticatedState(triggerSync = true)
+                analyticsService.track(AnalyticsEventKind.SignupCompleted)
                 _uiState.update {
                     it.copy(
                         pendingVerificationEmail = null,
@@ -361,5 +366,6 @@ class AccountViewModel @Inject constructor(
             pearlSyncCoordinator.runIfAuthenticated(userId)
         }
         pushNotificationManager.syncAuthState(userId)
+        analyticsService.flushNow()
     }
 }

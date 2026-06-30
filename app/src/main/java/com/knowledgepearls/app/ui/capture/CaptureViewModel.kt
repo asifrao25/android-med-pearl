@@ -2,6 +2,9 @@ package com.knowledgepearls.app.ui.capture
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.knowledgepearls.app.data.analytics.AnalyticsContentType
+import com.knowledgepearls.app.data.analytics.AnalyticsEventKind
+import com.knowledgepearls.app.data.analytics.AnalyticsService
 import com.knowledgepearls.app.data.capture.CaptureRepository
 import com.knowledgepearls.app.data.capture.LinkPreview
 import com.knowledgepearls.app.data.capture.LinkPreviewFetcher
@@ -32,6 +35,7 @@ class CaptureViewModel @Inject constructor(
     private val linkPreviewFetcher: LinkPreviewFetcher,
     private val publicFeedSharingRepository: PublicFeedSharingRepository,
     private val pearlRepository: KnowledgePearlRepository,
+    private val analyticsService: AnalyticsService,
 ) : ViewModel() {
     private val _linkPreview = MutableStateFlow(LinkPreviewUiState())
     val linkPreview: StateFlow<LinkPreviewUiState> = _linkPreview.asStateFlow()
@@ -72,13 +76,20 @@ class CaptureViewModel @Inject constructor(
         media: List<PickedMedia>,
         shareToPublicFeed: Boolean = false,
         saveToMyFeed: Boolean = true,
+        fromShareImport: Boolean = false,
         onSuccess: (String) -> Unit,
         onError: (String) -> Unit,
     ) = save {
         val tags = parseTags(tagsRaw)
+        val captureKind = when {
+            fromShareImport -> AnalyticsEventKind.CaptureShareExtension
+            media.isEmpty() -> AnalyticsEventKind.CaptureText
+            else -> AnalyticsEventKind.CapturePhoto
+        }
         persistPearl(
             shareToPublicFeed = shareToPublicFeed,
             saveToMyFeed = saveToMyFeed,
+            captureKind = captureKind,
             share = {
                 publicFeedSharingRepository.shareStandardPearl(
                     title = title,
@@ -110,6 +121,7 @@ class CaptureViewModel @Inject constructor(
         url: String,
         shareToPublicFeed: Boolean = false,
         saveToMyFeed: Boolean = true,
+        fromShareImport: Boolean = false,
         onSuccess: (String) -> Unit,
         onError: (String) -> Unit,
     ) {
@@ -125,6 +137,11 @@ class CaptureViewModel @Inject constructor(
             persistPearl(
                 shareToPublicFeed = shareToPublicFeed,
                 saveToMyFeed = saveToMyFeed,
+                captureKind = if (fromShareImport) {
+                    AnalyticsEventKind.CaptureShareExtension
+                } else {
+                    AnalyticsEventKind.CaptureLink
+                },
                 share = {
                     publicFeedSharingRepository.shareStandardPearl(
                         title = resolvedTitle,
@@ -166,6 +183,7 @@ class CaptureViewModel @Inject constructor(
         persistPearl(
             shareToPublicFeed = shareToPublicFeed,
             saveToMyFeed = saveToMyFeed,
+            captureKind = AnalyticsEventKind.CapturePhoto,
             share = {
                 publicFeedSharingRepository.shareStandardPearl(
                     title = title,
@@ -203,6 +221,7 @@ class CaptureViewModel @Inject constructor(
         persistPearl(
             shareToPublicFeed = shareToPublicFeed,
             saveToMyFeed = saveToMyFeed,
+            captureKind = AnalyticsEventKind.CaptureClinicalCase,
             share = {
                 publicFeedSharingRepository.shareClinicalCase(
                     title = title,
@@ -226,6 +245,7 @@ class CaptureViewModel @Inject constructor(
     private suspend fun persistPearl(
         shareToPublicFeed: Boolean,
         saveToMyFeed: Boolean,
+        captureKind: AnalyticsEventKind?,
         share: suspend () -> String,
         saveLocal: suspend () -> String,
     ): String {
@@ -238,6 +258,26 @@ class CaptureViewModel @Inject constructor(
                 status = "pending",
                 isSharedPublicly = true,
             )
+        }
+        if (localId.isNotBlank()) {
+            pearlRepository.getPearlWithMedia(localId)?.let { pearlWithMedia ->
+                analyticsService.trackPearlCreated(
+                    pearl = pearlWithMedia.pearl,
+                    mediaItems = pearlWithMedia.mediaItems,
+                    captureKind = captureKind,
+                )
+            }
+        }
+        if (publicId != null) {
+            val contentType = when (captureKind) {
+                AnalyticsEventKind.CaptureClinicalCase -> "clinical_case"
+                AnalyticsEventKind.CaptureLink -> "link"
+                else -> localId.takeIf { it.isNotBlank() }
+                    ?.let { pearlRepository.getPearlWithMedia(it) }
+                    ?.let { AnalyticsContentType.forPearl(it) }
+                    ?: "text"
+            }
+            analyticsService.trackPearlSharedPublic(publicId, contentType)
         }
         return localId.ifBlank { publicId ?: "submitted" }
     }

@@ -152,6 +152,10 @@ fun PearlDetailScreen(
             } else {
                 val item = loadedPearl
                 val entity = item.pearl
+                val context = LocalContext.current
+                LaunchedEffect(entity.id) {
+                    viewModel.trackCardOpened(item)
+                }
                 val author = FeedPearlAuthorInfo.resolve(item, feedAuthorContext, entity.decodedPublicPearl())
                 val profileUserId = author.userId ?: feedAuthorContext.userId
 
@@ -223,6 +227,10 @@ fun PearlDetailScreen(
                                 pearl = item,
                                 theme = theme,
                                 onOpenMedia = { mediaViewerRequest = it },
+                                onOpenUrl = { url ->
+                                    viewModel.trackLinkOpened(url, entity.id)
+                                    openExternalUrl(context, url)
+                                },
                             )
                         }
                     }
@@ -470,16 +478,16 @@ private fun StandardLocalPearlDetailContent(
     pearl: PearlWithMedia,
     theme: TabTheme,
     onOpenMedia: (PublicPearlMediaViewerRequest) -> Unit,
+    onOpenUrl: (String) -> Unit,
 ) {
     val entity = pearl.pearl
-    val context = LocalContext.current
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         PearlDetailMediaSection(
             pearl = pearl,
             theme = theme,
             onOpenMedia = onOpenMedia,
-            onOpenUrl = { url -> openExternalUrl(context, url) },
+            onOpenUrl = onOpenUrl,
         )
 
         PearlDetailDescriptionSection(text = entity.notes, theme = theme)
