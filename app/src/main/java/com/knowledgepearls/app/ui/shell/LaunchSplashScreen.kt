@@ -78,7 +78,7 @@ private val AccentCyan = Color(0xFF2ED6FA)
 private val AccentAmber = Color(0xFFFF9E38)
 private val AccentViolet = Color(0xFF8C6BF2)
 
-private const val SplashDurationMs = 2000
+private const val SplashDurationMs = 3000
 private const val PearlCount = 16
 
 private val MedicalSymbols = listOf(
