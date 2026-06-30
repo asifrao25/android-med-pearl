@@ -18,7 +18,12 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.LaunchedEffect
+import com.knowledgepearls.app.ui.components.FeedChromeAnchor
+import com.knowledgepearls.app.ui.components.FeedChromeMetrics
+import com.knowledgepearls.app.ui.components.LocalFeedChromeVisibility
+import com.knowledgepearls.app.ui.components.feedChromeSlide
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -65,6 +70,8 @@ fun FeedScreen(
     onCaptureSheetSelected: (CaptureSheet) -> Unit,
 ) {
     val theme = TabTheme.Feed
+    val feedChrome = LocalFeedChromeVisibility.current
+    val listState = rememberLazyListState()
     val foldersViewModel: FoldersViewModel = hiltViewModel()
     val folders by foldersViewModel.foldersWithCounts.collectAsStateWithLifecycle()
     var folderPickerPearl by remember { mutableStateOf<com.knowledgepearls.app.data.local.model.PearlWithMedia?>(null) }
@@ -77,6 +84,18 @@ fun FeedScreen(
         } else {
             foldersViewModel.observePearlFolderIds(folderPearlId).collect { memberFolderIds = it }
         }
+    }
+
+    LaunchedEffect(captureMenuOpen, uiState.isSearchActive) {
+        if (captureMenuOpen || uiState.isSearchActive) {
+            feedChrome?.suppress()
+        } else {
+            feedChrome?.releaseSuppress()
+        }
+    }
+
+    LaunchedEffect(uiState.contentTypeFilter) {
+        feedChrome?.forceShow()
     }
 
     Box(Modifier.fillMaxSize()) {
@@ -110,6 +129,10 @@ fun FeedScreen(
                 selected = uiState.contentTypeFilter,
                 onSelected = onContentTypeSelected,
                 theme = theme,
+                modifier = Modifier.feedChromeSlide(
+                    anchor = FeedChromeAnchor.Top,
+                    hideDistance = FeedChromeMetrics.topChromeHideDistance,
+                ),
             )
 
             if (uiState.isSearchActive) {
@@ -150,6 +173,8 @@ fun FeedScreen(
                 onDeleteRequest = onDeleteRequest,
                 onFoldersRequest = { folderPickerPearl = it },
                 modifier = Modifier.weight(1f),
+                listState = listState,
+                chromeScrollEnabled = !captureMenuOpen && !uiState.isSearchActive,
             )
         }
 
@@ -197,6 +222,10 @@ fun FeedScreen(
             onClick = { onCaptureMenuOpenChange(!captureMenuOpen) },
             modifier = Modifier
                 .align(Alignment.BottomEnd)
+                .feedChromeSlide(
+                    anchor = FeedChromeAnchor.Bottom,
+                    hideDistance = FeedChromeMetrics.fabHideDistance,
+                )
                 .padding(end = 20.dp, bottom = PearlLayout.addButtonBottomPadding),
         )
     }

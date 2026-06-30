@@ -7,7 +7,9 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Delete
@@ -25,6 +27,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.knowledgepearls.app.data.local.model.PearlWithMedia
 import com.knowledgepearls.app.data.local.model.rememberDecodedPublicPearl
+import com.knowledgepearls.app.ui.components.TrackFeedChromeScroll
+import com.knowledgepearls.app.ui.components.feedChromeBottomPadding
 import com.knowledgepearls.app.ui.components.PearlSwipeAction
 import com.knowledgepearls.app.ui.components.PearlSwipeRow
 import com.knowledgepearls.app.ui.components.SwipeRowHintStorage
@@ -44,6 +48,8 @@ fun PearlList(
     onFoldersRequest: (PearlWithMedia) -> Unit,
     modifier: Modifier = Modifier,
     theme: TabTheme = TabTheme.Feed,
+    listState: LazyListState = rememberLazyListState(),
+    chromeScrollEnabled: Boolean = true,
 ) {
     val context = LocalContext.current
     var swipeHintDismissed by remember {
@@ -64,6 +70,8 @@ fun PearlList(
         },
         modifier = modifier,
         theme = theme,
+        listState = listState,
+        chromeScrollEnabled = chromeScrollEnabled,
     )
 }
 
@@ -79,8 +87,12 @@ private fun PearlListContent(
     onSwipeHintDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     theme: TabTheme = TabTheme.Feed,
+    listState: LazyListState,
+    chromeScrollEnabled: Boolean,
 ) {
     val darkTheme = isPearlDarkTheme()
+    TrackFeedChromeScroll(listState = listState, enabled = chromeScrollEnabled)
+    val bottomPadding = feedChromeBottomPadding(fullPadding = 120.dp)
 
     if (pearls.isEmpty()) {
         Box(
@@ -97,12 +109,13 @@ private fun PearlListContent(
     }
 
     LazyColumn(
+        state = listState,
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(
             start = PearlLayout.screenHorizontalPadding,
             end = PearlLayout.screenHorizontalPadding,
             top = 8.dp,
-            bottom = 120.dp,
+            bottom = bottomPadding,
         ),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {

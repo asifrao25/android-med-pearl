@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -37,10 +38,15 @@ import com.knowledgepearls.app.data.connectivity.BackendHealthMonitor
 import com.knowledgepearls.app.data.connectivity.ConnectivityMonitor
 import com.knowledgepearls.app.ui.components.ConnectivityOverlays
 import com.knowledgepearls.app.ui.components.interactiveKeyboardDismiss
+import com.knowledgepearls.app.ui.components.FeedChromeAnchor
+import com.knowledgepearls.app.ui.components.FeedChromeMetrics
 import com.knowledgepearls.app.ui.components.FloatingInboxButton
 import com.knowledgepearls.app.ui.components.FloatingInboxReminderCallout
 import com.knowledgepearls.app.ui.components.CacheClearedSuccessAlert
 import com.knowledgepearls.app.ui.components.LiquidTabBar
+import com.knowledgepearls.app.ui.components.LocalFeedChromeVisibility
+import com.knowledgepearls.app.ui.components.feedChromeSlide
+import com.knowledgepearls.app.ui.components.rememberFeedChromeVisibility
 import com.knowledgepearls.app.navigation.AppNavigationBus
 import com.knowledgepearls.app.navigation.AppNavigationEvent
 import com.knowledgepearls.app.navigation.ShareImportPayload
@@ -315,6 +321,13 @@ fun MainScaffold(
         profileUserId = userId
     }
 
+    val feedChromeVisibility = rememberFeedChromeVisibility()
+
+    LaunchedEffect(selectedTab) {
+        feedChromeVisibility.forceShow()
+    }
+
+    CompositionLocalProvider(LocalFeedChromeVisibility provides feedChromeVisibility) {
     Box(Modifier.fillMaxSize().interactiveKeyboardDismiss()) {
         val onFeedListScreen = when (selectedTab) {
             MainTab.Feed -> feedRootVisible
@@ -387,6 +400,16 @@ fun MainScaffold(
             !inboxReminderDismissed &&
             inboxBadgeCount > 0
 
+        val feedChromeScrollEnabled = onFeedListScreen &&
+            (selectedTab == MainTab.Feed || selectedTab == MainTab.PublicFeed) &&
+            !blockingFloatingChromeOverlay
+
+        LaunchedEffect(feedChromeScrollEnabled) {
+            if (!feedChromeScrollEnabled) {
+                feedChromeVisibility.forceShow()
+            }
+        }
+
         Box(
             modifier = Modifier.fillMaxSize(),
         ) {
@@ -456,6 +479,11 @@ fun MainScaffold(
                     },
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
+                        .feedChromeSlide(
+                            anchor = FeedChromeAnchor.Bottom,
+                            hideDistance = FeedChromeMetrics.inboxFabHideDistance,
+                            minAlpha = if (inboxBadgeCount > 0) 0.42f else 0f,
+                        )
                         .padding(end = 20.dp, bottom = inboxButtonBottomPadding),
                 )
             }
@@ -541,6 +569,10 @@ fun MainScaffold(
                     seenCount = publicFeedState.seenCount,
                     theme = TabTheme.PublicFeed,
                     onSelected = publicFeedViewModel::setSection,
+                    modifier = Modifier.feedChromeSlide(
+                        anchor = FeedChromeAnchor.Bottom,
+                        hideDistance = FeedChromeMetrics.sectionTabsHideDistance,
+                    ),
                 )
             }
         }
@@ -573,6 +605,10 @@ fun MainScaffold(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
+                .feedChromeSlide(
+                    anchor = FeedChromeAnchor.Bottom,
+                    hideDistance = FeedChromeMetrics.tabBarHideDistance,
+                )
                 .padding(bottom = PearlLayout.tabBarBottomPadding),
         )
 
@@ -775,6 +811,7 @@ fun MainScaffold(
                 onDismiss = { pearlShareToast = null },
             )
         }
+    }
     }
 }
 

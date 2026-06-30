@@ -35,6 +35,12 @@ import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Delete
 import com.knowledgepearls.app.data.local.model.FolderWithCount
 import com.knowledgepearls.app.data.model.PublicPearl
+import com.knowledgepearls.app.ui.components.FeedChromeAnchor
+import com.knowledgepearls.app.ui.components.FeedChromeMetrics
+import com.knowledgepearls.app.ui.components.LocalFeedChromeVisibility
+import com.knowledgepearls.app.ui.components.TrackFeedChromeScroll
+import com.knowledgepearls.app.ui.components.feedChromeBottomPadding
+import com.knowledgepearls.app.ui.components.feedChromeSlide
 import com.knowledgepearls.app.ui.components.PearlSwipeAction
 import com.knowledgepearls.app.ui.components.PearlSwipeRow
 import com.knowledgepearls.app.ui.feed.PearlDeleteConfirmationDialog
@@ -110,6 +116,7 @@ fun PublicFeedScreen(
 ) {
     val theme = TabTheme.PublicFeed
     val darkTheme = isPearlDarkTheme()
+    val feedChrome = LocalFeedChromeVisibility.current
     val floatingAddButtonBottomPadding = if (showsSectionTabs) {
         PearlLayout.publicFeedAddButtonBottomPadding
     } else {
@@ -117,6 +124,29 @@ fun PublicFeedScreen(
     }
     val listState = rememberLazyListState()
     var removeTarget by remember { mutableStateOf<PublicPearl?>(null) }
+    val isRefreshing = uiState.isLoading && uiState.pearls.isNotEmpty()
+    val listBottomPadding = feedChromeBottomPadding(
+        fullPadding = floatingAddButtonBottomPadding + PearlLayout.addButtonSize + 24.dp,
+    )
+    val chromeScrollEnabled = isSignedIn &&
+        isNetworkAvailable &&
+        uiState.pearls.isNotEmpty() &&
+        !captureMenuOpen &&
+        !isRefreshing
+
+    TrackFeedChromeScroll(listState = listState, enabled = chromeScrollEnabled)
+
+    LaunchedEffect(captureMenuOpen, isRefreshing) {
+        if (captureMenuOpen || isRefreshing) {
+            feedChrome?.suppress()
+        } else {
+            feedChrome?.releaseSuppress()
+        }
+    }
+
+    LaunchedEffect(uiState.section, uiState.contentTypeFilter) {
+        feedChrome?.forceShow()
+    }
 
     val shouldLoadMore by remember {
         derivedStateOf {
@@ -163,6 +193,10 @@ fun PublicFeedScreen(
                 selected = uiState.contentTypeFilter,
                 onSelected = onContentTypeSelected,
                 theme = theme,
+                modifier = Modifier.feedChromeSlide(
+                    anchor = FeedChromeAnchor.Top,
+                    hideDistance = FeedChromeMetrics.topChromeHideDistance,
+                ),
             )
 
             Box(
@@ -203,7 +237,6 @@ fun PublicFeedScreen(
                     }
                 }
                 else -> {
-                    val isRefreshing = uiState.isLoading && uiState.pearls.isNotEmpty()
                     PullToRefreshBox(
                         isRefreshing = isRefreshing,
                         onRefresh = onRefreshFeed,
@@ -216,8 +249,7 @@ fun PublicFeedScreen(
                                 start = PearlLayout.screenHorizontalPadding,
                                 end = PearlLayout.screenHorizontalPadding,
                                 top = 8.dp,
-                                bottom = PearlLayout.publicFeedAddButtonBottomPadding +
-                                    PearlLayout.addButtonSize + 24.dp,
+                                bottom = listBottomPadding,
                             ),
                             verticalArrangement = Arrangement.spacedBy(14.dp),
                         ) {
@@ -373,6 +405,14 @@ fun PublicFeedScreen(
                 },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
+                    .feedChromeSlide(
+                        anchor = FeedChromeAnchor.Bottom,
+                        hideDistance = if (showsSectionTabs) {
+                            FeedChromeMetrics.inboxFabHideDistance
+                        } else {
+                            FeedChromeMetrics.fabHideDistance
+                        },
+                    )
                     .padding(end = 20.dp, bottom = floatingAddButtonBottomPadding),
             )
         }
