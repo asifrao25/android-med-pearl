@@ -135,6 +135,14 @@ fun TrackFeedChromeScroll(
     }
 }
 
+@Composable
+fun feedChromeBottomPadding(fullPadding: Dp, collapsedPadding: Dp = 24.dp): Dp {
+    val chrome = LocalFeedChromeVisibility.current ?: return fullPadding
+    // Snap to target (not animated progress) so LazyColumn padding changes at most once per
+    // hide/show — avoids relayout every spring frame while the user is still scrolling.
+    return if (chrome.targetProgress > 0.5f) fullPadding else collapsedPadding
+}
+
 fun Modifier.feedChromeSlide(
     anchor: FeedChromeAnchor,
     hideDistance: Dp,
