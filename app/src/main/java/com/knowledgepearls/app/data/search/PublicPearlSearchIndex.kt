@@ -1,21 +1,15 @@
 package com.knowledgepearls.app.data.search
 
-import com.knowledgepearls.app.data.local.model.PearlWithMedia
-import com.knowledgepearls.app.data.local.model.clinicalCasePayload
-import com.knowledgepearls.app.data.local.model.isClinicalCase
+import com.knowledgepearls.app.data.model.PublicPearl
 
-/**
- * In-memory title-focused search index rebuilt when the pearl list changes.
- * Tokenizes headings for prefix/word matching without a full DB migration.
- */
-class PearlSearchIndex private constructor(
-    private val entries: Map<String, PearlSearchEntry>,
+class PublicPearlSearchIndex private constructor(
+    private val entries: Map<String, PublicPearlSearchEntry>,
 ) {
     fun matchesPearl(pearlId: String, rawQuery: String): Boolean {
         val query = rawQuery.trim()
         if (query.isEmpty()) return true
         val entry = entries[pearlId] ?: return false
-        val tokens = tokenize(query)
+        val tokens = PearlSearchTokenizer.tokenize(query)
         if (tokens.isEmpty()) {
             return entry.titleNormalized.contains(query.lowercase())
         }
@@ -23,18 +17,18 @@ class PearlSearchIndex private constructor(
     }
 
     companion object {
-        fun build(pearls: List<PearlWithMedia>): PearlSearchIndex =
-            PearlSearchIndex(
+        fun build(pearls: List<PublicPearl>): PublicPearlSearchIndex =
+            PublicPearlSearchIndex(
                 entries = pearls.associate { pearl ->
-                    pearl.pearl.id to PearlSearchEntry.from(pearl)
+                    pearl.id to PublicPearlSearchEntry.from(pearl)
                 },
             )
 
-        fun topTags(pearls: List<PearlWithMedia>, limit: Int = 10): List<String> {
+        fun topTags(pearls: List<PublicPearl>, limit: Int = 10): List<String> {
             val counts = linkedMapOf<String, Int>()
             val labels = linkedMapOf<String, String>()
             pearls.forEach { pearl ->
-                pearl.pearl.tags.forEach { raw ->
+                pearl.tags.forEach { raw ->
                     val label = raw.trim()
                     if (label.isEmpty()) return@forEach
                     val key = label.lowercase()
@@ -50,12 +44,10 @@ class PearlSearchIndex private constructor(
                 .take(limit)
                 .mapNotNull { labels[it.key] }
         }
-
-        private fun tokenize(text: String): List<String> = PearlSearchTokenizer.tokenize(text)
     }
 }
 
-private data class PearlSearchEntry(
+private data class PublicPearlSearchEntry(
     val titleNormalized: String,
     val titleTokens: Set<String>,
     val supportingText: String,
@@ -68,36 +60,23 @@ private data class PearlSearchEntry(
     }
 
     companion object {
-        fun from(pearl: PearlWithMedia): PearlSearchEntry {
-            val entity = pearl.pearl
-            val title = entity.title.trim()
+        fun from(pearl: PublicPearl): PublicPearlSearchEntry {
+            val title = pearl.titleDisplay.trim()
             val titleNormalized = title.lowercase()
             val titleTokens = PearlSearchTokenizer.split(titleNormalized).toSet()
-
             val supporting = buildString {
-                append(entity.notes)
+                append(pearl.notes)
                 append(' ')
-                append(entity.sourceReference)
+                append(pearl.scraperTweetText)
                 append(' ')
-                append(entity.linkPreviewDescription)
+                append(pearl.scraperLearningPoint)
                 append(' ')
-                append(entity.tags.joinToString(" "))
-                if (entity.isClinicalCase()) {
-                    val payload = entity.clinicalCasePayload()
-                    append(' ')
-                    append(payload.history)
-                    append(' ')
-                    append(payload.examination)
-                    append(' ')
-                    append(payload.investigation)
-                    append(' ')
-                    append(payload.diagnosis)
-                    append(' ')
-                    append(payload.discussion)
-                }
+                append(pearl.sharedBy)
+                append(' ')
+                append(pearl.tags.joinToString(" "))
             }.lowercase()
 
-            return PearlSearchEntry(
+            return PublicPearlSearchEntry(
                 titleNormalized = titleNormalized,
                 titleTokens = titleTokens,
                 supportingText = supporting,
@@ -105,4 +84,3 @@ private data class PearlSearchEntry(
         }
     }
 }
-

@@ -15,10 +15,12 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.math.max
+import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 @Stable
@@ -147,6 +149,7 @@ fun Modifier.feedChromeSlide(
     anchor: FeedChromeAnchor,
     hideDistance: Dp,
     minAlpha: Float = 0f,
+    collapseLayout: Boolean = anchor == FeedChromeAnchor.Top,
 ): Modifier = composed {
     val chrome = LocalFeedChromeVisibility.current
     if (chrome == null) return@composed this
@@ -167,8 +170,31 @@ fun Modifier.feedChromeSlide(
     }
     val alpha = minAlpha + (1f - minAlpha) * progress
 
-    graphicsLayer {
-        this.alpha = alpha.coerceIn(0f, 1f)
-        translationY = (1f - progress) * hidePx * direction
-    }
+    then(
+        Modifier
+            .then(
+                if (collapseLayout) {
+                    Modifier.layout { measurable, constraints ->
+                        val placeable = measurable.measure(constraints)
+                        val animatedHeight = (placeable.height * progress).roundToInt()
+                        if (animatedHeight <= 0) {
+                            layout(0, 0) {}
+                        } else {
+                            layout(placeable.width, animatedHeight) {
+                                placeable.placeRelative(0, 0)
+                            }
+                        }
+                    }
+                } else {
+                    Modifier
+                },
+            )
+            .graphicsLayer {
+                this.alpha = alpha.coerceIn(0f, 1f)
+                clip = collapseLayout
+                if (!collapseLayout) {
+                    translationY = (1f - progress) * hidePx * direction
+                }
+            },
+    )
 }

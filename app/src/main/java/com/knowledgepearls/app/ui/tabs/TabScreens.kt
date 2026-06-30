@@ -228,6 +228,7 @@ fun FavouritesTabScreen(
 ) {
     val navController = rememberNavController()
     val accountState by accountViewModel.uiState.collectAsStateWithLifecycle()
+    val favouritesUiState by favouritesViewModel.uiState.collectAsStateWithLifecycle()
     val feedAuthorContext = FeedAuthorContext(
         userId = accountState.userId,
         userEmail = accountState.userEmail,
@@ -244,14 +245,14 @@ fun FavouritesTabScreen(
     NavHost(navController = navController, startDestination = "favourites") {
         composable("favourites") {
             com.knowledgepearls.app.ui.favourites.FavouritesScreen(
-                viewModel = favouritesViewModel,
+                uiState = favouritesUiState,
                 feedAuthorContext = feedAuthorContext,
                 onResolveAvatarUrl = feedViewModel::fetchAvatarUrl,
                 onOpenSettings = onOpenSettings,
-                isSignedIn = accountState.isSignedIn,
-                inboxBadgeCount = inboxBadgeCount,
-                onOpenInbox = onOpenInbox,
                 onPearlClick = { id -> navController.navigate("pearl/$id") },
+                onSearchQueryChange = favouritesViewModel::setSearchQuery,
+                onSearchActiveChange = favouritesViewModel::setSearchActive,
+                onDeletePearl = favouritesViewModel::deletePearl,
             )
         }
         composable("pearl/{pearlId}") { entry ->
@@ -395,6 +396,8 @@ fun PublicFeedTabScreen(
                 },
                 onSharedPearlIntroCancel = { showSharedPearlIntro = false },
                 showsSectionTabs = showsSectionTabs,
+                onSearchQueryChange = viewModel::setSearchQuery,
+                onSearchActiveChange = viewModel::setSearchActive,
             )
         }
 

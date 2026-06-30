@@ -56,8 +56,12 @@ import com.knowledgepearls.app.ui.feed.FeedEmptyFilterAlert
 import com.knowledgepearls.app.ui.feed.FeedPearlAuthorInfo
 import com.knowledgepearls.app.ui.feed.PearlFeedAuthorLayout
 import com.knowledgepearls.app.ui.components.HeaderIconButton
+import com.knowledgepearls.app.ui.components.TabHeaderIconRow
 import com.knowledgepearls.app.ui.components.TabScreenHeader
 import com.knowledgepearls.app.ui.feed.ContentTypePicker
+import com.knowledgepearls.app.ui.feed.FeedSearchBar
+import com.knowledgepearls.app.ui.feed.FeedSearchOverlay
+import com.knowledgepearls.app.ui.feed.FeedSearchTagSuggestions
 import com.knowledgepearls.app.ui.theme.LiquidBackground
 import com.knowledgepearls.app.ui.theme.PearlColors
 import com.knowledgepearls.app.ui.theme.PearlLayout
@@ -108,6 +112,8 @@ fun PublicFeedScreen(
     captureMenuOpen: Boolean = false,
     onCaptureMenuOpenChange: (Boolean) -> Unit = {},
     onCaptureSheetSelected: (CaptureSheet) -> Unit = {},
+    onSearchQueryChange: (String) -> Unit = {},
+    onSearchActiveChange: (Boolean) -> Unit = {},
     showSharedPearlIntro: Boolean = false,
     onRequestSharedPearlIntro: () -> Unit = {},
     onSharedPearlIntroContinue: () -> Unit = {},
@@ -123,6 +129,7 @@ fun PublicFeedScreen(
         PearlLayout.addButtonBottomPadding
     }
     val listState = rememberLazyListState()
+    val searchListState = rememberLazyListState()
     var removeTarget by remember { mutableStateOf<PublicPearl?>(null) }
     val isRefreshing = uiState.isLoading && uiState.pearls.isNotEmpty()
     val listBottomPadding = feedChromeBottomPadding(
@@ -136,8 +143,8 @@ fun PublicFeedScreen(
 
     TrackFeedChromeScroll(listState = listState, enabled = chromeScrollEnabled)
 
-    LaunchedEffect(captureMenuOpen, isRefreshing) {
-        if (captureMenuOpen || isRefreshing) {
+    LaunchedEffect(captureMenuOpen, isRefreshing, uiState.isSearchActive) {
+        if (captureMenuOpen || isRefreshing || uiState.isSearchActive) {
             feedChrome?.suppress()
         } else {
             feedChrome?.releaseSuppress()
@@ -173,6 +180,12 @@ fun PublicFeedScreen(
         }
     }
 
+    val searchResults = if (uiState.searchQuery.isBlank()) {
+        emptyList()
+    } else {
+        uiState.filteredPearls
+    }
+
     Box(Modifier.fillMaxSize()) {
         LiquidBackground(theme = theme)
 
@@ -185,10 +198,22 @@ fun PublicFeedScreen(
                 title = "Public Feed",
                 subtitle = "Community pearls",
                 theme = theme,
+                showsSettingsButton = false,
                 onSettingsClick = onOpenSettings,
-                trailing = { },
+                trailing = {
+                    if (!uiState.isSearchActive) {
+                        TabHeaderIconRow(
+                            theme = theme,
+                            onSettingsClick = onOpenSettings,
+                            onSearchClick = { onSearchActiveChange(true) },
+                        )
+                    }
+                },
             )
 
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                if (!uiState.isSearchActive) {
+                    Column(Modifier.fillMaxSize()) {
             ContentTypePicker(
                 selected = uiState.contentTypeFilter,
                 onSelected = onContentTypeSelected,
@@ -385,9 +410,49 @@ fun PublicFeedScreen(
                 }
                 }
             }
+                    }
+                }
+
+                if (uiState.isSearchActive && isSignedIn) {
+                    FeedSearchOverlay(theme = theme) {
+                        FeedSearchBar(
+                            query = uiState.searchQuery,
+                            theme = theme,
+                            onQueryChange = onSearchQueryChange,
+                            onDismiss = {
+                                onSearchActiveChange(false)
+                                onSearchQueryChange("")
+                            },
+                            modifier = Modifier.padding(top = 8.dp, bottom = 8.dp),
+                            placeholder = "Search community pearls",
+                        )
+
+                        PublicFeedSearchResultsList(
+                            pearls = searchResults,
+                            theme = theme,
+                            listState = searchListState,
+                            bottomPadding = listBottomPadding,
+                            onResolveAvatarUrl = onResolveAvatarUrl,
+                            onOpenUserProfile = onOpenUserProfile,
+                            onPearlClick = onPearlClick,
+                            onOpenSavePicker = onOpenSavePicker,
+                            onHidePearl = { removeTarget = it },
+                            modifier = Modifier.weight(1f),
+                        )
+
+                        if (uiState.searchQuery.isBlank()) {
+                            FeedSearchTagSuggestions(
+                                topTags = uiState.topSearchTags,
+                                theme = theme,
+                                onTagSelected = onSearchQueryChange,
+                            )
+                        }
+                    }
+                }
+            }
         }
 
-        if (isSignedIn && isNetworkAvailable) {
+        if (isSignedIn && isNetworkAvailable && !uiState.isSearchActive) {
             CaptureOptionsOverlay(
                 visible = captureMenuOpen,
                 onDismiss = { onCaptureMenuOpenChange(false) },

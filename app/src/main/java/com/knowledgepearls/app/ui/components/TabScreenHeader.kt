@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -130,14 +131,70 @@ fun TabScreenHeader(
 }
 
 @Composable
+fun TabHeaderSearchButton(
+    theme: TabTheme,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    HeaderIconButton(
+        theme = theme,
+        onClick = onClick,
+        modifier = modifier,
+    ) {
+        Icon(
+            imageVector = Icons.Default.Search,
+            contentDescription = "Search",
+            tint = theme.primary,
+            modifier = Modifier.size(PearlLayout.headerIconSize),
+        )
+    }
+}
+
+@Composable
+fun TabHeaderIconRow(
+    theme: TabTheme,
+    onSettingsClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    showsSearchButton: Boolean = true,
+    onSearchClick: () -> Unit = {},
+    showsSettingsButton: Boolean = true,
+    extraTrailing: @Composable () -> Unit = {},
+) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        extraTrailing()
+        if (showsSearchButton) {
+            TabHeaderSearchButton(theme = theme, onClick = onSearchClick)
+        }
+        if (showsSettingsButton) {
+            HeaderIconButton(
+                theme = theme,
+                onClick = onSettingsClick,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "Settings",
+                    tint = theme.primary,
+                    modifier = Modifier.size(PearlLayout.headerIconSize),
+                )
+            }
+        }
+    }
+}
+
+@Composable
 fun HeaderIconButton(
     theme: TabTheme,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
     val darkTheme = isPearlDarkTheme()
     Box(
-        modifier = Modifier
+        modifier = modifier
             .size(PearlLayout.headerActionSize)
             .clip(RoundedCornerShape(12.dp))
             .background(PearlColors.controlFill(darkTheme))

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.Icon
@@ -25,8 +26,13 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.knowledgepearls.app.data.local.model.PearlWithMedia
+import com.knowledgepearls.app.ui.components.LocalFeedChromeVisibility
+import com.knowledgepearls.app.ui.components.TabHeaderIconRow
 import com.knowledgepearls.app.ui.components.TabScreenHeader
 import com.knowledgepearls.app.ui.feed.FeedAuthorContext
+import com.knowledgepearls.app.ui.feed.FeedSearchBar
+import com.knowledgepearls.app.ui.feed.FeedSearchOverlay
+import com.knowledgepearls.app.ui.feed.FeedSearchTagSuggestions
 import com.knowledgepearls.app.ui.feed.PearlDeleteConfirmationDialog
 import com.knowledgepearls.app.ui.feed.PearlList
 import com.knowledgepearls.app.ui.folders.FolderPickerOverlay
@@ -38,19 +44,21 @@ import com.knowledgepearls.app.ui.theme.isPearlDarkTheme
 
 @Composable
 fun FavouritesScreen(
-    viewModel: FavouritesViewModel,
+    uiState: FavouritesUiState,
     feedAuthorContext: FeedAuthorContext,
     onResolveAvatarUrl: suspend (String) -> String?,
     onOpenSettings: () -> Unit,
-    isSignedIn: Boolean = false,
-    inboxBadgeCount: Int = 0,
-    onOpenInbox: () -> Unit = {},
     onPearlClick: (String) -> Unit,
+    onSearchQueryChange: (String) -> Unit,
+    onSearchActiveChange: (Boolean) -> Unit,
+    onDeletePearl: (String) -> Unit,
     foldersViewModel: FoldersViewModel = hiltViewModel(),
 ) {
     val theme = TabTheme.Favourites
     val darkTheme = isPearlDarkTheme()
-    val favourites by viewModel.favourites.collectAsStateWithLifecycle()
+    val feedChrome = LocalFeedChromeVisibility.current
+    val feedListState = rememberLazyListState()
+    val searchListState = rememberLazyListState()
     val folders by foldersViewModel.foldersWithCounts.collectAsStateWithLifecycle()
     var deleteTarget by remember { mutableStateOf<PearlWithMedia?>(null) }
     var folderPickerPearl by remember { mutableStateOf<PearlWithMedia?>(null) }
@@ -65,6 +73,20 @@ fun FavouritesScreen(
         }
     }
 
+    LaunchedEffect(uiState.isSearchActive) {
+        if (uiState.isSearchActive) {
+            feedChrome?.suppress()
+        } else {
+            feedChrome?.releaseSuppress()
+        }
+    }
+
+    val searchResults = if (uiState.searchQuery.isBlank()) {
+        emptyList()
+    } else {
+        uiState.filteredFavourites
+    }
+
     Box(Modifier.fillMaxSize()) {
         LiquidBackground(theme = theme)
 
@@ -77,50 +99,103 @@ fun FavouritesScreen(
                 title = "Favourites",
                 subtitle = "Saved pearls",
                 theme = theme,
+                showsSettingsButton = false,
                 onSettingsClick = onOpenSettings,
+                trailing = {
+                    if (!uiState.isSearchActive) {
+                        TabHeaderIconRow(
+                            theme = theme,
+                            onSettingsClick = onOpenSettings,
+                            onSearchClick = { onSearchActiveChange(true) },
+                        )
+                    }
+                },
             )
 
-            if (favourites.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.padding(horizontal = 32.dp),
-                    ) {
-                        Icon(
-                            Icons.Default.FavoriteBorder,
-                            contentDescription = null,
-                            tint = theme.primary,
-                            modifier = Modifier.padding(bottom = 4.dp),
-                        )
-                        Text(
-                            "No Favourites Yet",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = PearlColors.heroPrimary(darkTheme),
-                        )
-                        Text(
-                            "Tap the heart on any pearl\nto save it here.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = PearlColors.heroSecondary(darkTheme),
-                            textAlign = TextAlign.Center,
+            Box(modifier = Modifier.weight(1f).fillMaxSize()) {
+                if (!uiState.isSearchActive) {
+                    if (uiState.favourites.isEmpty()) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                                modifier = Modifier.padding(horizontal = 32.dp),
+                            ) {
+                                Icon(
+                                    Icons.Default.FavoriteBorder,
+                                    contentDescription = null,
+                                    tint = theme.primary,
+                                    modifier = Modifier.padding(bottom = 4.dp),
+                                )
+                                Text(
+                                    "No Favourites Yet",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = PearlColors.heroPrimary(darkTheme),
+                                )
+                                Text(
+                                    "Tap the heart on any pearl\nto save it here.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = PearlColors.heroSecondary(darkTheme),
+                                    textAlign = TextAlign.Center,
+                                )
+                            }
+                        }
+                    } else {
+                        PearlList(
+                            pearls = uiState.favourites,
+                            feedAuthorContext = feedAuthorContext,
+                            onResolveAvatarUrl = onResolveAvatarUrl,
+                            onPearlClick = { onPearlClick(it.pearl.id) },
+                            onDeleteRequest = { deleteTarget = it },
+                            onFoldersRequest = { folderPickerPearl = it },
+                            modifier = Modifier.fillMaxSize(),
+                            listState = feedListState,
+                            theme = theme,
+                            chromeScrollEnabled = true,
                         )
                     }
                 }
-            } else {
-                PearlList(
-                    pearls = favourites,
-                    feedAuthorContext = feedAuthorContext,
-                    onResolveAvatarUrl = onResolveAvatarUrl,
-                    onPearlClick = { onPearlClick(it.pearl.id) },
-                    onDeleteRequest = { deleteTarget = it },
-                    onFoldersRequest = { folderPickerPearl = it },
-                    modifier = Modifier.fillMaxSize(),
-                    theme = theme,
-                )
+
+                if (uiState.isSearchActive) {
+                    FeedSearchOverlay(theme = theme) {
+                        FeedSearchBar(
+                            query = uiState.searchQuery,
+                            theme = theme,
+                            onQueryChange = onSearchQueryChange,
+                            onDismiss = {
+                                onSearchActiveChange(false)
+                                onSearchQueryChange("")
+                            },
+                            modifier = Modifier.padding(top = 8.dp, bottom = 8.dp),
+                            placeholder = "Search saved pearls",
+                        )
+
+                        PearlList(
+                            pearls = searchResults,
+                            feedAuthorContext = feedAuthorContext,
+                            onResolveAvatarUrl = onResolveAvatarUrl,
+                            onPearlClick = { onPearlClick(it.pearl.id) },
+                            onDeleteRequest = { deleteTarget = it },
+                            onFoldersRequest = { folderPickerPearl = it },
+                            modifier = Modifier.weight(1f),
+                            listState = searchListState,
+                            theme = theme,
+                            chromeScrollEnabled = false,
+                        )
+
+                        if (uiState.searchQuery.isBlank()) {
+                            FeedSearchTagSuggestions(
+                                topTags = uiState.topSearchTags,
+                                theme = theme,
+                                onTagSelected = onSearchQueryChange,
+                            )
+                        }
+                    }
+                }
             }
         }
 
@@ -128,7 +203,7 @@ fun FavouritesScreen(
             PearlDeleteConfirmationDialog(
                 pearlTitle = target.pearl.title,
                 onConfirm = {
-                    viewModel.deletePearl(target.pearl.id)
+                    onDeletePearl(target.pearl.id)
                     deleteTarget = null
                 },
                 onDismiss = { deleteTarget = null },

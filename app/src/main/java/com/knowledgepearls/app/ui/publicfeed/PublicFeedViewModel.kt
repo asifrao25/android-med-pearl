@@ -8,8 +8,9 @@ import com.knowledgepearls.app.data.model.PearlComment
 import com.knowledgepearls.app.data.model.normalizeUserId
 import com.knowledgepearls.app.data.repository.AccountRepository
 import com.knowledgepearls.app.data.repository.PublicFeedEngagementRepository
-import com.knowledgepearls.app.data.repository.AddToMyFeedResult
 import com.knowledgepearls.app.data.repository.PublicFeedRepository
+import com.knowledgepearls.app.data.repository.AddToMyFeedResult
+import com.knowledgepearls.app.data.search.PublicPearlSearchIndex
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -47,6 +48,9 @@ data class PublicFeedUiState(
     val isCommentsLoading: Boolean = false,
     val isPostingComment: Boolean = false,
     val commentsError: String? = null,
+    val searchQuery: String = "",
+    val isSearchActive: Boolean = false,
+    val topSearchTags: List<String> = emptyList(),
 ) {
     val unseenPearls: List<PublicPearl>
         get() = pearls.filter { it.id !in seenIds }
@@ -219,6 +223,20 @@ class PublicFeedViewModel @Inject constructor(
 
     fun setSection(section: PublicFeedSection) {
         publish { it.copy(section = section) }
+    }
+
+    fun setSearchQuery(query: String) {
+        publish { it.copy(searchQuery = query) }
+    }
+
+    fun setSearchActive(active: Boolean) {
+        publish {
+            if (active) {
+                it.copy(isSearchActive = true)
+            } else {
+                it.copy(isSearchActive = false, searchQuery = "")
+            }
+        }
     }
 
     fun setContentTypeFilter(filter: ContentTypeFilter) {
@@ -532,8 +550,14 @@ private fun computeFilteredPearls(state: PublicFeedUiState): PublicFeedUiState {
         PublicFeedSection.NEW -> state.pearls.filter { it.id !in state.seenIds }
         PublicFeedSection.SEEN -> state.pearls.filter { it.id in state.seenIds }
     }
-    val filtered = sectionPearls
+    val searchablePearls = if (state.searchQuery.isNotBlank()) state.pearls else sectionPearls
+    val searchIndex = PublicPearlSearchIndex.build(searchablePearls)
+    val filtered = searchablePearls
         .filter { it.matches(state.contentTypeFilter) }
+        .filter { searchIndex.matchesPearl(it.id, state.searchQuery) }
         .sortedByDescending { it.feedSortMillis }
-    return state.copy(filteredPearls = filtered)
+    return state.copy(
+        filteredPearls = filtered,
+        topSearchTags = PublicPearlSearchIndex.topTags(state.pearls),
+    )
 }

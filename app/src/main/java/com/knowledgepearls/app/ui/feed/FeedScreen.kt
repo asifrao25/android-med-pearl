@@ -3,40 +3,34 @@ package com.knowledgepearls.app.ui.feed
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import com.knowledgepearls.app.ui.components.FeedChromeAnchor
-import com.knowledgepearls.app.ui.components.FeedChromeMetrics
-import com.knowledgepearls.app.ui.components.LocalFeedChromeVisibility
-import com.knowledgepearls.app.ui.components.feedChromeSlide
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.knowledgepearls.app.data.capture.CaptureSheet
+import com.knowledgepearls.app.ui.capture.CaptureOptionsOverlay
+import com.knowledgepearls.app.ui.capture.GlowingAddButton
+import com.knowledgepearls.app.ui.components.FeedChromeAnchor
+import com.knowledgepearls.app.ui.components.FeedChromeMetrics
+import com.knowledgepearls.app.ui.components.LocalFeedChromeVisibility
+import com.knowledgepearls.app.ui.components.TabHeaderIconRow
+import com.knowledgepearls.app.ui.components.TabScreenHeader
+import com.knowledgepearls.app.ui.components.feedChromeSlide
 import com.knowledgepearls.app.ui.folders.FolderPickerOverlay
 import com.knowledgepearls.app.ui.folders.FoldersViewModel
-import com.knowledgepearls.app.ui.components.HeaderIconButton
-import com.knowledgepearls.app.ui.components.TabScreenHeader
 import com.knowledgepearls.app.ui.theme.LiquidBackground
 import com.knowledgepearls.app.ui.theme.PearlLayout
 import com.knowledgepearls.app.ui.theme.TabTheme
-import com.knowledgepearls.app.ui.capture.CaptureOptionsOverlay
-import com.knowledgepearls.app.ui.capture.GlowingAddButton
-import com.knowledgepearls.app.data.capture.CaptureSheet
 
 @Composable
 fun FeedScreen(
@@ -64,7 +58,8 @@ fun FeedScreen(
 ) {
     val theme = TabTheme.Feed
     val feedChrome = LocalFeedChromeVisibility.current
-    val listState = rememberLazyListState()
+    val feedListState = rememberLazyListState()
+    val searchListState = rememberLazyListState()
     val foldersViewModel: FoldersViewModel = hiltViewModel()
     val folders by foldersViewModel.foldersWithCounts.collectAsStateWithLifecycle()
     var folderPickerPearl by remember { mutableStateOf<com.knowledgepearls.app.data.local.model.PearlWithMedia?>(null) }
@@ -91,6 +86,12 @@ fun FeedScreen(
         feedChrome?.forceShow()
     }
 
+    val searchResults = if (uiState.searchQuery.isBlank()) {
+        emptyList()
+    } else {
+        uiState.filteredPearls
+    }
+
     Box(Modifier.fillMaxSize()) {
         LiquidBackground(theme = theme)
 
@@ -103,66 +104,89 @@ fun FeedScreen(
                 title = "My Feed",
                 subtitle = "Your pearls",
                 theme = theme,
+                showsSettingsButton = false,
                 onSettingsClick = onOpenSettings,
                 trailing = {
                     if (!uiState.isSearchActive) {
-                        HeaderIconButton(theme = theme, onClick = { onSearchActiveChange(true) }) {
-                            Icon(
-                                Icons.Default.Search,
-                                contentDescription = "Search",
-                                tint = theme.primary,
-                                modifier = Modifier.size(PearlLayout.headerIconSize),
-                            )
-                        }
+                        TabHeaderIconRow(
+                            theme = theme,
+                            onSettingsClick = onOpenSettings,
+                            onSearchClick = { onSearchActiveChange(true) },
+                        )
                     }
                 },
             )
 
-            if (!uiState.isSearchActive) {
-                ContentTypePicker(
-                    selected = uiState.contentTypeFilter,
-                    onSelected = onContentTypeSelected,
-                    theme = theme,
-                    modifier = Modifier.feedChromeSlide(
-                        anchor = FeedChromeAnchor.Top,
-                        hideDistance = FeedChromeMetrics.topChromeHideDistance,
-                    ),
-                )
-            }
+            Box(modifier = Modifier.weight(1f).fillMaxSize()) {
+                if (!uiState.isSearchActive) {
+                    Column(Modifier.fillMaxSize()) {
+                        ContentTypePicker(
+                            selected = uiState.contentTypeFilter,
+                            onSelected = onContentTypeSelected,
+                            theme = theme,
+                            modifier = Modifier.feedChromeSlide(
+                                anchor = FeedChromeAnchor.Top,
+                                hideDistance = FeedChromeMetrics.topChromeHideDistance,
+                            ),
+                        )
 
-            if (uiState.isSearchActive) {
-                FeedSearchPanel(
-                    query = uiState.searchQuery,
-                    topTags = uiState.topSearchTags,
-                    theme = theme,
-                    onQueryChange = onSearchQueryChange,
-                    onDismiss = {
-                        onSearchActiveChange(false)
-                        onSearchQueryChange("")
-                    },
-                    modifier = Modifier.padding(bottom = 8.dp),
-                )
-            }
+                        uiState.actionSuccessMessage?.let { message ->
+                            PearlActionSuccessBanner(
+                                message = message,
+                                theme = theme,
+                                onDismiss = onActionSuccessDismiss,
+                            )
+                        }
 
-            uiState.actionSuccessMessage?.let { message ->
-                PearlActionSuccessBanner(
-                    message = message,
-                    theme = theme,
-                    onDismiss = onActionSuccessDismiss,
-                )
-            }
+                        PearlList(
+                            pearls = uiState.filteredPearls,
+                            feedAuthorContext = feedAuthorContext,
+                            onResolveAvatarUrl = onResolveAvatarUrl,
+                            onPearlClick = { onPearlClick(it.pearl.id) },
+                            onDeleteRequest = onDeleteRequest,
+                            onFoldersRequest = { folderPickerPearl = it },
+                            modifier = Modifier.weight(1f),
+                            listState = feedListState,
+                            chromeScrollEnabled = !captureMenuOpen,
+                        )
+                    }
+                }
 
-            PearlList(
-                pearls = uiState.filteredPearls,
-                feedAuthorContext = feedAuthorContext,
-                onResolveAvatarUrl = onResolveAvatarUrl,
-                onPearlClick = { onPearlClick(it.pearl.id) },
-                onDeleteRequest = onDeleteRequest,
-                onFoldersRequest = { folderPickerPearl = it },
-                modifier = Modifier.weight(1f),
-                listState = listState,
-                chromeScrollEnabled = !captureMenuOpen && !uiState.isSearchActive,
-            )
+                if (uiState.isSearchActive) {
+                    FeedSearchOverlay(theme = theme) {
+                        FeedSearchBar(
+                            query = uiState.searchQuery,
+                            theme = theme,
+                            onQueryChange = onSearchQueryChange,
+                            onDismiss = {
+                                onSearchActiveChange(false)
+                                onSearchQueryChange("")
+                            },
+                            modifier = Modifier.padding(top = 8.dp, bottom = 8.dp),
+                        )
+
+                        PearlList(
+                            pearls = searchResults,
+                            feedAuthorContext = feedAuthorContext,
+                            onResolveAvatarUrl = onResolveAvatarUrl,
+                            onPearlClick = { onPearlClick(it.pearl.id) },
+                            onDeleteRequest = onDeleteRequest,
+                            onFoldersRequest = { folderPickerPearl = it },
+                            modifier = Modifier.weight(1f),
+                            listState = searchListState,
+                            chromeScrollEnabled = false,
+                        )
+
+                        if (uiState.searchQuery.isBlank()) {
+                            FeedSearchTagSuggestions(
+                                topTags = uiState.topSearchTags,
+                                theme = theme,
+                                onTagSelected = onSearchQueryChange,
+                            )
+                        }
+                    }
+                }
+            }
         }
 
         uiState.deleteTarget?.let { target ->
@@ -197,23 +221,25 @@ fun FeedScreen(
             )
         }
 
-        CaptureOptionsOverlay(
-            visible = captureMenuOpen,
-            onDismiss = { onCaptureMenuOpenChange(false) },
-            onSelect = onCaptureSheetSelected,
-            fabBottomPadding = PearlLayout.addButtonBottomPadding,
-        )
+        if (!uiState.isSearchActive) {
+            CaptureOptionsOverlay(
+                visible = captureMenuOpen,
+                onDismiss = { onCaptureMenuOpenChange(false) },
+                onSelect = onCaptureSheetSelected,
+                fabBottomPadding = PearlLayout.addButtonBottomPadding,
+            )
 
-        GlowingAddButton(
-            isMenuOpen = captureMenuOpen,
-            onClick = { onCaptureMenuOpenChange(!captureMenuOpen) },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .feedChromeSlide(
-                    anchor = FeedChromeAnchor.Bottom,
-                    hideDistance = FeedChromeMetrics.fabHideDistance,
-                )
-                .padding(end = 20.dp, bottom = PearlLayout.addButtonBottomPadding),
-        )
+            GlowingAddButton(
+                isMenuOpen = captureMenuOpen,
+                onClick = { onCaptureMenuOpenChange(!captureMenuOpen) },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .feedChromeSlide(
+                        anchor = FeedChromeAnchor.Bottom,
+                        hideDistance = FeedChromeMetrics.fabHideDistance,
+                    )
+                    .padding(end = 20.dp, bottom = PearlLayout.addButtonBottomPadding),
+            )
+        }
     }
 }
