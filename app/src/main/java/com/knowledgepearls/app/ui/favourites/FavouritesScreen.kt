@@ -87,6 +87,11 @@ fun FavouritesScreen(
         uiState.filteredFavourites
     }
 
+    val dismissSearch = {
+        onSearchActiveChange(false)
+        onSearchQueryChange("")
+    }
+
     Box(Modifier.fillMaxSize()) {
         LiquidBackground(theme = theme)
 
@@ -161,15 +166,16 @@ fun FavouritesScreen(
                 }
 
                 if (uiState.isSearchActive) {
-                    FeedSearchOverlay(theme = theme) {
+                    FeedSearchOverlay(
+                        theme = theme,
+                        listState = searchListState,
+                        onDismiss = dismissSearch,
+                    ) {
                         FeedSearchBar(
                             query = uiState.searchQuery,
                             theme = theme,
                             onQueryChange = onSearchQueryChange,
-                            onDismiss = {
-                                onSearchActiveChange(false)
-                                onSearchQueryChange("")
-                            },
+                            onDismiss = dismissSearch,
                             modifier = Modifier.padding(top = 8.dp, bottom = 8.dp),
                             placeholder = "Search saved pearls",
                         )
@@ -192,6 +198,7 @@ fun FavouritesScreen(
                                 topTags = uiState.topSearchTags,
                                 theme = theme,
                                 onTagSelected = onSearchQueryChange,
+                                onSwipeDismiss = dismissSearch,
                             )
                         }
                     }

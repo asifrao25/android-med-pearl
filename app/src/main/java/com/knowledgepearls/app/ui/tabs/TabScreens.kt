@@ -52,7 +52,11 @@ fun FeedTabScreen(
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     LaunchedEffect(navBackStackEntry) {
-        onFeedRootVisibilityChange(navBackStackEntry?.destination?.route == "feed")
+        val onFeedRoot = navBackStackEntry?.destination?.route == "feed"
+        onFeedRootVisibilityChange(onFeedRoot)
+        if (!onFeedRoot) {
+            feedViewModel.setSearchActive(false)
+        }
     }
     val uiState by feedViewModel.uiState.collectAsStateWithLifecycle()
     val accountState by accountViewModel.uiState.collectAsStateWithLifecycle()
@@ -227,6 +231,7 @@ fun FavouritesTabScreen(
     accountViewModel: AccountViewModel = hiltViewModel(),
 ) {
     val navController = rememberNavController()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
     val accountState by accountViewModel.uiState.collectAsStateWithLifecycle()
     val favouritesUiState by favouritesViewModel.uiState.collectAsStateWithLifecycle()
     val feedAuthorContext = FeedAuthorContext(
@@ -237,9 +242,16 @@ fun FavouritesTabScreen(
 
     DisposableEffect(navController) {
         onRegisterPopToRoot?.invoke {
+            favouritesViewModel.setSearchActive(false)
             navController.popBackStack("favourites", false)
         }
         onDispose { onRegisterPopToRoot?.invoke(null) }
+    }
+
+    LaunchedEffect(navBackStackEntry?.destination?.route) {
+        if (navBackStackEntry?.destination?.route != "favourites") {
+            favouritesViewModel.setSearchActive(false)
+        }
     }
 
     NavHost(navController = navController, startDestination = "favourites") {
@@ -294,7 +306,11 @@ fun PublicFeedTabScreen(
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     LaunchedEffect(navBackStackEntry) {
-        onPublicFeedRootVisibilityChange(navBackStackEntry?.destination?.route == "public_feed")
+        val onPublicFeedRoot = navBackStackEntry?.destination?.route == "public_feed"
+        onPublicFeedRootVisibilityChange(onPublicFeedRoot)
+        if (!onPublicFeedRoot) {
+            viewModel.setSearchActive(false)
+        }
     }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val accountState by accountViewModel.uiState.collectAsStateWithLifecycle()
@@ -325,6 +341,7 @@ fun PublicFeedTabScreen(
     DisposableEffect(navController) {
         onRegisterPopToRoot?.invoke {
             captureMenuOpen = false
+            viewModel.setSearchActive(false)
             navController.popBackStack("public_feed", false)
         }
         onDispose { onRegisterPopToRoot?.invoke(null) }

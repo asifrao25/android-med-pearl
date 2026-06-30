@@ -186,6 +186,11 @@ fun PublicFeedScreen(
         uiState.filteredPearls
     }
 
+    val dismissSearch = {
+        onSearchActiveChange(false)
+        onSearchQueryChange("")
+    }
+
     Box(Modifier.fillMaxSize()) {
         LiquidBackground(theme = theme)
 
@@ -414,15 +419,16 @@ fun PublicFeedScreen(
                 }
 
                 if (uiState.isSearchActive && isSignedIn) {
-                    FeedSearchOverlay(theme = theme) {
+                    FeedSearchOverlay(
+                        theme = theme,
+                        listState = searchListState,
+                        onDismiss = dismissSearch,
+                    ) {
                         FeedSearchBar(
                             query = uiState.searchQuery,
                             theme = theme,
                             onQueryChange = onSearchQueryChange,
-                            onDismiss = {
-                                onSearchActiveChange(false)
-                                onSearchQueryChange("")
-                            },
+                            onDismiss = dismissSearch,
                             modifier = Modifier.padding(top = 8.dp, bottom = 8.dp),
                             placeholder = "Search community pearls",
                         )
@@ -445,6 +451,7 @@ fun PublicFeedScreen(
                                 topTags = uiState.topSearchTags,
                                 theme = theme,
                                 onTagSelected = onSearchQueryChange,
+                                onSwipeDismiss = dismissSearch,
                             )
                         }
                     }

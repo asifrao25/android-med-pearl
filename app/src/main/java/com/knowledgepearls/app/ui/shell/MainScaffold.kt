@@ -53,6 +53,7 @@ import com.knowledgepearls.app.navigation.ShareImportPayload
 import com.knowledgepearls.app.ui.components.PearlActionSuccessToast
 import com.knowledgepearls.app.ui.components.PearlActionOutcome
 import com.knowledgepearls.app.ui.components.PearlShareReceivedToast
+import com.knowledgepearls.app.ui.favourites.FavouritesViewModel
 import com.knowledgepearls.app.ui.feed.FeedAuthorContext
 import com.knowledgepearls.app.ui.feed.FeedViewModel
 import com.knowledgepearls.app.ui.folders.FolderContentsScreen
@@ -83,6 +84,7 @@ fun MainScaffold(
     foldersViewModel: FoldersViewModel = hiltViewModel(),
     feedViewModel: FeedViewModel = hiltViewModel(),
     publicFeedViewModel: PublicFeedViewModel = hiltViewModel(),
+    favouritesViewModel: FavouritesViewModel = hiltViewModel(),
     inboxViewModel: InboxViewModel = hiltViewModel(),
     settingsViewModel: SettingsViewModel = hiltViewModel(),
     connectivityMonitor: ConnectivityMonitor,
@@ -169,6 +171,20 @@ fun MainScaffold(
         openedFolderId = null
         openedFolderName = null
         foldersMenuOpen = true
+    }
+
+    LaunchedEffect(selectedTab) {
+        feedViewModel.setSearchActive(false)
+        publicFeedViewModel.setSearchActive(false)
+        favouritesViewModel.setSearchActive(false)
+    }
+
+    LaunchedEffect(settingsOpen, inboxOpen, foldersMenuOpen, openedFolderId, profileUserId, authOpen, editProfileOpen) {
+        if (settingsOpen || inboxOpen || foldersMenuOpen || openedFolderId != null || profileUserId != null || authOpen || editProfileOpen) {
+            feedViewModel.setSearchActive(false)
+            publicFeedViewModel.setSearchActive(false)
+            favouritesViewModel.setSearchActive(false)
+        }
     }
 
     LaunchedEffect(initialShareImport) {
