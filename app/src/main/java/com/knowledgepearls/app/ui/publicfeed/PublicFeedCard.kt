@@ -151,7 +151,6 @@ private fun TweetFeedCardBody(
             }
         }
 
-        PublicFeedCardTags(pearl = pearl, darkTheme = darkTheme)
         PublicFeedCardLikeCount(pearl = pearl, theme = theme)
     }
 }
@@ -209,34 +208,7 @@ private fun StandardFeedCardBody(
             modifier = Modifier.fillMaxWidth(),
         )
 
-        PublicFeedCardTags(pearl = pearl, darkTheme = darkTheme)
         PublicFeedCardLikeCount(pearl = pearl, theme = theme)
-    }
-}
-
-@Composable
-private fun PublicFeedCardTags(
-    pearl: PublicPearl,
-    darkTheme: Boolean,
-) {
-    if (pearl.tags.isEmpty()) return
-
-    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        pearl.tags.take(4).forEach { tag ->
-            val label = tag.trim()
-            if (label.isEmpty()) return@forEach
-            Text(
-                text = label,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(999.dp))
-                    .background(PearlColors.controlFill(darkTheme))
-                    .padding(horizontal = 10.dp, vertical = 4.dp),
-                style = MaterialTheme.typography.labelSmall,
-                color = PearlColors.heroSecondary(darkTheme),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
     }
 }
 

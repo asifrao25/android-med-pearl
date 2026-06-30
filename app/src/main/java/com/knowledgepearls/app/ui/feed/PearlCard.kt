@@ -149,22 +149,6 @@ fun PearlCard(
                 interactive = onOpenMedia != null,
                 onOpenMedia = onOpenMedia,
             )
-
-            if (entity.tags.isNotEmpty()) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    entity.tags.take(4).forEach { tag ->
-                        Text(
-                            text = tag,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(999.dp))
-                                .background(PearlColors.controlFill(darkTheme))
-                                .padding(horizontal = 10.dp, vertical = 4.dp),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = PearlColors.heroSecondary(darkTheme),
-                        )
-                    }
-                }
-            }
         }
     }
 }
