@@ -14,10 +14,13 @@ import com.knowledgepearls.app.data.repository.MessagingRepository
 import com.knowledgepearls.app.data.repository.PearlShareRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 enum class InboxTab {
@@ -63,6 +66,8 @@ class InboxViewModel @Inject constructor(
     private val _threadState = MutableStateFlow(MessageThreadUiState())
     val threadState: StateFlow<MessageThreadUiState> = _threadState.asStateFlow()
 
+    private var threadPollJob: Job? = null
+
     fun loadInbox() {
         viewModelScope.launch {
             val userId = accountRepository.currentUserId() ?: return@launch
@@ -84,6 +89,24 @@ class InboxViewModel @Inject constructor(
                     it.copy(
                         isLoading = false,
                         errorMessage = error.message ?: "Could not load inbox.",
+                    )
+                }
+            }
+        }
+    }
+
+    fun refreshInboxQuietly() {
+        viewModelScope.launch {
+            val userId = accountRepository.currentUserId() ?: return@launch
+            runCatching {
+                val conversations = messagingRepository.buildConversationRows(userId)
+                val shares = pearlShareRepository.fetchPendingShares(userId)
+                val badge = inboxCountsRepository.totalInboxBadge(userId)
+                _inboxState.update {
+                    it.copy(
+                        conversations = conversations,
+                        pendingShares = shares,
+                        unreadBadge = badge,
                     )
                 }
             }
@@ -121,6 +144,7 @@ class InboxViewModel @Inject constructor(
                 _threadState.update {
                     it.copy(messages = messages, isLoading = false)
                 }
+                startThreadPolling()
                 recordRecentRecipient(
                     userId = conversation.otherUserId,
                     name = conversation.otherDisplayName,
@@ -139,7 +163,9 @@ class InboxViewModel @Inject constructor(
     }
 
     fun closeThread() {
+        stopThreadPolling()
         _threadState.value = MessageThreadUiState()
+        refreshBadge()
     }
 
     fun sendMessage(body: String) {
@@ -255,6 +281,7 @@ class InboxViewModel @Inject constructor(
                         isLoading = false,
                     )
                 }
+                startThreadPolling()
                 recordRecentRecipient(
                     userId = otherUserId,
                     name = otherDisplayName,
@@ -335,6 +362,45 @@ class InboxViewModel @Inject constructor(
         val avatarUrl: String?,
     )
 
+    private fun startThreadPolling() {
+        threadPollJob?.cancel()
+        threadPollJob = viewModelScope.launch {
+            while (isActive) {
+                refreshActiveThread(markRead = true)
+                delay(THREAD_POLL_INTERVAL_MS)
+            }
+        }
+    }
+
+    private fun stopThreadPolling() {
+        threadPollJob?.cancel()
+        threadPollJob = null
+    }
+
+    private suspend fun refreshActiveThread(markRead: Boolean) {
+        val conversationId = _threadState.value.conversationId
+        if (conversationId.isBlank()) return
+        runCatching {
+            val messages = messagingRepository.fetchMessages(conversationId)
+            if (markRead) {
+                messagingRepository.markConversationRead(conversationId)
+            }
+            _threadState.update { current ->
+                if (current.conversationId != conversationId) {
+                    current
+                } else {
+                    current.copy(messages = messages, errorMessage = null)
+                }
+            }
+            refreshBadge()
+        }
+    }
+
+    override fun onCleared() {
+        stopThreadPolling()
+        super.onCleared()
+    }
+
     private suspend fun loadViewerContext(): ViewerContext {
         val userId = accountRepository.currentUserId().orEmpty()
         if (userId.isBlank()) {
@@ -347,5 +413,9 @@ class InboxViewModel @Inject constructor(
             displayName = displayName,
             avatarUrl = profile?.avatarUrl,
         )
+    }
+
+    private companion object {
+        const val THREAD_POLL_INTERVAL_MS = 3_000L
     }
 }

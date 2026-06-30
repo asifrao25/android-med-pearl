@@ -720,6 +720,7 @@ fun MainScaffold(
                     inboxViewModel.refreshBadge()
                 },
                 onLoad = inboxViewModel::loadInbox,
+                onRefreshInbox = inboxViewModel::refreshInboxQuietly,
                 onTabSelected = inboxViewModel::setTab,
                 onConversationClick = inboxViewModel::openConversation,
                 onCloseThread = inboxViewModel::closeThread,

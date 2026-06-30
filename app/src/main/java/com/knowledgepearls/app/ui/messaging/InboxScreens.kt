@@ -26,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Done
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -71,9 +72,12 @@ import com.knowledgepearls.app.ui.theme.PearlColors
 import com.knowledgepearls.app.ui.theme.PearlLayout
 import com.knowledgepearls.app.ui.theme.TabTheme
 import com.knowledgepearls.app.ui.theme.isPearlDarkTheme
+import kotlinx.coroutines.delay
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+
+private const val INBOX_POLL_INTERVAL_MS = 5_000L
 
 private object ChatBubbleMetrics {
     val avatarSize = 30.dp
@@ -90,6 +94,7 @@ fun InboxScreen(
     threadState: MessageThreadUiState,
     onDismiss: () -> Unit,
     onLoad: () -> Unit,
+    onRefreshInbox: () -> Unit = onLoad,
     onTabSelected: (InboxTab) -> Unit,
     onConversationClick: (ConversationRow) -> Unit,
     onCloseThread: () -> Unit,
@@ -107,8 +112,17 @@ fun InboxScreen(
 
     LaunchedEffect(Unit) { onLoad() }
 
+    LaunchedEffect(inThread, showNewChatSearch) {
+        if (inThread || showNewChatSearch) return@LaunchedEffect
+        while (true) {
+            delay(INBOX_POLL_INTERVAL_MS)
+            onRefreshInbox()
+        }
+    }
+
     FloatingInboxSheet(
         onDismiss = onDismiss,
+        expanded = inThread || showNewChatSearch,
         listState = if (inThread || showNewChatSearch) null else inboxListState,
     ) {
         when {
@@ -320,10 +334,27 @@ fun MessageThreadScreen(
     val darkTheme = isPearlDarkTheme()
     var draft by remember(state.conversationId) { mutableStateOf("") }
     val listState = rememberLazyListState()
+    val lastOutgoingReadMessageId = remember(state.messages, state.currentUserId) {
+        state.messages.lastOrNull { message ->
+            message.isFrom(state.currentUserId) && !message.readAt.isNullOrBlank()
+        }?.id
+    }
 
-    LaunchedEffect(state.messages.size) {
-        if (state.messages.isNotEmpty()) {
-            listState.animateScrollToItem(state.messages.lastIndex)
+    LaunchedEffect(state.conversationId, state.isLoading) {
+        if (!state.isLoading && state.messages.isNotEmpty()) {
+            listState.scrollToItem(state.messages.lastIndex)
+        }
+    }
+
+    LaunchedEffect(state.messages.lastOrNull()?.id) {
+        val messages = state.messages
+        if (messages.isEmpty()) return@LaunchedEffect
+        val lastIndex = messages.lastIndex
+        val lastVisibleIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+        val nearBottom = lastVisibleIndex >= lastIndex - 2
+        val lastMessage = messages.last()
+        if (nearBottom || lastMessage.isFrom(state.currentUserId)) {
+            listState.animateScrollToItem(lastIndex)
         }
     }
 
@@ -383,6 +414,7 @@ fun MessageThreadScreen(
                     ChatMessageRow(
                         message = message,
                         isOutgoing = isOutgoing,
+                        showSeenReceipt = isOutgoing && message.id == lastOutgoingReadMessageId,
                         topPadding = topPadding,
                         outgoingAvatarUrl = state.currentUserAvatarUrl,
                         outgoingDisplayName = state.currentUserDisplayName,
@@ -661,6 +693,7 @@ private fun PearlShareRowItem(
 private fun ChatMessageRow(
     message: DirectMessage,
     isOutgoing: Boolean,
+    showSeenReceipt: Boolean,
     topPadding: Dp,
     outgoingAvatarUrl: String?,
     outgoingDisplayName: String,
@@ -702,6 +735,7 @@ private fun ChatMessageRow(
                 body = message.body,
                 createdAt = message.createdAt,
                 isOutgoing = true,
+                showSeenReceipt = showSeenReceipt,
                 maxWidth = maxBubbleWidth,
                 textColor = Color.White,
                 bubbleShape = outgoingShape,
@@ -743,6 +777,7 @@ private fun MessageBubbleColumn(
     body: String,
     createdAt: String,
     isOutgoing: Boolean,
+    showSeenReceipt: Boolean = false,
     maxWidth: Dp,
     textColor: Color,
     bubbleShape: RoundedCornerShape,
@@ -772,12 +807,33 @@ private fun MessageBubbleColumn(
             color = textColor,
             style = MaterialTheme.typography.bodyMedium,
         )
-        if (timestamp.isNotBlank()) {
-            Text(
-                text = timestamp,
-                style = MaterialTheme.typography.labelSmall,
-                color = PearlColors.heroSecondary(darkTheme),
-            )
+        if (timestamp.isNotBlank() || showSeenReceipt) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (timestamp.isNotBlank()) {
+                    Text(
+                        text = timestamp,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = PearlColors.heroSecondary(darkTheme),
+                    )
+                }
+                if (showSeenReceipt) {
+                    Icon(
+                        imageVector = Icons.Default.Done,
+                        contentDescription = "Seen",
+                        modifier = Modifier.size(12.dp),
+                        tint = PearlColors.heroSecondary(darkTheme).copy(alpha = 0.85f),
+                    )
+                    Text(
+                        text = "Seen",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = PearlColors.heroSecondary(darkTheme).copy(alpha = 0.85f),
+                        fontWeight = FontWeight.Medium,
+                    )
+                }
+            }
         }
     }
 }

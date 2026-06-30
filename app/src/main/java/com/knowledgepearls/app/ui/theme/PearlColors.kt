@@ -141,6 +141,8 @@ object PearlLayout {
     const val inboxSheetHeightFraction = 0.68f
     val inboxSheetMaxHeight = 560.dp
     val inboxSheetMinHeight = 360.dp
+    /** Gap below the main tab header when the inbox sheet is expanded for chat. */
+    val inboxSheetExpandedTopGap = 8.dp
     /** Floating detail dock — matches iOS `LiquidDetailDock` + `LiquidTabBarLayout.actionBarBottomPadding`. */
     val detailDockHeight = 58.dp
     val detailDockActionSlotWidth = 56.dp

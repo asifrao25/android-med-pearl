@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -18,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.knowledgepearls.app.ui.theme.PearlColors
 import com.knowledgepearls.app.ui.theme.PearlLayout
@@ -30,6 +33,7 @@ private val inboxFloatingShape = RoundedCornerShape(28.dp)
 fun FloatingInboxSheet(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    expanded: Boolean = false,
     listState: LazyListState? = null,
     content: @Composable () -> Unit,
 ) {
@@ -37,11 +41,22 @@ fun FloatingInboxSheet(
     val keyboardVisible = isKeyboardVisible()
     val sheetBottomInset = if (keyboardVisible) 0.dp else PearlLayout.inboxSheetBottomInset
     val configuration = LocalConfiguration.current
-    val sheetHeight = (
-        configuration.screenHeightDp * PearlLayout.inboxSheetHeightFraction
-        ).dp
-        .coerceAtMost(PearlLayout.inboxSheetMaxHeight)
-        .coerceAtLeast(PearlLayout.inboxSheetMinHeight)
+    val density = LocalDensity.current
+    val statusBarTop = with(density) { WindowInsets.statusBars.getTop(this).toDp() }
+    val sheetHeight = if (expanded) {
+        val topInset = statusBarTop +
+            PearlLayout.headerContentHeight +
+            1.dp +
+            PearlLayout.inboxSheetExpandedTopGap
+        (configuration.screenHeightDp.dp - topInset - sheetBottomInset)
+            .coerceAtLeast(PearlLayout.inboxSheetMinHeight)
+    } else {
+        (
+            configuration.screenHeightDp * PearlLayout.inboxSheetHeightFraction
+            ).dp
+            .coerceAtMost(PearlLayout.inboxSheetMaxHeight)
+            .coerceAtLeast(PearlLayout.inboxSheetMinHeight)
+    }
 
     Box(modifier.fillMaxSize()) {
         Box(
@@ -58,6 +73,7 @@ fun FloatingInboxSheet(
         PullToDismissSheet(
             onDismiss = onDismiss,
             listState = listState,
+            showDragHandle = !expanded,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(horizontal = PearlLayout.inboxSheetHorizontalInset)
