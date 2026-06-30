@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.knowledgepearls.app.data.local.model.PearlWithMedia
 import com.knowledgepearls.app.data.capture.CaptureRepository
 import com.knowledgepearls.app.data.capture.parseTags
+import com.knowledgepearls.app.data.search.PearlSearchIndex
 import com.knowledgepearls.app.data.local.model.ClinicalCasePayload
 import com.knowledgepearls.app.data.local.model.clinicalCasePayload
 import com.knowledgepearls.app.data.local.model.effectiveSourceReference
@@ -34,6 +35,7 @@ data class FeedUiState(
     val pearls: List<PearlWithMedia> = emptyList(),
     val filteredPearls: List<PearlWithMedia> = emptyList(),
     val allTags: List<String> = emptyList(),
+    val topSearchTags: List<String> = emptyList(),
     val searchQuery: String = "",
     val selectedTag: String? = null,
     val contentTypeFilter: ContentTypeFilter = ContentTypeFilter.ALL,
@@ -84,20 +86,23 @@ class FeedViewModel @Inject constructor(
         val sharing = values[7] as Boolean
         val shareError = values[8] as String?
 
-        val filtered = pearls.filter { pearl ->
-            pearl.pearl.belongsInMyFeed() &&
-                pearl.matches(filter) &&
+        val feedPearls = pearls.filter { it.pearl.belongsInMyFeed() }
+        val searchIndex = PearlSearchIndex.build(feedPearls)
+
+        val filtered = feedPearls.filter { pearl ->
+            pearl.matches(filter) &&
                 (tag == null || tag in pearl.pearl.tags) &&
-                (query.isBlank() || pearlMatchesQuery(pearl, query))
+                (query.isBlank() || searchIndex.matchesPearl(pearl.pearl.id, query))
         }
 
         val emptyFilterAlert = filter != ContentTypeFilter.ALL &&
-            pearls.none { it.pearl.belongsInMyFeed() && it.matches(filter) }
+            feedPearls.none { it.matches(filter) }
 
         FeedUiState(
             pearls = pearls,
             filteredPearls = filtered,
-            allTags = pearls.flatMap { it.pearl.tags }.distinct().sorted(),
+            allTags = feedPearls.flatMap { it.pearl.tags }.distinct().sorted(),
+            topSearchTags = PearlSearchIndex.topTags(feedPearls),
             searchQuery = query,
             selectedTag = tag,
             contentTypeFilter = filter,
@@ -316,20 +321,4 @@ class FeedViewModel @Inject constructor(
 
     suspend fun fetchAvatarUrl(userId: String): String? =
         accountRepository.fetchAvatarUrl(userId)
-
-    private fun pearlMatchesQuery(pearl: PearlWithMedia, query: String): Boolean {
-        val needle = query.trim().lowercase()
-        if (needle.isEmpty()) return true
-        val p = pearl.pearl
-        if (p.title.lowercase().contains(needle)) return true
-        if (p.notes.lowercase().contains(needle)) return true
-        if (p.sourceReference.lowercase().contains(needle)) return true
-        if (p.tags.any { it.lowercase().contains(needle) }) return true
-        if (p.isClinicalCase()) {
-            val payload = p.clinicalCasePayload()
-            return payload.history.lowercase().contains(needle) ||
-                payload.diagnosis.lowercase().contains(needle)
-        }
-        return false
-    }
 }
